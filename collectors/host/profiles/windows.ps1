@@ -1,0 +1,21 @@
+# host profile: Windows (PowerShell). READ-ONLY. ASCII only (remote decodes as legacy codepage).
+$ErrorActionPreference = 'SilentlyContinue'
+$c = Get-Content "$env:ProgramData\ssh\sshd_config"
+$pa = ($c | Where-Object { $_ -match '^\s*PasswordAuthentication' } | Select-Object -Last 1) -replace '^\s*PasswordAuthentication\s+',''
+if (-not $pa) { $pa = 'yes(default)' }
+"sshd.passwordauthentication=$($pa.ToLower())"
+"sshd.permitrootlogin=n/a"
+$os = Get-CimInstance Win32_OperatingSystem
+"os.name=$($os.Caption) $($os.Version)"
+$hf = Get-HotFix | Where-Object InstalledOn | Sort-Object InstalledOn -Descending | Select-Object -First 1
+"pkg.last_hotfix=$($hf.InstalledOn.ToString('yyyy-MM-dd'))"
+"reboot_required=$(if (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired') {'yes'} else {'no'})"
+foreach ($p in Get-NetFirewallProfile) { "fw.profile_$($p.Name.ToLower())=$(if ($p.Enabled) {'on'} else {'off'})" }
+$mp = Get-MpComputerStatus
+"av.realtime=$(if ($mp.RealTimeProtectionEnabled) {'on'} else {'off'})"
+"av.signature_age_days=$($mp.AntivirusSignatureAge)"
+$bl = Get-BitLockerVolume -MountPoint $env:SystemDrive
+"disk.bitlocker=$(if ($bl) { $bl.ProtectionStatus } else { 'unknown' })"
+"smb.v1=$((Get-SmbServerConfiguration).EnableSMB1Protocol)"
+"uptime_days=$([int]((Get-Date) - $os.LastBootUpTime).TotalDays)"
+Get-NetTCPConnection -State Listen | ForEach-Object { "listen=$($_.LocalAddress):$($_.LocalPort) $((Get-Process -Id $_.OwningProcess).ProcessName)" } | Sort-Object -Unique

@@ -1,0 +1,50 @@
+{
+ "collector": {
+  "name": "host",
+  "tools": {},
+  "version": "0.1.0"
+ },
+ "coverage": [
+  {
+   "asset": "host:example",
+   "status": "ok"
+  },
+  {
+   "asset": "host:example-offline",
+   "reason": "offline at scan time",
+   "status": "gap"
+  }
+ ],
+ "findings": [
+  {
+   "asset": "host:host-a",
+   "check": "ssh.password_auth_enabled",
+   "evidence": "raw/host/example.json#x",
+   "id": "9591f3940eb5",
+   "kind": "compliance",
+   "layer": "identity",
+   "needs_human": false,
+   "observed_at": "2026-11-24T05:46:38Z",
+   "owner": "platform",
+   "remediation": "fix it",
+   "severity": "high",
+   "title": "synthetic example"
+  }
+ ],
+ "metrics": [
+  {
+   "help": "example",
+   "labels": {
+    "label": "x"
+   },
+   "name": "security_example_metric",
+   "value": 1.0
+  }
+ ],
+ "run": {
+  "finished_at": "2026-11-24T05:46:38Z",
+  "instance": "",
+  "started_at": "2026-11-24T05:46:38Z"
+ },
+ "schema_version": "1.0"
+}

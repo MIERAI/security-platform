@@ -1,0 +1,25 @@
+# Example instance config (fictional values). Copy to a PRIVATE location and edit.
+name: example-co
+exposure:
+  discovery:
+    - type: static
+      targets: [{name: web-1, address: 192.0.2.10}, {name: db-1, address: 192.0.2.20}]
+    # - {type: tailscale}          # or an overlay network
+    # - {type: aws-vpc, ...}       # future adapter
+  vantage: {type: ssh, host: scanner.example.net}   # a host OUTSIDE the scanned network
+  extra_ports: "8443"
+hosts:
+  - {name: web-1, exec: {type: ssh, host: web-1}, profile: linux}
+  - {name: laptop-of-admin, exec: {type: local}, profile: macos}
+kubernetes:
+  - {name: prod, kubeconfig: ~/.kube/prod-readonly.yaml, role: prod}
+codehost:
+  - {type: github, owner: example-co, gh_user: security-bot}
+secrets_files:
+  - {host: web-1, exec: {type: ssh, host: web-1}, roots: ["~", "/etc"], sudo: true}
+agents:
+  - {type: claude-code, settings: ["~/.claude/settings.json"]}
+intel:
+  feeds: [{type: cisa-kev}, {type: epss}]
+  repos: ["~/src/service-a"]
+advisor: {type: none}

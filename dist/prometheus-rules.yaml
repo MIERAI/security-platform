@@ -1,0 +1,190 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: security-platform
+  labels:
+    app.kubernetes.io/part-of: security-platform
+    security-platform/generator-version: 0.1.0
+spec:
+  groups:
+  - name: security-platform.sli
+    rules:
+    - alert: SecuritySLOBreach_unauth_network_services
+      expr: max(security_sli{sli="unauth_network_services"}) > 0
+      for: 1h
+      labels:
+        severity: ticket
+        component: security-platform
+        sli: unauth_network_services
+      annotations:
+        summary: Security SLI unauth_network_services above objective (0)
+        description: 'Sensitive services that answer without authentication from the
+          external vantage point - value {{ $value }}. Details: the private ledger.'
+        runbook: docs/runbooks.md#slo-breach
+    - alert: SecuritySLOBreach_ssh_password_auth_hosts
+      expr: max(security_sli{sli="ssh_password_auth_hosts"}) > 0
+      for: 1h
+      labels:
+        severity: ticket
+        component: security-platform
+        sli: ssh_password_auth_hosts
+      annotations:
+        summary: Security SLI ssh_password_auth_hosts above objective (0)
+        description: 'Hosts whose SSH server accepts passwords - value {{ $value }}.
+          Details: the private ledger.'
+        runbook: docs/runbooks.md#slo-breach
+    - alert: SecuritySLOBreach_oldest_fixable_critical_cve_days
+      expr: max(security_sli{sli="oldest_fixable_critical_cve_days"}) > 30
+      for: 1d
+      labels:
+        severity: ticket
+        component: security-platform
+        sli: oldest_fixable_critical_cve_days
+      annotations:
+        summary: Security SLI oldest_fixable_critical_cve_days above objective (30)
+        description: 'Days since publication of the oldest CRITICAL CVE that has a
+          fix, in running images / repos - value {{ $value }}. Details: the private
+          ledger.'
+        runbook: docs/runbooks.md#slo-breach
+    - alert: SecuritySLOBreach_kev_affecting_assets
+      expr: max(security_sli{sli="kev_affecting_assets"}) > 0
+      for: 0m
+      labels:
+        severity: page
+        component: security-platform
+        sli: kev_affecting_assets
+      annotations:
+        summary: Security SLI kev_affecting_assets above objective (0)
+        description: 'Open findings whose CVE is in CISA KEV (known exploited) - value
+          {{ $value }}. Details: the private ledger.'
+        runbook: docs/runbooks.md#slo-breach
+    - alert: SecuritySLOBreach_kev_or_critical_exposed
+      expr: max(security_sli{sli="kev_or_critical_exposed"}) > 0
+      for: 0m
+      labels:
+        severity: page
+        component: security-platform
+        sli: kev_or_critical_exposed
+      annotations:
+        summary: Security SLI kev_or_critical_exposed above objective (0)
+        description: 'KEV or CRITICAL vulnerabilities on exposed (reachable) assets
+          - the only vuln class that pages - value {{ $value }}. Details: the private
+          ledger.'
+        runbook: docs/runbooks.md#slo-breach
+    - alert: SecuritySLOBreach_secrets_older_than_90d
+      expr: max(security_sli{sli="secrets_older_than_90d"}) > 0
+      for: 1d
+      labels:
+        severity: ticket
+        component: security-platform
+        sli: secrets_older_than_90d
+      annotations:
+        summary: Security SLI secrets_older_than_90d above objective (0)
+        description: 'Secrets (files, cluster Secrets, CI secrets) not changed for
+          more than 90 days - value {{ $value }}. Details: the private ledger.'
+        runbook: docs/runbooks.md#slo-breach
+    - alert: SecuritySLOBreach_public_repos_without_protection
+      expr: max(security_sli{sli="public_repos_without_protection"}) > 0
+      for: 1d
+      labels:
+        severity: ticket
+        component: security-platform
+        sli: public_repos_without_protection
+      annotations:
+        summary: Security SLI public_repos_without_protection above objective (0)
+        description: 'Public repositories whose default branch has no protection /
+          ruleset - value {{ $value }}. Details: the private ledger.'
+        runbook: docs/runbooks.md#slo-breach
+    - alert: SecuritySLOBreach_critical_open_findings
+      expr: max(security_sli{sli="critical_open_findings"}) > 0
+      for: 0m
+      labels:
+        severity: page
+        component: security-platform
+        sli: critical_open_findings
+      annotations:
+        summary: Security SLI critical_open_findings above objective (0)
+        description: 'Open findings of severity critical (any layer) - value {{ $value
+          }}. Details: the private ledger.'
+        runbook: docs/runbooks.md#slo-breach
+    - alert: SecuritySLOBreach_collector_coverage_gaps
+      expr: max(security_sli{sli="collector_coverage_gaps"}) > 0
+      for: 1d
+      labels:
+        severity: ticket
+        component: security-platform
+        sli: collector_coverage_gaps
+      annotations:
+        summary: Security SLI collector_coverage_gaps above objective (0)
+        description: 'Assets in scope that a collector could not cover (platform health,
+          inner loop) - value {{ $value }}. Details: the private ledger.'
+        runbook: docs/runbooks.md#slo-breach
+    - alert: SecuritySLOBreach_check_catalog_age_days
+      expr: max(security_sli{sli="check_catalog_age_days"}) > 90
+      for: 1d
+      labels:
+        severity: ticket
+        component: security-platform
+        sli: check_catalog_age_days
+      annotations:
+        summary: Security SLI check_catalog_age_days above objective (90)
+        description: 'Days since the check catalog / benchmarks were last reviewed
+          against upstream (CIS, ATT&CK, Sigma/Falco) - value {{ $value }}. Details:
+          the private ledger.'
+        runbook: docs/runbooks.md#slo-breach
+  - name: security-platform.health
+    rules:
+    - alert: SecurityFindingRegression
+      expr: increase(security_findings_reopened_total[1d]) > 0
+      for: 0m
+      labels:
+        severity: ticket
+        component: security-platform
+      annotations:
+        summary: A fixed security finding came back (regression) - write a postmortem
+        runbook: docs/runbooks.md#regression
+    - alert: SecurityCollectorStale
+      expr: time() - max by (collector) (security_collector_last_run_timestamp_seconds)
+        > 2 * 86400
+      for: 1h
+      labels:
+        severity: ticket
+        component: security-platform
+      annotations:
+        summary: 'Collector {{ $labels.collector }} has not run for 2 days: no findings
+          != secure'
+        runbook: docs/runbooks.md#collector-stale
+    - alert: SecurityLedgerStale
+      expr: time() - security_ledger_last_update_timestamp_seconds > 2 * 86400
+      for: 1h
+      labels:
+        severity: ticket
+        component: security-platform
+      annotations:
+        summary: Security ledger not updated for 2 days
+    - alert: SecurityContractViolation
+      expr: security_contract_invalid_documents > 0
+      for: 0m
+      labels:
+        severity: ticket
+        component: security-platform
+      annotations:
+        summary: A collector emitted a findings document that fails the schema (it
+          was ignored)
+    - alert: SecurityIntelFeedStale
+      expr: max by (feed) (security_intel_feed_age_seconds) > 3 * 86400
+      for: 1h
+      labels:
+        severity: ticket
+        component: security-platform
+      annotations:
+        summary: Threat-intel feed {{ $labels.feed }} older than 3 days
+    - alert: SecurityExceptionExpired
+      expr: security_exceptions_expired > 0
+      for: 0m
+      labels:
+        severity: ticket
+        component: security-platform
+      annotations:
+        summary: A risk acceptance expired; the finding is open again - renew (human)
+          or fix

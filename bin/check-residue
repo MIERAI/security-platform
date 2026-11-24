@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Fail if the product tree contains instance-specific values. Patterns come from a PRIVATE file (one ERE per line),
+# so this script itself stays generic:  bin/check-residue <patterns-file>
+set -euo pipefail
+ROOT=$(cd "$(dirname "$0")/.." && pwd)
+PAT=${1:?usage: check-residue <patterns-file>}
+if grep -rInE -f <(grep -v '^#' "$PAT" | sed '/^$/d') "$ROOT" --exclude-dir=.git; then
+  echo "residue found: instance-specific values in the product repo" >&2; exit 1
+fi
+echo "no residue"

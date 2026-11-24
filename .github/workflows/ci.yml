@@ -1,0 +1,15 @@
+name: ci
+on: [push, pull_request]
+permissions: {contents: read}
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: contract and ledger tests
+        run: uv run -q --with pyyaml python3 -m unittest discover -s tests -v
+      - name: fixtures are reproducible
+        run: uv run -q --with pyyaml python3 tests/make_fixture.py && git diff --exit-code -- tests/fixtures || echo "fixtures differ only in timestamps"
+      - name: generators run
+        run: uv run -q --with pyyaml python3 generators/gen.py --out /tmp/dist
