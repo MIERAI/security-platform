@@ -1,0 +1,29 @@
+# The fictional "Acme" company of the kind e2e test (e2e/kind/run.sh). Its environment is unlike the first
+# instance's on purpose: no overlay network (static CIDR discovery), plain ssh servers, Gitea instead of GitHub,
+# a vanilla kind cluster with kube-prometheus-stack. Addresses are the test's own docker network.
+name: acme
+exposure:
+  discovery:
+    - {type: static, cidrs: ["10.250.99.0/29"], exclude: ["10.250.99.6"]}   # .6 = this workstation
+  vantage: {type: local}           # the workstation sees the servers the way a colleague's laptop would
+hosts:
+  - {name: app-1, exec: {type: ssh, host: app-1}, profile: linux}
+  - {name: app-2, exec: {type: ssh, host: app-2}, profile: linux}
+kubernetes:
+  - {name: acme-kind, kubeconfig: ~/.kube/config, role: prod, parts: [workloads, rbac, policy, operator]}
+codehost:
+  - {type: gitea, url: "http://10.250.99.4:3000", owner: acme, token_file: ~/.config/security-platform/gitea.token}
+remediation:
+  default_owner: ops-team
+runner:
+  site: hub
+  role: hub
+  sinks:
+    - {type: kubernetes-configmap, kubeconfig: ~/.kube/config, namespace: security-platform, name: security-platform-metrics}
+  jobs:
+    exposure:       {schedule: "0 3 * * *", timeout: 30m}
+    host:           {schedule: "15 2 * * *", timeout: 15m}
+    k8s:            {schedule: "45 2 * * *", timeout: 15m}
+    codehost-gitea: {schedule: "0 7 * * *", timeout: 10m}
+    remediation:    {type: remediation, schedule: "50 * * * *"}
+    digest:         {type: digest, schedule: "0 9 * * 1"}

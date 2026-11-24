@@ -1,0 +1,20 @@
+# kube-prometheus-stack as a typical company runs it, trimmed for a laptop: Prometheus Operator, Prometheus, Grafana
+# (dashboard sidecar). The platform only relies on what any such stack has: ServiceMonitors and labelled dashboards.
+alertmanager: { enabled: false }
+nodeExporter: { enabled: false }
+kubeStateMetrics: { enabled: false }
+kubeEtcd: { enabled: false }
+kubeScheduler: { enabled: false }
+kubeControllerManager: { enabled: false }
+kubeProxy: { enabled: false }
+defaultRules: { create: false }
+prometheus:
+  prometheusSpec:
+    serviceMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    scrapeInterval: 15s
+    retention: 1d
+grafana:
+  adminUser: admin
+  sidecar:
+    dashboards: { enabled: true, label: grafana_dashboard, searchNamespace: ALL }

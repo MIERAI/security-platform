@@ -14,7 +14,7 @@ RUN set -eu; \
     chmod 0755 /usr/local/bin/kubectl; \
     pip install --no-cache-dir --require-hashes -r /tmp/requirements.lock; rm /tmp/requirements.lock   # = --require-hashes -r deploy/requirements.lock
 WORKDIR /opt/security-platform
-COPY LICENSE NOTICE README.md ./
+COPY LICENSE NOTICE README.md CHANGELOG.md ./
 COPY runner runner
 COPY core core
 COPY sdk sdk
@@ -27,6 +27,14 @@ COPY generators generators
 COPY scorecard scorecard
 COPY schema schema
 COPY deploy deploy
+# evidence the scorecard reads on an in-cluster hub (docs, examples, generated dashboards, the e2e result, tests that
+# enforce contracts and plain language): documents only, nothing here is executed by the runner
+COPY bin bin
+COPY dist dist
+COPY docs docs
+COPY examples examples
+COPY e2e e2e
+COPY tests tests
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 SP_IMAGE_VERSION=${VERSION}
 LABEL org.opencontainers.image.title="security-platform" org.opencontainers.image.licenses="Apache-2.0"
 USER 65532:65532
