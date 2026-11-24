@@ -26,9 +26,11 @@ trigger stays dumb and the same everywhere:
                                     # hub that sleeps at night (a laptop) sets e.g. 12h
     jobs:
       <name>:
-        type: collector | command | ingest | digest | remediation | snapshot | push | pull-snapshot | events
+        type: collector | command | ingest | digest | remediation | snapshot | push | pull-snapshot | events | notify
                                                (default collector; collector = job name unless `collector:`)
                                                remediation: core/remediation.py (owners, SLO due dates, tracker)
+                                               notify: the short summary (`sp digest`, aggregates only) to the
+                                               instance's `notify:` adapters (notifier/); `days:` default 1
                                                snapshot: commit the private data directory if it is a git
                                                repository (`paths:` default ledger.json, reports, exceptions.yaml,
                                                tracker); with `to: {kubernetes Secret}` publish a tar.gz of the same
@@ -435,6 +437,13 @@ class Runner:
                           (["--days", str(j["days"])] if j.get("days") else []),
                           self.env(j, run_dir), cron.parse_duration(j.get("timeout", "10m")),
                           os.path.join(run_dir, "digest.log")), "digest written"
+
+    def job_notify(self, name, j, run_dir):
+        """The short summary (cli/sp.py digest: aggregates only) to the instance's notifiers (notifier/)."""
+        rc = self.spawn([sys.executable, os.path.join(ROOT, "cli", "sp.py"), "notify", "--data", self.data,
+                         "--instance", self.instance_path, "--days", str(j.get("days", 1))], self.env(j, run_dir),
+                        cron.parse_duration(j.get("timeout", "5m")), os.path.join(run_dir, "notify.log"))
+        return rc, "summary sent" if rc == 0 else f"notify rc={rc} (see notify.log)"
 
     def job_remediation(self, name, j, run_dir):
         rc = self.spawn([sys.executable, os.path.join(ROOT, "core", "remediation.py"), "--data", self.data,
