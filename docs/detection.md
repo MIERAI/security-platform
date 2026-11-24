@@ -8,7 +8,7 @@ Until phase 1 the platform found **conditions** (misconfigurations, vulnerabilit
 ## Architecture
 
 ```
- cluster node                                    log store (Loki)                 Alertmanager (per cluster)
+ cluster node                                    log store (Loki)                 Alertmanager (reachable by the ruler)
  ┌────────────────────────────────────┐          ┌───────────────────────┐        ┌──────────────────────┐
  │ Falco (DaemonSet, modern eBPF)     │ stdout → │                       │        │ severity page|ticket │
  │   curated rules (tag selection)    │ pod-log  │  ruler: loki/rules.yaml│──────▶│ → the instance's     │
@@ -70,6 +70,43 @@ Until phase 1 the platform found **conditions** (misconfigurations, vulnerabilit
 4. **Ruler**: render with the instance's params, put the file into the ruler's rule directory, point the ruler at
    the Alertmanager(s). Alerts carry `cluster` where the source has one; route per cluster as needed.
 5. **Off-cluster sources**: runner job `events` (docs/runner.md).
+
+### Instance additions to the curated Falco rules
+
+Lists in `detections/falco/security-platform.rules.yaml` are empty or generic on purpose (`sp_outbound_namespaces`,
+`sp_etc_writer_images`, `sp_allowed_outbound_nets`). An instance appends in its own rules file, loaded after the
+product's (file-name order in `rules.d`, e.g. `zz-instance.rules.yaml` through a projected volume):
+
+```yaml
+- list: sp_outbound_namespaces
+  items: [argocd]                 # add a namespace only with the event that showed it
+  override: { items: append }
+```
+
+### Where the alerts go
+
+The ruler sends to whichever Alertmanager it can reach. When the clusters' Alertmanagers are not exposed outside the
+clusters (recommended), run a small Alertmanager next to the log store and route there by `severity` and `cluster`
+(e.g. a lab cluster recorded only, `page` to a notifying receiver). The in-cluster Falco rules still reach each
+cluster's own Alertmanager, so the most urgent runtime detections do not depend on the log store host.
+
+### Resource cost (first instance, single small node)
+
+| piece | CPU | memory |
+|---|---|---|
+| Falco (modern eBPF, 2 MB ring buffers, ~25 rules) | ~30m steady (~250m for a minute at start) | ~100 Mi working set; the start-up peak charges ~350 MB of kernel memory to the container: limit 768Mi, request 128Mi |
+| node-logs (Alloy) | ~5m | ~50 Mi |
+| API audit log with this policy | — | ~50 KB/min written on a busy single-node control plane (~75 MB/day before log-store compression) |
+| ruler + Alertmanager next to the log store | negligible | Alertmanager ~25 MB |
+
+## Checking detection from outside (collector `detection`)
+
+`collectors/detection` runs on the hub like any collector and turns "is detection working" into findings and metrics:
+scope (every cluster of the instance's `kubernetes:` list has a sensor and an audit source), sensors ready on every
+node, in-cluster rules present, every expected source delivered logs in its window, the ruler loaded every catalog
+rule, page alerts reach a notifying receiver; quality: alert minutes per severity (ALERTS history), false-positive
+ratio from human verdicts, the last drill and its time to detect, rule-content age. The scorecard's detection
+dimension is computed from these. Configuration: the collector's docstring.
 
 ## Measuring detection (dimension "detection & response")
 
