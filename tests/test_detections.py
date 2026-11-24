@@ -50,7 +50,7 @@ class Catalog(unittest.TestCase):
                 self.assertIn(r["labels"]["severity"], render.SEVERITIES)
                 self.assertEqual(r["labels"]["component"], "security-detection")
                 self.assertTrue(r["annotations"]["runbook_url"].endswith(".md"))
-                self.assertNotIn("$", r["expr"].replace("$labels", "").replace("$value", ""), r["alert"])
+                self.assertIsNone(re.search(r"\$[a-z_]", r["expr"]), f"{r['alert']}: unsubstituted parameter")
 
     def test_params_override(self):
         with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as f:
