@@ -77,7 +77,15 @@ controls:
     pillars: [software]
     check: evidence
     weight: 2
-    source: {type: file, path: .github/workflows/image.yml, contains: "cosign"}
+    source: {type: file, path: .github/workflows/image.yml, contains: "sign: true"}
+  - id: self.image-ci-scan-sbom
+    title: Every platform image is vulnerability-scanned (failing on fixable critical) and gets an SBOM in CI
+    csf: ID.RA
+    cis: ["7.5", "16.4"]
+    pillars: [software]
+    check: evidence
+    weight: 1
+    source: {type: file, path: .github/workflows/image.yml, contains: "build-image\\.yml"}
   - id: self.image-no-high-vulns
     title: The platform's own image has no open critical/high vulnerability (SBOM x intel)
     csf: ID.RA
