@@ -307,6 +307,7 @@ class Runner:
             devices = []
             for dcfg in j["publish_assets"].get("discovery", []):
                 devices += discovery.discover(dcfg)
+            devices = discovery.apply_scope(devices, self.inst.get("scope"))   # sites with older code honour it too
             src_pub = spool.spool(dict(j["source"], dir=j["publish_assets"]["dir"]))
             src_pub.put(j["publish_assets"].get("name", "assets.json"), json.dumps(devices))
             notes.append(f"published {len(devices)} assets")

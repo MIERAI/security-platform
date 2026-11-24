@@ -1,0 +1,64 @@
+# Check -> MITRE ATT&CK (Enterprise v17) techniques an attacker would use against the weakness the check finds.
+# Generic product data (no environment). Longest matching prefix wins. Detections carry their own techniques
+# (detections/catalog.yaml); together they show which techniques we prevent / find vs. detect.
+# tests/test_attack_map.py fails when a collector emits a check that no prefix maps.
+schema: security-platform/attack-map/v1
+attack: "MITRE ATT&CK Enterprise v17"
+map:
+  # exposure: services reachable without authentication
+  alertmanager.: [T1190, T1562.006]          # exploit public-facing app; silence alerts (impair defenses: indicator blocking)
+  prometheus.: [T1190, T1213, T1565.001]      # exploit / data from information repositories / stored data manipulation
+  loki.: [T1190, T1213]
+  tempo.: [T1190, T1213]
+  ollama.: [T1190, T1496]                    # resource hijacking
+  otlp.: [T1565.001]
+  metrics.: [T1592, T1046]                   # victim host information / network service discovery
+  blackbox.: [T1090, T1046]                  # proxy / service discovery through an open prober
+  http.: [T1190]
+  db.: [T1190, T1110]
+  smb.: [T1021.002, T1110]
+  telnet.: [T1021, T1110, T1040]
+  listen.: [T1190, T1046]
+  # host hardening and patching
+  ssh.password_auth_enabled: [T1110, T1021.004]
+  ssh.root_login_password: [T1110, T1078.003]
+  ssh.x11_forwarding: [T1021.004]
+  fw.: [T1046, T1190]
+  win.: [T1562.001, T1021.002]
+  macos.: [T1562.001, T1553.001]
+  disk.: [T1005, T1025]                     # (host profile key behind macos.disk_filevault_off): stolen device data
+  patch.: [T1068, T1203, T1210]
+  platform.: [T1068, T1203, T1210, T1190]
+  vuln.: [T1190, T1203, T1068, T1210]
+  advisory.: [T1190, T1203]
+  sbom.: [T1195.002]
+  overlay.: [T1078, T1133]
+  # secrets
+  secret.: [T1552.001, T1552.004]
+  secret.in_process_argv: [T1552, T1057]
+  secret.credential_in_notes: [T1552.001]
+  # identity
+  identity.: [T1078, T1098]
+  identity.mfa_disabled: [T1078, T1110, T1621]
+  identity.org_mfa_not_required: [T1078, T1110]
+  identity.overlay_acl_allow_all: [T1133, T1021]
+  identity.deploy_key_unused: [T1098.004]
+  identity.ssh_key_age_over_365d: [T1098.004, T1552.004]
+  github.: [T1528, T1078.004]
+  # code host / supply chain
+  repo.: [T1195.002, T1199]
+  repo.secret_scanning_off: [T1552.001]
+  repo.push_protection_off: [T1552.001]
+  repo.secret_scanning_alerts_open: [T1552.001]
+  repo.deploy_key_write: [T1098.004, T1195.002]
+  # Kubernetes
+  k8s.pod.: [T1611, T1610]                   # escape to host / deploy container
+  k8s.rbac.: [T1078.001, T1098]
+  k8s.netpol.: [T1046, T1021]
+  k8s.policy.: [T1610, T1611]
+  k8s.operator_cred_system_masters: [T1078, T1098]
+  cis.: [T1611, T1078, T1562]
+  # AI agents
+  agent.: [T1059, T1552.001, T1565]
+  # detection coverage: a blind spot is what an attacker exploits by impairing / evading defenses
+  detection.: [T1562.001, T1562.006]

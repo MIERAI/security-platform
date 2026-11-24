@@ -13,7 +13,7 @@ Future (interface only): aws-vpc (ec2:DescribeInstances), gcp (compute.instances
 import json
 import subprocess
 
-VERSION = "0.3.0"
+VERSION = "0.4.0"
 
 
 def tailscale(cfg):
@@ -56,6 +56,20 @@ def file(cfg):
         raise RuntimeError(f"asset list is {int(age)}s old (max_age {cfg['max_age']})")
     return [dict(name=d["name"], address=d.get("address"), os=d.get("os", ""), online=bool(d.get("online", True)),
                  attrs=d.get("attrs", {})) for d in json.load(open(p))]
+
+
+def apply_scope(devices, scope):
+    """Instance `scope:` entries (see spsdk.asset_scope): attach the asset's scope to attrs, and drop devices that
+    are offline when `offline: expected` (scanned only when online; offline is not a coverage gap)."""
+    out = []
+    for d in devices:
+        s = next((x for x in scope or [] if d.get("name") in (x.get("names") or [])), None)
+        if s:
+            d = dict(d, attrs=dict(d.get("attrs") or {}, scope=list(s.get("scope") or [])))
+            if not d["online"] and s.get("offline") == "expected":
+                continue
+        out.append(d)
+    return out
 
 
 def _future(cfg):

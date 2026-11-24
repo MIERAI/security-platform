@@ -102,6 +102,10 @@ controls:
     csf: ID.RA
     cis: []
     pillars: [network, device, people, software]
-    check: automated
+    check: evidence
     weight: 1
-    source: {type: none, reason: "no ATT&CK mapping yet"}
+    source:
+      type: all
+      of:
+        - {type: file, path: "${product}/scorecard/attack-map.yaml", max_age: 180d, contains: "T1190"}
+        - {type: file, path: "${product}/detections/catalog.yaml", contains: "attack"}

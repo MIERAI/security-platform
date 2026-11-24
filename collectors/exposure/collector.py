@@ -110,6 +110,8 @@ def main():
             devices += discovery.discover(dcfg)
         except Exception as err:  # noqa: BLE001
             c.gap(f"discovery:{dcfg.get('type')}", f"{type(err).__name__}: {err}")
+    devices = discovery.apply_scope(devices, inst.get("scope"))
+    devices = [d for d in devices if "scope" not in d["attrs"] or "exposure" in d["attrs"]["scope"]]
     ev_dev = c.raw("devices.json", devices)
     targets, name_of, verified, from_cidr = [], {}, set(), set()
     for d in devices:
