@@ -18,7 +18,9 @@ trigger stays dumb and the same everywhere:
     sinks: [ ... ]                  # role hub: metric sinks (adapters/sinks.py)
     jobs:
       <name>:
-        type: collector | command | ingest | digest   (default collector; collector name = job name unless `collector:`)
+        type: collector | command | ingest | digest | snapshot   (default collector; collector = job name unless `collector:`)
+                                               snapshot: commit the private data directory if it is a git
+                                               repository (`paths:` default ledger.json, reports, exceptions.yaml)
                                                command: `argv: [...]` any program that writes <collector>.findings.json
                                                into $SP_RUN_DIR (e.g. a wrapper around a third-party scanner)
         schedule: "30 3 * * *"                 cron, local time of the host (TZ)
@@ -283,6 +285,19 @@ class Runner:
                           (["--days", str(j["days"])] if j.get("days") else []),
                           self.env(j, run_dir), cron.parse_duration(j.get("timeout", "10m")),
                           os.path.join(run_dir, "digest.log")), "digest written"
+
+    def job_snapshot(self, name, j, run_dir):
+        """Audit trail of the ledger: a local commit (never pushed by the runner)."""
+        paths = j.get("paths") or ["ledger.json", "reports", "exceptions.yaml"]
+        g = ["git", "-C", self.data]
+        if subprocess.run(g + ["rev-parse", "--git-dir"], capture_output=True).returncode != 0:
+            return 0, "data directory is not a git repository: nothing to do"
+        subprocess.run(g + ["add", "--"] + [p for p in paths if os.path.exists(os.path.join(self.data, p))], check=True,
+                       capture_output=True)
+        if subprocess.run(g + ["diff", "--cached", "--quiet"]).returncode == 0:
+            return 0, "no changes"
+        p = subprocess.run(g + ["commit", "-q", "-m", j.get("message", "ledger snapshot (runner)")], capture_output=True, text=True)
+        return p.returncode, "committed" if p.returncode == 0 else p.stderr.strip()[-200:]
 
     def execute(self, name, slot=None):
         j = self.jobs[name]
