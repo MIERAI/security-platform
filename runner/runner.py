@@ -14,16 +14,31 @@ trigger stays dumb and the same everywhere:
   runner:
     site: hub                       # label of this runner in the metrics (a role, not a device name)
     role: hub                       # hub: keeps the ledger and publishes metrics; site: only fills an outbox
-    outbox: {type: local, dir: ...} # role site: where finished findings documents go (a spool adapter)
+    outbox: {type: local, dir: ...} # role site: where finished findings documents go (a spool adapter, or a list);
+                                    # role hub: optional, a copy for another hub (parallel run, federation)
+    state_outbox: {...}             # role site: where job states go (a spool or a list), for the hub's metrics
+    forward:                        # store and forward, every tick, both roles: drain a LOCAL spool into a remote
+      - {from: {type: local, dir: ...}, to: {type: kubernetes-secret, ...}}   # one; ack only what was delivered
     sinks: [ ... ]                  # role hub: metric sinks (adapters/sinks.py); a failing sink is retried every
                                     # tick and reported (security_runner_sink_*), it never fails the tick
+    retention: 14d                  # optional: delete runs/<date>/ older than this (default: keep everything)
     tick_stale_after: 1h            # the trigger's heartbeat is overdue after this (alert SecurityRunnerStale); a
                                     # hub that sleeps at night (a laptop) sets e.g. 12h
     jobs:
       <name>:
-        type: collector | command | ingest | digest | snapshot   (default collector; collector = job name unless `collector:`)
+        type: collector | command | ingest | digest | snapshot | push | pull-snapshot
+                                               (default collector; collector = job name unless `collector:`)
                                                snapshot: commit the private data directory if it is a git
-                                               repository (`paths:` default ledger.json, reports, exceptions.yaml)
+                                               repository (`paths:` default ledger.json, reports, exceptions.yaml,
+                                               tracker); with `to: {kubernetes Secret}` publish a tar.gz of the same
+                                               paths there instead (an in-cluster hub; pulled by pull-snapshot)
+                                               pull-snapshot: `from: {kubernetes Secret}`, `into: <dir>`: extract the
+                                               hub's snapshot into the data directory and commit it (off-cluster copy)
+                                               push: `files: {exceptions: exceptions.yaml, ...}` send human-approved
+                                               control files to the outbox when they change (the hub's ingest
+                                               accepts them only from sites listed with `accept_control`)
+                                               ingest: `source:` a spool; `site_state:` a dir on the source host or a
+                                               spool; `accept_control: [exceptions, catalog-review]`
                                                command: `argv: [...]` any program that writes <collector>.findings.json
                                                into $SP_RUN_DIR (e.g. a wrapper around a third-party scanner)
         schedule: "30 3 * * *"                 cron, local time of the host (TZ)
@@ -59,6 +74,7 @@ from spsdk import load_config, render  # noqa: E402
 
 VERSION = open(os.path.join(HERE, "VERSION")).read().strip()
 STATE_SCHEMA = "security-platform/runner-state/v1"
+CONTROL_SCHEMA = "security-platform/control/v1"
 
 
 def log(msg):
@@ -192,6 +208,11 @@ class Runner:
         if self.role == "site":
             self.to_outbox(run_dir, name)
             return 0, "document to outbox"
+        if self.cfg.get("outbox"):           # a hub that also feeds another hub (parallel run, federation)
+            try:
+                self.to_outbox(run_dir, name)
+            except Exception as e:  # noqa: BLE001 - the local ledger is this hub's job; the copy is best effort
+                log(f"{name}: copy to outbox: {type(e).__name__}: {str(e)[:160]}")
         return self.ledger(run_dir)
 
     def promote(self, run_dir):
@@ -211,11 +232,53 @@ class Runner:
             shutil.copy2(p, os.path.join(self.latest, os.path.basename(p) + ".tmp"))
             os.replace(os.path.join(self.latest, os.path.basename(p) + ".tmp"), os.path.join(self.latest, os.path.basename(p)))
 
+    @staticmethod
+    def spools(cfg):
+        return [spool.spool(c) for c in (cfg if isinstance(cfg, list) else [cfg] if cfg else [])]
+
     def to_outbox(self, run_dir, name):
-        sp = spool.spool(self.cfg["outbox"])
         stamp = time.strftime("%Y%m%dT%H%M%S")
-        for p in sorted(glob.glob(os.path.join(run_dir, "inventory.*.json")) + glob.glob(os.path.join(run_dir, "*.findings.json"))):
-            sp.put(f"{stamp}-{name}.{os.path.basename(p)}", open(p).read())
+        for sp in self.spools(self.cfg.get("outbox")):
+            for p in sorted(glob.glob(os.path.join(run_dir, "inventory.*.json")) + glob.glob(os.path.join(run_dir, "*.findings.json"))):
+                sp.put(f"{stamp}-{name}.{os.path.basename(p)}", open(p).read())
+
+    def prune(self, now):
+        keep = cron.parse_duration(self.cfg.get("retention"))
+        if not keep:
+            return
+        cutoff = time.strftime("%Y-%m-%d", time.localtime(now - keep))
+        for d in glob.glob(os.path.join(self.data, "runs", "????-??-??")):
+            if os.path.basename(d) < cutoff:
+                shutil.rmtree(d, ignore_errors=True)
+
+    def forward(self):
+        """Store and forward: deliver what local spools hold to remote ones; a failure keeps the documents queued
+        for the next tick. Each forward reports like a job (state forward-<i>), so a stuck queue is visible."""
+        for i, f in enumerate(self.cfg.get("forward") or []):
+            name, st, t0 = f"forward-{i}", None, time.time()
+            st = self.load_state(name)
+            st.update(last_attempt=int(t0), runs_total=st.get("runs_total", 0) + 1)
+            sent, err = 0, ""
+            try:
+                src, dst = spool.spool(f["from"]), spool.spool(f["to"])
+                for n in src.list():
+                    dst.put(n, src.get(n))
+                    src.ack(n)
+                    sent += 1
+                st["pending"] = len(src.list())
+            except Exception as e:  # noqa: BLE001 - offline, remote down: retried next tick
+                err = f"{type(e).__name__}: {str(e)[:200]}"
+            st.update(last_rc=0 if not err else 75, last_duration=round(time.time() - t0, 1), runner_version=VERSION,
+                      last_note=err or f"delivered {sent}")
+            if err:
+                st["failures_total"] = st.get("failures_total", 0) + 1
+                log(f"{name}: {err} (delivered {sent}; the rest stays queued, retried next tick)")
+            else:
+                st["last_success"] = int(time.time())
+                if sent:
+                    log(f"{name}: delivered {sent}")
+            self.save_state(name, st)
+            self.send_state(name, st)
 
     def ledger(self, run_dir):
         lk = self.lock("ledger", blocking=True)
@@ -241,17 +304,28 @@ class Runner:
             src_pub.put(j["publish_assets"].get("name", "assets.json"), json.dumps(devices))
             notes.append(f"published {len(devices)} assets")
         if j.get("site_state"):
-            st_sp = spool.spool(dict(j["source"], dir=j["site_state"]))
-            states = {}
+            ss = j["site_state"]
+            st_sp = spool.spool(ss if isinstance(ss, dict) else dict(j["source"], dir=ss))
+            sp_path = os.path.join(self.data, "state", "sites", f"{j.get('site', name)}.json")
+            try:
+                states = json.load(open(sp_path)).get("jobs") or {}
+            except (OSError, ValueError):
+                states = {}
             for n in st_sp.list():
                 try:
                     states[n[:-5]] = json.loads(st_sp.get(n))
+                    if isinstance(ss, dict):       # a queue (one document per send): keep the newest, drop the rest
+                        st_sp.ack(n)
                 except ValueError:
                     pass
-            os.makedirs(os.path.join(self.data, "state", "sites"), exist_ok=True)
-            with open(os.path.join(self.data, "state", "sites", f"{j.get('site', name)}.json"), "w") as f:
+            os.makedirs(os.path.dirname(sp_path), exist_ok=True)
+            with open(sp_path + ".tmp", "w") as f:
                 json.dump({"site": j.get("site", name), "fetched_at": int(time.time()), "jobs": states}, f, indent=1)
+            os.replace(sp_path + ".tmp", sp_path)
         names = src.list()
+        for n in [x for x in names if x.endswith(".control.json")]:
+            notes.append(self.accept_control(j, src, n))
+            src.ack(n)
         docs = [n for n in names if n.endswith(".findings.json")]
         invs = [n for n in names if ".inventory." in n]
         for n in invs:   # inventories first: consumers read them from latest/
@@ -287,15 +361,84 @@ class Runner:
             notes.append(f"ingested {n}")
         return rc_all, "; ".join(notes) or "outbox empty"
 
+    CONTROL = {"exceptions": "exceptions.yaml", "catalog-review": "catalog-review.yaml"}
+
+    def accept_control(self, j, src, n):
+        """A human-approved control file (exceptions, catalog review) sent by a trusted site: replaces the hub's copy.
+        Accepted only if this ingest job lists the kind in `accept_control` (the site label itself is enforced by the
+        inbox's admission policy). JSON is YAML, so the hub's readers need nothing new."""
+        try:
+            doc = json.loads(src.get(n))
+        except ValueError:
+            return f"{n}: not JSON, dropped"
+        kind = doc.get("kind")
+        if doc.get("schema") != CONTROL_SCHEMA or kind not in self.CONTROL or not isinstance(doc.get("content"), dict):
+            return f"{n}: not a {CONTROL_SCHEMA} document, dropped"
+        if kind not in (j.get("accept_control") or []):
+            return f"{n}: {kind} not accepted from site {j.get('site')}, dropped"
+        p = os.path.join(self.data, self.CONTROL[kind])
+        with open(p + ".tmp", "w") as f:
+            f.write(f"# {kind}: received from site {j.get('site')} at {time.strftime('%Y-%m-%dT%H:%M:%S%z')} "
+                    f"(sent {doc.get('sent_at')}); the source of truth is the site's copy\n")
+            json.dump(doc["content"], f, indent=1, sort_keys=True)
+        os.replace(p + ".tmp", p)
+        return f"{kind} updated"
+
+    def job_push(self, name, j, run_dir):
+        """Send control files to the outbox when their content changed (or `every` run with force: true)."""
+        st, sent = self.load_state(name), []
+        hashes = dict(st.get("pushed") or {})
+        for kind, rel in (j.get("files") or {}).items():
+            if kind not in self.CONTROL:
+                return 64, f"unknown control kind {kind!r} (known: {sorted(self.CONTROL)})"
+            p = os.path.join(self.data, os.path.expanduser(rel))
+            content = load_config(p) if os.path.exists(p) else {}
+            h = hashlib.sha256(json.dumps(content, sort_keys=True, default=str).encode()).hexdigest()
+            if hashes.get(kind) == h and not j.get("force"):
+                continue
+            doc = {"schema": CONTROL_SCHEMA, "kind": kind, "sent_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+                   "content": json.loads(json.dumps(content, default=str))}
+            for sp in self.spools(self.cfg.get("outbox")):
+                sp.put(f"{time.strftime('%Y%m%dT%H%M%S')}-{name}.{kind}.control.json", json.dumps(doc))
+            hashes[kind] = h
+            sent.append(kind)
+        st = self.load_state(name)
+        st["pushed"] = hashes
+        self.save_state(name, st)
+        return 0, ("sent " + ", ".join(sent)) if sent else "unchanged"
+
     def job_digest(self, name, j, run_dir):
         return self.spawn([sys.executable, os.path.join(ROOT, "core", "digest.py"), "--data", self.data] +
                           (["--days", str(j["days"])] if j.get("days") else []),
                           self.env(j, run_dir), cron.parse_duration(j.get("timeout", "10m")),
                           os.path.join(run_dir, "digest.log")), "digest written"
 
+    SNAPSHOT_PATHS = ["ledger.json", "reports", "exceptions.yaml", "catalog-review.yaml", "tracker"]
+
     def job_snapshot(self, name, j, run_dir):
-        """Audit trail of the ledger: a local commit (never pushed by the runner)."""
-        paths = j.get("paths") or ["ledger.json", "reports", "exceptions.yaml"]
+        """Audit trail of the ledger: a local commit (never pushed by the runner), or (`to:`) a tar.gz in a private
+        Kubernetes Secret of the hub's own namespace that the operator's site pulls off the cluster (pull-snapshot)."""
+        paths = j.get("paths") or self.SNAPSHOT_PATHS
+        if j.get("to"):
+            import snapshot
+            blob = snapshot.pack(self.data, paths, site=self.site)
+            snapshot.put_secret(j["to"], blob)
+            return 0, f"snapshot published ({len(blob)} bytes gzip)"
+        return self.git_commit(paths, j.get("message", "ledger snapshot (runner)"))
+
+    def job_pull_snapshot(self, name, j, run_dir):
+        import snapshot
+        into = os.path.join(self.data, j["into"])
+        manifest = snapshot.unpack(snapshot.get_secret(j["from"]), into)
+        st = self.load_state(name)
+        if manifest.get("created_at") == st.get("last_snapshot"):
+            return 0, "no new snapshot"
+        st["last_snapshot"] = manifest.get("created_at")
+        self.save_state(name, st)
+        rc, note = self.git_commit([j["into"]], j.get("message", f"hub snapshot {manifest.get('site')} {manifest.get('created_at')}"))
+        return rc, f"snapshot of {manifest.get('created_at')} from {manifest.get('site')}: {note}"
+
+    def git_commit(self, paths, message):
         g = ["git", "-C", self.data]
         if subprocess.run(g + ["rev-parse", "--git-dir"], capture_output=True).returncode != 0:
             return 0, "data directory is not a git repository: nothing to do"
@@ -303,7 +446,7 @@ class Runner:
                        capture_output=True)
         if subprocess.run(g + ["diff", "--cached", "--quiet"]).returncode == 0:
             return 0, "no changes"
-        p = subprocess.run(g + ["commit", "-q", "-m", j.get("message", "ledger snapshot (runner)")], capture_output=True, text=True)
+        p = subprocess.run(g + ["commit", "-q", "-m", message], capture_output=True, text=True)
         return p.returncode, "committed" if p.returncode == 0 else p.stderr.strip()[-200:]
 
     def execute(self, name, slot=None):
@@ -324,7 +467,7 @@ class Runner:
             run_dir = self.run_dir(name)
             log(f"{name}: start ({j['type']}) -> {os.path.relpath(run_dir, self.data)}")
             try:
-                rc, note = getattr(self, "job_" + j["type"])(name, j, run_dir)
+                rc, note = getattr(self, "job_" + j["type"].replace("-", "_"))(name, j, run_dir)
             except Exception as e:  # noqa: BLE001 - a broken job must not stop the others
                 rc, note = 70, f"{type(e).__name__}: {str(e)[:200]}"
             dur = time.time() - start
@@ -341,14 +484,17 @@ class Runner:
                     st["done_slot"] = slot      # give up on this slot; the next slot tries again
             self.save_state(name, st)
             log(f"{name}: rc={rc} in {dur:.0f}s: {note[:200]}")
-            if self.role == "site" and self.cfg.get("state_outbox"):
-                try:
-                    spool.spool(self.cfg["state_outbox"]).put(f"{name}.json", json.dumps(self.public_state(name, st)))
-                except Exception as e:  # noqa: BLE001 - the hub then sees a stale state; the job result stands
-                    log(f"{name}: state outbox: {type(e).__name__}: {str(e)[:160]}")
+            self.send_state(name, st)
             return rc
         finally:
             lk.close()
+
+    def send_state(self, name, st):
+        for sp in self.spools(self.cfg.get("state_outbox")):
+            try:
+                sp.put(f"{name}.json", json.dumps(self.public_state(name, st)))
+            except Exception as e:  # noqa: BLE001 - the hub then sees a stale state; the job result stands
+                log(f"{name}: state outbox: {type(e).__name__}: {str(e)[:160]}")
 
     @staticmethod
     def public_state(name, st):
@@ -371,6 +517,7 @@ class Runner:
             s.append(("security_runner_sink_consecutive_failures", lab, st.get("consecutive_failures", 0),
                       "Deliveries failed in a row (0 = the last one worked); retried every tick"))
         rows = [(self.site, name, self.load_state(name), j) for name, j in self.jobs.items()]
+        rows += [(self.site, f"forward-{i}", self.load_state(f"forward-{i}"), None) for i in range(len(self.cfg.get("forward") or []))]
         for sf in glob.glob(os.path.join(self.data, "state", "sites", "*.json")):
             try:
                 site = json.load(open(sf))
@@ -551,6 +698,9 @@ def main(argv=None):
             slot, why = r.due(name, time.time() if not a.now else now)
             if slot is not None:
                 rc = max(rc, r.execute(name, slot) or 0)
+        if a.cmd == "tick" and not a.jobs:
+            r.forward()
+            r.prune(time.time())
         try:
             r.publish(time.time())
         except Exception as e:  # noqa: BLE001 - e.g. the local metrics file; the stale heartbeat alerts

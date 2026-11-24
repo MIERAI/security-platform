@@ -1,0 +1,22 @@
+# Per site, in the hub's namespace (the instance's overlay; NOT part of the kustomization above). The name suffix IS
+# the site's identity (inbox-policy.yaml). Issue the site a short-lived token from an admin session and keep it in
+# a 0600 file on the site (rotate before it expires; an expired token shows up as a stale site, never silence):
+#   kubectl -n <hub namespace> create token security-platform-site-<site> --duration=2160h > token; chmod 600 token
+apiVersion: v1
+kind: ServiceAccount
+metadata: { name: security-platform-site-vantage }
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: { name: security-platform-site-vantage }
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: Role, name: security-platform-inbox-writer }
+subjects: [{ kind: ServiceAccount, name: security-platform-site-vantage }]
+---
+# The operator's workstation: also a site (its local collectors, human-approved control files) and the reader of
+# the hub's snapshot.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: { name: security-platform-site-workstation-snapshot }
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: Role, name: security-platform-snapshot-reader }
+subjects: [{ kind: ServiceAccount, name: security-platform-site-workstation }]

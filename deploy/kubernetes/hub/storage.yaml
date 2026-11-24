@@ -1,0 +1,9 @@
+# The hub's private state (ledger, reports, runner state, tracker). Only pods of this namespace can mount it; the
+# off-cluster copy is the snapshot Secret pulled by the operator (docs/runner.md). Size: the ledger of a small
+# estate is well under 10 MiB; runs/ are pruned by `runner.retention` (default 14 days).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: { name: security-platform-hub-data }
+spec:
+  accessModes: [ReadWriteOnce]
+  resources: { requests: { storage: 1Gi } }

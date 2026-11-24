@@ -24,7 +24,7 @@ import urllib.request
 
 from . import exec as ex
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 
 
 # ---- textfile ---------------------------------------------------------------------------------------------
@@ -46,18 +46,18 @@ def textfile(cfg, text):
 
 # ---- kubernetes ConfigMap ---------------------------------------------------------------------------------
 def kubernetes_configmap(cfg, text):
-    import json
-    kc = ["kubectl"] + (["--kubeconfig", os.path.expanduser(cfg["kubeconfig"])] if cfg.get("kubeconfig") else []) + \
-        (["--context", cfg["context"]] if cfg.get("context") else [])
+    """Server-side apply of one key; other keys/fields keep their owners. Transport: adapters/kubeapi.py (kubectl
+    with a kubeconfig, the pod's ServiceAccount in a cluster, or server + token_file). Namespace defaults to the pod's."""
+    from . import kubeapi
+    api = kubeapi.client(cfg)
+    ns = cfg.get("namespace") or api.namespace
     cm = {"apiVersion": "v1", "kind": "ConfigMap",
-          "metadata": {"name": cfg["name"], "namespace": cfg["namespace"],
+          "metadata": {"name": cfg["name"], "namespace": ns,
                        "labels": {"app.kubernetes.io/part-of": "security-platform",
                                   "app.kubernetes.io/component": "metrics"}},
           "data": {cfg.get("key", "security-platform.prom"): text}}
-    p = subprocess.run(kc + ["apply", "--server-side", "--force-conflicts", "--field-manager=security-platform-runner",
-                             "-f", "-"], input=json.dumps(cm), capture_output=True, text=True, timeout=60)
-    if p.returncode != 0:
-        raise RuntimeError(f"kubectl apply rc={p.returncode}: {p.stderr.strip()[-200:]}")
+    api.request("PATCH", f"/api/v1/namespaces/{ns}/configmaps/{cfg['name']}", body=cm,
+                query={"fieldManager": "security-platform-runner", "force": "true"})
 
 
 # ---- remote_write -----------------------------------------------------------------------------------------
