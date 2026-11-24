@@ -1,5 +1,9 @@
 """Runs on the target host (python3, stdlib only). READ-ONLY. Finds where secrets LIVE and prints metadata only:
 path, kind, mode, owner uid, size, mtime, plus boolean properties (encrypted?, passphrase?). Never prints content.
+Windows: POSIX mode bits do not exist; `mode` is derived from the file's ACL (one PowerShell Get-Acl call for all
+found files, by SID so it is locale independent): readable by Everyone / Users / Authenticated Users -> 0o644,
+readable by another account -> 0o640, otherwise (owner, the scanning account, SYSTEM, Administrators) 0o600; `acl`
+lists the other readers (SIDs).
 usage: python3 scan.py <json-config>   config: {"roots": [...], "exclude": [...], "maxdepth": N}
 """
 import json
@@ -35,12 +39,26 @@ def head(p, n=4096):
         return b""
 
 
+WIN = os.name == "nt"
+
+
+def reparse(p):
+    """Junctions / symlinks (e.g. the legacy "Application Data" junctions on Windows) are not walked: no loops, no
+    duplicates, no denied legacy paths."""
+    try:
+        st = os.lstat(p)
+    except OSError:
+        return True
+    return stat.S_ISLNK(st.st_mode) or bool(getattr(st, "st_file_attributes", 0) & 0x400)
+
+
 def classify(p, name):
     low = name.lower()
+    p = p.replace("\\", "/")
     h = head(p, 200)
     if b"PRIVATE KEY" in h and h.startswith(b"-----BEGIN"):
         return "private-key"
-    if ((os.sep + ".kube" + os.sep) in p or "kubeconfig" in low or low.endswith(".yaml")) and \
+    if (("/.kube/") in p or "kubeconfig" in low or low.endswith(".yaml")) and \
             b"clusters:" in head(p, 1 << 16) and b"users:" in head(p, 1 << 16):
         return "kubeconfig"
     if low.endswith((".tfstate", ".tfstate.backup")) and "/.terraform/" not in p:  # .terraform/ = backend metadata
@@ -116,12 +134,13 @@ for root in cfg["roots"]:
         walk = [(os.path.dirname(root), [], [os.path.basename(root)])]
     else:
         walk = os.walk(root)
-    base_depth = root.rstrip("/").count("/")
+    base_depth = root.rstrip("/\\").count(os.sep)
     for dp, dns, fns in walk:
         if any(dp.startswith(e) for e in excl):
             dns[:] = []
             continue
-        dns[:] = [d for d in dns if d not in EXCL_DIRS and dp.count("/") - base_depth < maxdepth]
+        dns[:] = [d for d in dns if d not in EXCL_DIRS and dp.count(os.sep) - base_depth < maxdepth
+                  and not reparse(os.path.join(dp, d))]
         for fn in fns:
             p = os.path.join(dp, fn)
             if any(p.startswith(e) for e in excl):
@@ -140,4 +159,47 @@ for root in cfg["roots"]:
                 continue
             out.append(dict(path=p, kind=kind, mode=oct(st.st_mode & 0o777), uid=st.st_uid, size=st.st_size,
                             mtime=int(st.st_mtime), **pr))
+BROAD = {"S-1-1-0", "S-1-5-32-545", "S-1-5-11", "S-1-5-7"}          # Everyone, Users, Authenticated Users, Anonymous
+TRUSTED = {"S-1-5-18", "S-1-5-32-544", "S-1-3-0"}                   # SYSTEM, Administrators, CREATOR OWNER
+
+
+def windows_acl(items):
+    """path -> (synthetic mode, readers) from one PowerShell call."""
+    if not items:
+        return {}
+    ps = ("$ErrorActionPreference='SilentlyContinue';[Console]::OutputEncoding=[Text.Encoding]::UTF8;"
+          "$me=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value;Write-Output ('me'+[char]9+$me+[char]9+$me);"
+          "foreach($p in [Console]::In.ReadToEnd().Split([char]10)){$p=$p.Trim();if(-not $p){continue};$a=Get-Acl -LiteralPath $p;"
+          "$o=try{$a.GetOwner([Security.Principal.SecurityIdentifier]).Value}catch{''};"
+          "foreach($r in $a.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier])){"
+          "if($r.AccessControlType -eq 'Allow' -and ($r.FileSystemRights.value__ -band 0x1)){"
+          "Write-Output ($p+[char]9+$o+[char]9+$r.IdentityReference.Value)}}}")
+    r = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps], input="\n".join(i["path"] for i in items),
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
+    acl, me = {}, None
+    for line in r.stdout.splitlines():
+        parts = line.rstrip("\r").split("\t")
+        if len(parts) == 3:
+            path, owner, sid = parts
+            if path == "me":
+                me = sid      # the scanning account (the home's user): reading its own secrets is expected
+                continue
+            acl.setdefault(path, set())
+            if sid not in (owner, me) and sid not in TRUSTED:
+                acl[path].add(sid)
+    res = {}
+    for path, readers in acl.items():
+        mode = 0o644 if readers & BROAD else (0o640 if readers else 0o600)
+        res[path] = (mode, sorted(readers))
+    return res
+
+
+if WIN:
+    acl = windows_acl(out)
+    for i in out:
+        if i["path"] in acl:
+            i["mode"] = oct(acl[i["path"]][0])
+            i["acl"] = acl[i["path"]][1]
+        else:
+            i["mode"] = "unknown"
 print(json.dumps({"home": HOME, "items": out}))

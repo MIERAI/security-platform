@@ -2,6 +2,23 @@
 
 Components are versioned independently (docs/design.md §5). Entries name the component and its new version.
 
+## 2026-11-25 — coverage gaps closed (device and software pillars)
+
+- **collector secrets-files 0.2.0**: Windows targets (exec `shell: windows`, script read as UTF-8 bytes, permissions
+  from the ACL by SID, junctions not walked); an SSH server's host key is not "a key without passphrase".
+- **collector vuln-intel 0.4.0**: `code_repos` — every repository of a code-host owner (one cached listing call per
+  day; HEAD via `git ls-remote`; shallow clone + SBOM only when HEAD changed; token in the environment only),
+  matched through Trivy's DB and OSV; metrics `security_sbom_repos{,_in_scope}`,
+  `security_intel_firmware_vendors_without_source`.
+- **collector exposure 0.3.0** / **discovery 0.3.0**: a host the discovery adapter saw online (`online_verified`) with
+  no open port is covered (fully filtered), not a gap; unverified addresses stay gaps.
+- **core 0.6.0**: coverage exceptions (`exceptions.yaml: coverage_exceptions`, human + expiry like finding
+  exceptions) take a gap out of `collector_coverage_gaps`; `security_coverage_gaps_excepted`,
+  `security_coverage_gaps_open{collector}`.
+- **scorecard catalog**: coverage (host software inventory, secrets on every host, code dependencies, unmanaged
+  devices attested, limitations documented) and intel (vendor advisories built, hosts matched, platform advisories
+  fresh, time-to-know, code dependencies matched).
+
 ## 2026-11-24 — Tailscale OAuth client (read-only)
 
 - **adapters/identity 0.2.0**: the `tailscale` provider takes an OAuth client (`oauth_client_id` +

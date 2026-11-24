@@ -10,7 +10,7 @@ Future (interface only): aws-vpc (ec2:DescribeInstances), gcp (compute.instances
 import json
 import subprocess
 
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 
 
 def tailscale(cfg):
@@ -21,6 +21,7 @@ def tailscale(cfg):
         ip = next((a for a in p.get("TailscaleIPs", []) if "." in a), None)
         res.append(dict(name=p.get("HostName"), address=ip, os=p.get("OS"), online=bool(p.get("Online")) or is_self,
                         attrs=dict(self=is_self, exit_node_option=bool(p.get("ExitNodeOption")),
+                                   online_verified=True,   # the control plane saw it (static targets are assumed)
                                    key_expiry_disabled=p.get("KeyExpiry") is None and not is_self)))
     return res
 

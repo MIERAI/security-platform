@@ -37,6 +37,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -111,6 +112,75 @@ def scan_image(item):
     if rc != 0:
         return ref, None, f"match rc={rc}: {err.strip()[-160:]}"
     return ref, json.loads(out), os.path.relpath(sbom, DATA)
+
+
+def code_repos(cfg, c):
+    """The code host's repositories of an owner (contract: their default branch HEAD) -> {asset: (sbom relpath, sha)}.
+    API use is minimal: ONE listing call per `list_max_age_hours` (default 24, cached); HEADs come from
+    `git ls-remote` (git protocol, no API quota); a shallow clone + SBOM (trivy fs, CycloneDX) only when the HEAD
+    changed (cached by commit). Credentials: the code host CLI's token for `gh_user`, passed to git in the
+    environment (never on a command line, never logged). cfg: {type: github, owner, gh_user?, include_forks: false,
+    include_archived: false, exclude: [names]}"""
+    owner = cfg["owner"]
+    base = os.path.join(DATA, "cache", "repos", owner)
+    os.makedirs(base, exist_ok=True)
+    lp = os.path.join(base, "list.json")
+    env = dict(os.environ, GIT_TERMINAL_PROMPT="0")
+    tok = ""
+    if cfg.get("gh_user") or cfg.get("token_file"):
+        if cfg.get("token_file"):
+            tok = read_secret_file(cfg["token_file"])
+        else:
+            r = subprocess.run(["gh", "auth", "token", "--user", cfg["gh_user"]], capture_output=True, text=True, timeout=30)
+            tok = r.stdout.strip() if r.returncode == 0 else ""
+    if tok:
+        import base64
+        env.update(GIT_CONFIG_COUNT="1", GIT_CONFIG_KEY_0="http.https://github.com/.extraheader",
+                   GIT_CONFIG_VALUE_0="AUTHORIZATION: basic " + base64.b64encode(f"x-access-token:{tok}".encode()).decode())
+    fresh = os.path.exists(lp) and time.time() - os.path.getmtime(lp) < float(cfg.get("list_max_age_hours", 24)) * 3600
+    if not fresh:
+        genv = dict(os.environ, **({"GH_TOKEN": tok} if tok else {}))
+        r = subprocess.run(["gh", "repo", "list", owner, "--limit", "1000", "--json", "name,isArchived,isFork,isPrivate,url"],
+                           capture_output=True, text=True, timeout=120, env=genv)
+        if r.returncode == 0:
+            with open(lp + ".tmp", "w") as f:
+                f.write(r.stdout)
+            os.replace(lp + ".tmp", lp)
+        elif not os.path.exists(lp):
+            c.gap(f"codehost:github/{owner}/repos", f"repository listing failed: {r.stderr.strip()[-160:]}")
+            return {}
+    repos = [x for x in json.load(open(lp)) if (cfg.get("include_forks") or not x["isFork"])
+             and (cfg.get("include_archived") or not x["isArchived"]) and x["name"] not in (cfg.get("exclude") or [])]
+    c.metric("security_sbom_repos_in_scope", len(repos), "Code-host repositories in scope of dependency matching")
+    out = {}
+    for x in repos:
+        asset = f"repo:github/{owner}/{x['name']}"
+        url = x["url"] + ".git"
+        r = subprocess.run(["git", "ls-remote", url, "HEAD"], capture_output=True, text=True, timeout=60, env=env)
+        sha = (r.stdout.split() or [""])[0]
+        if r.returncode != 0 or not sha:
+            c.gap(asset, f"ls-remote failed: {r.stderr.strip()[-120:]}")
+            continue
+        sbom = os.path.join(DATA, "sbom", f"repo-{owner}-{x['name']}-{sha[:12]}.cdx.json")
+        if not os.path.exists(sbom):
+            wd = os.path.join(base, x["name"])
+            shutil.rmtree(wd, ignore_errors=True)
+            r = subprocess.run(["git", "clone", "--quiet", "--depth", "1", "--no-tags", url, wd], capture_output=True, text=True,
+                               timeout=600, env=env)
+            if r.returncode != 0:
+                c.gap(asset, f"clone failed: {r.stderr.strip()[-120:]}")
+                continue
+            rc, sout, err = trivy(["fs", "--format", "cyclonedx", "--skip-db-update", "--scanners", "vuln", "--output", sbom + ".tmp", wd])
+            shutil.rmtree(wd, ignore_errors=True)
+            if rc != 0:
+                c.gap(asset, f"sbom rc={rc}: {err.strip()[-120:]}")
+                continue
+            os.replace(sbom + ".tmp", sbom)
+            for old in glob.glob(os.path.join(DATA, "sbom", f"repo-{owner}-{x['name']}-*.cdx.json")):
+                if old != sbom:
+                    os.remove(old)
+        out[asset] = (os.path.relpath(sbom, DATA), sha)
+    return out
 
 
 def scan_repo(path):
@@ -244,6 +314,9 @@ def main():
     for path, rep, note in map(scan_repo, cfg.get("repos", [])):
         repos[path] = rep
         (c.ok if rep is not None else (lambda a: c.gap(a, note)))(f"repo:{os.path.basename(path.rstrip('/'))}")
+    remote_repos = {}
+    for rc_cfg in cfg.get("code_repos") or []:
+        remote_repos.update(code_repos(rc_cfg, c))
     # ---- match + prioritize ------------------------------------------------------------------------------
     now = time.time()
     oldest_fixable_crit = 0
@@ -306,6 +379,17 @@ def main():
     for path, rep in repos.items():
         if rep:
             handle(f"repo:{os.path.basename(path.rstrip('/'))}", {"exposed": False, "prod": True, "clusters": []}, rep)
+    repo_sboms = []
+    for asset, (sbom_rel, sha) in sorted(remote_repos.items()):
+        rc, out, err = trivy(["sbom", "--format", "json", "--skip-db-update", "--scanners", "vuln", os.path.join(DATA, sbom_rel)])
+        if rc != 0:
+            c.gap(asset, f"match rc={rc}: {err.strip()[-160:]}")
+            continue
+        c.ok(asset)
+        meta = {"exposed": False, "prod": True, "clusters": [], "commit": sha}
+        handle(asset, meta, json.loads(out))
+        repo_sboms.append((asset, sbom_rel, meta))
+    c.metric("security_sbom_repos", len(repo_sboms), "Code-host repositories with a dependency SBOM matched")
 
     # ---- hosts: distro packages, fs SBOMs, platform advisories --------------------------------------------
     inv_kinds = {}
@@ -503,6 +587,11 @@ def main():
                               f"read {it['url']} and record a verdict in advisory-reviews.yaml (id {it['id']})", needs_human=True,
                               kind="vulnerability", advisory=f"{s['name']}:{it['id']}", published_at=it.get("first_seen", "")[:10],
                               candidate=not affected, matcher="vendor-advisories")
+    readable = {v for src in (vend.get("sources_cfg") or []) if src["name"] not in (vend.get("errors") or {})
+                for v in src.get("vendors") or []}
+    fw_vendors = {(p.get("firmware") or {}).get("vendor") for p in plats.values()} - {None}
+    c.metric("security_intel_firmware_vendors_without_source", len(fw_vendors - readable),
+             "Firmware vendors in scope without a readable advisory source (only KEV covers them)")
     # coverage per HOST (findings live on host:<name>): ok only when every applicable matcher covered it, so a
     # partial run never marks a finding fixed; the per-matcher detail is evidence
     for A, parts in hcov.items():
@@ -518,7 +607,7 @@ def main():
     osv_idx = intel.get("osv", {}).get("index", {})
     osv_hits = 0
     if osv_idx:
-        targets = [(f"image:{ref}", meta["sbom"], meta) for ref, meta in images.items() if meta.get("sbom")] + host_sboms
+        targets = [(f"image:{ref}", meta["sbom"], meta) for ref, meta in images.items() if meta.get("sbom")] + host_sboms + repo_sboms
         for asset, sbom_rel, meta in targets:
             try:
                 cdx = json.load(open(os.path.join(DATA, sbom_rel)))

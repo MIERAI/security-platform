@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Collector `secrets-files`: the "files" secrets-store adapter. Where secrets live, never what they are.
 
-Instance config `secrets_files: [{host, exec, roots, exclude?, sudo?, python?}]`. Runs remote/scan.py through the
+Instance config `secrets_files: [{host, exec, roots, exclude?, sudo?, python?}]` (Windows targets: an exec adapter
+with `shell: windows` and `python:` pointing at the target's interpreter; permissions come from ACLs). Runs remote/scan.py through the
 exec adapter. Records path, kind, permissions, age, and boolean properties (encrypted / passphrase / embedded key).
 Future adapters behind the same contract: Vault, AWS/GCP Secret Manager, 1Password (list metadata + rotation dates).
 """
@@ -36,7 +37,7 @@ def main():
         conf = json.dumps({"roots": t["roots"], "exclude": t.get("exclude", []), "maxdepth": t.get("maxdepth", 5)})
         py = t.get("python", "python3")
         # write the script to stdin of `python -c` loader so the config can be an argv
-        loader = "import sys;exec(sys.stdin.read())"
+        loader = "import sys;exec(sys.stdin.buffer.read().decode('utf-8'))"
         argv = (["sudo", "-n"] if t.get("sudo") else []) + [py, "-c", loader, conf]
         rc, out, err = ex.executor(t["exec"]).run(argv, stdin=script, timeout=600)
         if rc != 0 and t.get("sudo"):
@@ -50,13 +51,17 @@ def main():
         home = res["home"]
         items = res["items"]
         for i in items:
-            i["path"] = i["path"].replace(home, "~", 1)
+            i["path"] = i["path"].replace(home, "~", 1).replace("\\", "/")
         ev = c.raw(f"{host}.json", items)
         c.ok(A)
         old = 0
         for i in items:
             asset = f"secret-file:{host}:{i['path']}"
-            mode = int(i["mode"], 8)
+            if i["mode"] == "unknown":
+                c.gap(f"{asset}/permissions", "file permissions could not be read")
+                mode = 0
+            else:
+                mode = int(i["mode"], 8)
             age_d = int((now - i["mtime"]) / 86400)
             kind = i["kind"]
             if kind in PRIVATE_KINDS and mode & 0o077 and not (kind == "kubeconfig" and not i.get("embedded_client_key") and not i.get("token_auth")):
@@ -66,7 +71,8 @@ def main():
                 c.finding("data-secrets", asset, "secret.permissions_too_open",
                           f"{kind}{' (encrypted)' if i.get('encrypted') else ''} readable by group/others (mode {i['mode']})", sev,
                           f"{ev}#{i['path']}", "chmod 600 (dirs 700)")
-            if kind == "private-key" and i.get("passphrase") is False:
+            if kind == "private-key" and i.get("passphrase") is False and not os.path.basename(i["path"]).startswith("ssh_host_"):
+                # (an SSH server's host key never has a passphrase: the daemon must read it unattended)
                 c.finding("data-secrets", asset, "secret.ssh_key_no_passphrase",
                           f"private key without passphrase ({i.get('type', i.get('format'))}, {age_d}d old)", "medium",
                           f"{ev}#{i['path']}", "add a passphrase (ssh-keygen -p) + agent, or move to a hardware/Secure-Enclave key",

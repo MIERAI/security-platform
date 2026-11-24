@@ -45,6 +45,8 @@
 ```
 
 - 关键：**只有当 collector 本次确实覆盖到了该 asset（coverage=ok）而 finding 消失，才判 fixed**。资产离线/采集失败 = coverage gap，finding 保持原状态，不会"假修复"。
+- 覆盖例外（`exceptions.yaml` 的 `coverage_exceptions`）：人批准 + 到期日，期间该缺口不计入
+  `collector_coverage_gaps`（例如离线的私人手机经声明移出范围、等待用户装钥匙的设备）；到期自动重新计入。
 - `needs_human=true`：修复必须本人做（密码、账户设置、物理操作、GUI 授权）。phase 1 清单里单独列出。
 
 ---
@@ -346,6 +348,8 @@ hub 跑在操作者工作站上时，工作站睡眠/断网 = 整个平台停。
   （deb / apk / rpm / termux / brew / brew-cask / opkg / windows-kb / windows-program）与
   `inventory.host-platforms.json`（OS 版本与构建号、运行中内核、Android 安全补丁级别、固件厂商/型号/版本/构建日期、
   是否暴露）。本地主机可加 `sbom_paths`：`trivy rootfs` 取 Go 二进制、PyPI、npm 组件（CycloneDX）。
+- 代码托管上自己的全部仓库（`intel.code_repos`）：每天一次列表调用（缓存），HEAD 用 `git ls-remote`（不耗 API 额度），
+  HEAD 变了才浅克隆 + SBOM；Trivy DB 与 OSV 两个匹配器。
 - 没有结构化公告源的生态（termux、brew formula、opkg、Windows 程序）只盘点并计数
   （`security_sbom_unmatched_packages`），**绝不报"无漏洞"**。
 
