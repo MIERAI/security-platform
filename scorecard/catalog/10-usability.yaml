@@ -1,4 +1,6 @@
 # Dimension 10: usability. Owner of this file: the generality + usability work stream.
+# "Does an operator get value quickly and keep getting it?": a measured quick start, a command line that explains
+# findings in plain words, a daily summary that actually arrives, dashboards, and the operator's own judgement.
 schema: security-platform/scorecard-catalog/v1
 dimension:
   id: usability
@@ -8,13 +10,14 @@ dimension:
   pillars: [software]
 controls:
   - id: usability.quickstart
-    title: The README has a quick start
+    title: A quick start leads from clone to first findings (README and docs/quickstart.md)
     csf: GV.PO
     cis: []
     pillars: [software]
     check: evidence
     weight: 2
-    source: {type: file, path: README.md, contains: "(?i)quick start"}
+    source: {type: all, of: [{type: file, path: README.md, contains: "(?i)quick start"},
+                             {type: file, path: docs/quickstart.md, contains: "sp run"}]}
   - id: usability.installer
     title: One command installs a versioned release (and rolls back)
     csf: PR.PS
@@ -23,6 +26,25 @@ controls:
     check: evidence
     weight: 1
     source: {type: file, path: bin/sp-install}
+  - id: usability.time-to-first-run
+    title: Clone to first findings is measured and under 15 minutes (e2e/kind, within 45 days)
+    csf: GV.PO
+    cis: []
+    pillars: [software]
+    check: evidence
+    weight: 2
+    remediation: run e2e/kind/run.sh --ref <tag> and commit e2e/kind/last-pass.json
+    source: {type: file, path: e2e/kind/last-pass.json, max_age: 45d,
+             contains: '"clone_to_first_findings_seconds": ([0-9]{1,2}|[1-8][0-9]{2}),'}
+  - id: usability.cli-plain-language
+    title: "`sp` explains every finding in plain language (what, why, how to fix, how to verify); a test enforces it"
+    csf: GV.PO
+    cis: []
+    pillars: [software]
+    check: evidence
+    weight: 2
+    source: {type: all, of: [{type: file, path: bin/sp}, {type: file, path: cli/explanations.py},
+                             {type: file, path: tests/test_cli.py, contains: "test_every_emitted_check_is_explained"}]}
   - id: usability.weekly-digest
     title: The weekly digest was produced within 8 days
     csf: GV.OV
@@ -31,22 +53,32 @@ controls:
     check: automated
     weight: 2
     source: {type: job, jobs: [digest], max_age: 8d}
+  - id: usability.daily-summary
+    title: The daily summary reached a person (a `notify` job succeeded within 2 days)
+    csf: GV.OV
+    cis: []
+    pillars: [people, software]
+    check: automated
+    weight: 2
+    remediation: configure `notify:` and a `notify` job (docs/instance-reference.md#notify)
+    source: {type: job, jobs: [notify], max_age: 2d}
   - id: usability.dashboard
-    title: A dashboard is generated (aggregates only)
+    title: Dashboards are generated (overview and details; aggregates only)
     csf: GV.OV
     cis: []
     pillars: [software]
     check: evidence
     weight: 1
-    source: {type: file, path: dist/grafana-dashboard.json}
-  - id: usability.time-to-first-run
-    title: Time from clone to the first ledger is measured and under an hour
+    source: {type: all, of: [{type: file, path: dist/grafana-dashboard.json}, {type: file, path: dist/grafana-overview.json}]}
+  - id: usability.docs
+    title: Configuration reference, FAQ and summaries in other languages exist
     csf: GV.PO
     cis: []
     pillars: [software]
-    check: automated
-    weight: 2
-    source: {type: none, reason: "not measured"}
+    check: evidence
+    weight: 1
+    source: {type: all, of: [{type: file, path: docs/instance-reference.md}, {type: file, path: docs/faq.md},
+                             {type: file, path: docs/summary.ja.md}, {type: file, path: docs/summary.zh.md}]}
   - id: usability.operator-review
     title: The operator reviewed the digest / dashboard usefulness within 90 days
     csf: GV.OV

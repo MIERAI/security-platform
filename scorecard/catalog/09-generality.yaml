@@ -1,4 +1,6 @@
 # Dimension 9: generality. Owner of this file: the generality + usability work stream.
+# "Can another organisation adopt it without forking?" is answered by evidence that a different environment ran it
+# (e2e/kind), by the plugin interfaces and guides, and by versioned, documented releases.
 schema: security-platform/scorecard-catalog/v1
 dimension:
   id: generality
@@ -8,13 +10,14 @@ dimension:
   pillars: [software]
 controls:
   - id: generality.adapters-documented
-    title: Every environment integration is an adapter behind a documented interface
+    title: Every environment integration is an adapter behind a documented interface, with an authoring guide
     csf: GV.PO
     cis: []
     pillars: [software]
     check: evidence
     weight: 2
-    source: {type: file, path: adapters/README.md}
+    source: {type: all, of: [{type: file, path: adapters/README.md},
+                             {type: file, path: docs/adapters.md, contains: "Rules every plugin follows"}]}
   - id: generality.example-instance
     title: A generic example instance exists
     csf: GV.PO
@@ -31,7 +34,8 @@ controls:
     check: evidence
     weight: 1
     source: {type: all, of: [{type: file, path: core/VERSION}, {type: file, path: sdk/VERSION}, {type: file, path: runner/VERSION},
-                             {type: file, path: generators/VERSION}, {type: file, path: scorecard/VERSION}]}
+                             {type: file, path: generators/VERSION}, {type: file, path: scorecard/VERSION},
+                             {type: file, path: cli/VERSION}]}
   - id: generality.scorecard-own-catalog
     title: The scorecard takes an organisation's own catalog and weights
     csf: GV.PO
@@ -58,10 +62,61 @@ controls:
     question: "Did bin/check-residue --history pass on the current main?"
     weight: 2
   - id: generality.second-instance
-    title: A second, different environment ran the product end to end
+    title: A second, different environment ran the product end to end within 45 days (e2e/kind)
     csf: GV.PO
     cis: []
     pillars: [software]
-    check: automated
+    check: evidence
     weight: 2
-    source: {type: none, reason: "only one instance so far"}
+    remediation: run e2e/kind/run.sh --ref <tag> and commit e2e/kind/last-pass.json
+    source: {type: file, path: e2e/kind/last-pass.json, max_age: 45d, contains: '"result": "pass"'}
+  - id: generality.alternative-adapters
+    title: Environment interfaces have more than one implementation in use (static CIDR discovery, a second code host)
+    csf: GV.PO
+    cis: []
+    pillars: [software]
+    check: evidence
+    weight: 1
+    source: {type: all, of: [{type: file, path: adapters/discovery.py, contains: "cidrs"},
+                             {type: file, path: collectors/codehost-gitea/collector.py}]}
+  - id: generality.install-guide
+    title: An install guide and a full configuration reference with defaults exist
+    csf: GV.PO
+    cis: []
+    pillars: [software]
+    check: evidence
+    weight: 2
+    source: {type: all, of: [{type: file, path: docs/quickstart.md}, {type: file, path: docs/instance-reference.md}]}
+  - id: generality.upgrade-policy
+    title: Upgrades are documented, breaking changes take two steps
+    csf: GV.SC
+    cis: []
+    pillars: [software]
+    check: evidence
+    weight: 1
+    source: {type: file, path: docs/upgrade.md, contains: "(?i)two-step"}
+  - id: generality.contract-tests
+    title: Data contracts are tested (every collector's fixture validates against the schema)
+    csf: GV.SC
+    cis: []
+    pillars: [software]
+    check: evidence
+    weight: 1
+    source: {type: file, path: tests/test_contract.py}
+  - id: generality.releases
+    title: Releases are tagged with notes (CHANGELOG has a vX.Y.Z section)
+    csf: GV.SC
+    cis: []
+    pillars: [software]
+    check: evidence
+    weight: 1
+    source: {type: file, path: CHANGELOG.md, contains: '^## v[0-9]+\.[0-9]+\.[0-9]+'}
+  - id: generality.multi-arch-image
+    title: The runner image is published for amd64 and arm64
+    csf: GV.SC
+    cis: []
+    pillars: [software]
+    check: automated
+    weight: 1
+    remediation: build the image for linux/amd64,linux/arm64 in the image workflow
+    source: {type: none, reason: "the published image is linux/amd64 only; arm64 users build the Dockerfile"}
