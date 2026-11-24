@@ -2,6 +2,12 @@
 
 Components are versioned independently (docs/design.md §5). Entries name the component and its new version.
 
+## 2026-11-25 — checks mapped to ATT&CK
+
+- **scorecard**: `scorecard/attack-map.yaml` (check prefix -> MITRE ATT&CK Enterprise v17 techniques; detections
+  already carry theirs); `tests/test_attack_map.py` fails when a collector emits an unmapped check; control
+  `intel.attack-mapping` is now evidence (the map and the detection catalog).
+
 ## 2026-11-24 — install and operations docs, second-environment e2e test
 
 - **docs**: `quickstart.md` (first findings in 15 minutes, starting with the local machine; add the environment one
