@@ -217,6 +217,10 @@ class Manifests(unittest.TestCase):
         self.assertEqual(by[("Role", "security-platform-inbox-writer")]["rules"], [{"apiGroups": [""], "resources": ["secrets"], "verbs": ["create"]}])
         reader = by[("Role", "security-platform-snapshot-reader")]["rules"][0]
         self.assertEqual((reader["verbs"], reader["resourceNames"]), (["get"], ["security-platform-snapshot"]))
+        for crb in [d for d in docs if d["kind"] == "ClusterRoleBinding"]:
+            # kustomize's namespace transformer only rewrites subjects in "default" (or none): anything else would
+            # bind a ServiceAccount of a namespace that does not exist
+            self.assertEqual({s.get("namespace", "default") for s in crb["subjects"]}, {"default"})
         kust = yaml.safe_load(open(os.path.join(ROOT, "deploy", "kubernetes", "hub", "kustomization.yaml")))
         for f in kust["resources"]:
             self.assertTrue(os.path.exists(os.path.join(ROOT, "deploy", "kubernetes", "hub", f)))

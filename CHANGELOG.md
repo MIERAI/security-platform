@@ -2,6 +2,12 @@
 
 Components are versioned independently (docs/design.md §5). Entries name the component and its new version.
 
+## 2026-11-24 — fix
+
+- **deploy 0.3.1**: the ClusterRoleBindings of the hub and the in-cluster site name their ServiceAccount in namespace
+  `default`, which kustomize rewrites to the overlay's namespace (it left `security-platform` as it was, binding an
+  account that does not exist: the read-only posture would have been denied).
+
 ## 2026-11-24 — remediation workflow
 
 - **core 0.3.0**: `core/remediation.py`: one tracking item per open finding (contract `security-platform/tracker/v1`,
