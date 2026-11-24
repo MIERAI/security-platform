@@ -2,6 +2,24 @@
 
 Components are versioned independently (docs/design.md §5). Entries name the component and its new version.
 
+## 2026-11-25 — host software inventory and platform advisories
+
+- **collector host-sbom 0.1.0** (new): software inventory of every host through the exec adapter + an OS profile
+  (linux dpkg/apk/rpm, macOS Homebrew, Android/Termux, Windows KB + installed programs, OpenWrt opkg + firmware);
+  contracts `inventory.host-packages.json` / `inventory.host-platforms.json`; optional `sbom_paths` (local hosts:
+  Go binaries / PyPI / npm via `trivy rootfs`).
+- **collector vuln-intel 0.3.0**: host matching — distro packages through Trivy's DB (Ubuntu USN / Debian tracker /
+  Alpine), running-kernel aggregation, fs SBOMs through Trivy + OSV; platform advisories with one finding per missed
+  release: Android bulletins (patch level), Apple security releases, MSRC monthly updates, firmware-vendor KEV
+  entries (candidates); vendor advisory headlines as candidates with human verdicts (`advisory-reviews.yaml`),
+  unreadable sources are gaps; optional advisor for extraction only. Coverage per host is ok only when every
+  applicable matcher ran.
+- **adapters**: feeds 0.3.0 (`android-bulletins`, `apple-security-releases`, `msrc-cvrf`, `vendor-advisories`; KEV
+  index carries vendor/product); exec 0.2.0 (`shell: windows`, `powershell()` bootstrap through stdin).
+- **core 0.5.0**: time-to-know baseline (`ttk_counted`: only findings on assets the collector had already covered),
+  platform advisories count (`advisory`), `security_time_to_know_hours{asset_class,priority,quantile}`; SLI
+  `time_to_know_hours` (objective 24h; disclosure dates are day-granular).
+
 ## 2026-11-24 — platform self-security
 
 - docs/threat-model.md (new): the platform's own threat model (assets, trust boundaries, STRIDE threats T1-T11 with

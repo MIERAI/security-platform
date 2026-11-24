@@ -54,6 +54,19 @@ slos:
     metric: security_collector_last_good_run_timestamp_seconds
     matchers: collector="host"
     max: 50h
+- name: security-collector-host-sbom-fresh
+  objective: 95
+  severities:
+    fastBurn: info
+    mediumBurn: info
+    slowBurn: info
+    longTermBurn: info
+    absent: ticket
+  description: The host-sbom collector covered at least one asset within 50h (no findings != secure).
+  age:
+    metric: security_collector_last_good_run_timestamp_seconds
+    matchers: collector="host-sbom"
+    max: 50h
 - name: security-collector-identity-fresh
   objective: 95
   severities:
@@ -264,3 +277,16 @@ slos:
   bool:
     metric: security_sli_ok
     matchers: sli="check_catalog_age_days"
+- name: security-time-to-know-hours
+  objective: 99
+  severities:
+    fastBurn: info
+    mediumBurn: info
+    slowBurn: info
+    longTermBurn: info
+    absent: ticket
+  description: 'Longest time-to-know (last 30 days) for KEV / critical / high detections on already-covered assets - advisory or KEV publication
+    (date granularity: an upper bound) to the first finding; images, repos, hosts and firmware stays <= 24.'
+  bool:
+    metric: security_sli_ok
+    matchers: sli="time_to_know_hours"

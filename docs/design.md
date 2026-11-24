@@ -342,11 +342,26 @@ hub 跑在操作者工作站上时，工作站睡眠/断网 = 整个平台停。
 
 - 合同：`inventory/v1`（`{schema, kind, items[]}`），由任何 collector 产出，例如 k8s collector 写 `inventory.k8s-images.json`（集群 × 镜像 × digest × 是否暴露 × 是否 prod）。
 - phase 0：运行中镜像的 SBOM（Trivy → CycloneDX，按 digest 缓存在私有 `sbom/`）、本地仓库的依赖（`trivy fs`，含 Go modules）。
-- 以后：主机 OS 包（`dpkg-query`/`trivy rootfs`/osquery）、手机原生二进制版本、路由器固件版本、Homebrew。
+- 主机（`collectors/host-sbom`，经 exec adapter + OS profile，只读）：产出 `inventory.host-packages.json`
+  （deb / apk / rpm / termux / brew / brew-cask / opkg / windows-kb / windows-program）与
+  `inventory.host-platforms.json`（OS 版本与构建号、运行中内核、Android 安全补丁级别、固件厂商/型号/版本/构建日期、
+  是否暴露）。本地主机可加 `sbom_paths`：`trivy rootfs` 取 Go 二进制、PyPI、npm 组件（CycloneDX）。
+- 没有结构化公告源的生态（termux、brew formula、opkg、Windows 程序）只盘点并计数
+  （`security_sbom_unmatched_packages`），**绝不报"无漏洞"**。
 
 ### 11.3 匹配
 
 - 结构化公告 → **确定性**版本区间匹配（Trivy）。
+- 主机（`collectors/vuln-intel/hostmatch.py`）：
+  - 发行版包 → CycloneDX（带源码包名）→ Trivy DB（Ubuntu USN / Debian security tracker / Alpine secdb …）。
+    内核单独处理：只有**运行中**内核的 CVE 算数（其余已安装内核的包是清理问题），每台主机聚合成一条
+    `vuln.kernel_fixes_available`；KEV 照常单列。
+  - 平台公告，每个错过的发布一条 finding（这样每个公告都能量 time-to-know）：Android 安全公告（OSV `Android`，
+    补丁级别比较）`platform.android_bulletin.<spl>`、Apple 安全发布（官方发布表，同一大版本线）
+    `platform.apple_release.<ver>`、MSRC 月度更新（CVRF，OS 构建号）`platform.windows_update.<月>`、
+    固件厂商在固件构建日之后进入 KEV 的条目（**候选**，needs_human）。
+  - 非结构化厂商页面（`vendor-advisories` feed）：只用正则抽标题行；新标题 = **候选**（needs_human），人在私有
+    `advisory-reviews.yaml` 记结论；读不了的源（反爬挑战、纯 JS 页面）= 覆盖缺口，**不绕过**。
 - 非结构化公告 → AI 只**抽取**候选包/版本区间，经人或确定性校验后才变成匹配规则。**AI 永远不能下"不受影响"的结论。**
 
 ### 11.4 优先级 = 情报 × 我们的暴露面
@@ -370,10 +385,14 @@ hub 跑在操作者工作站上时，工作站睡眠/断网 = 整个平台停。
 
 | SLO | 定义 | 目标 | ledger 字段 |
 |---|---|---|---|
-| time-to-know | 公告/KEV 收录 → 我们第一次判定"受影响"的时长 | KEV/critical ≤ 4h | `disclosed_at`、`first_seen`、`time_to_know_hours` |
+| time-to-know | 公告/KEV 收录 → 我们第一次判定"受影响"的时长 | KEV/critical/high ≤ 24h（SLI `time_to_know_hours`；见下） | `disclosed_at`、`first_seen`、`time_to_know_hours`、`ttk_counted` |
 | time-to-remediate | 第一次判定 → fixed | KEV+暴露 ≤ 24h，critical ≤ 7 天 | `first_seen`、`fixed_at`、`time_to_fix_days` |
 
 注意：phase 0 是第一次盘点，所有历史漏洞的 time-to-know 都很大（基线），**不算违约**；从第二次运行开始新出现的才计入。
+core 0.4.0 起由 ledger 判定：只有出现在**该 collector 之前已覆盖过的资产**上的新 finding 才 `ttk_counted`
+（新资产的第一次盘点 = 基线）。指标 `security_time_to_know_hours{asset_class=image|repo|host,priority,quantile}`。
+KEV 与多数公告只给日期，所以测得的是上界（从当天 00:00 UTC 算起）；因此目标定 24h，情报作业每小时跑一次
+（SBOM 有缓存，复配只要几十秒），设计初稿的 4h 留作有时间戳情报源之后的目标。
 
 ### 11.7 PDCR 的紧急环（重大披露，xz 后门这类）
 
