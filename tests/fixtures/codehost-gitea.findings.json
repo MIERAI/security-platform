@@ -1,0 +1,50 @@
+{
+ "collector": {
+  "name": "codehost-gitea",
+  "tools": {},
+  "version": "0.1.0"
+ },
+ "coverage": [
+  {
+   "asset": "repo:example",
+   "status": "ok"
+  },
+  {
+   "asset": "host:example-offline",
+   "reason": "offline at scan time",
+   "status": "gap"
+  }
+ ],
+ "findings": [
+  {
+   "asset": "repo:gitea/git.example/example/app",
+   "check": "repo.default_branch_unprotected",
+   "evidence": "raw/codehost-gitea/example.json#x",
+   "id": "9b9d97e8125b",
+   "kind": "compliance",
+   "layer": "supply-chain",
+   "needs_human": false,
+   "observed_at": "2026-11-24T11:16:42Z",
+   "owner": "platform",
+   "remediation": "fix it",
+   "severity": "high",
+   "title": "synthetic example"
+  }
+ ],
+ "metrics": [
+  {
+   "help": "example",
+   "labels": {
+    "kind": "x"
+   },
+   "name": "security_example_metric",
+   "value": 1.0
+  }
+ ],
+ "run": {
+  "finished_at": "2026-11-24T11:16:42Z",
+  "instance": "",
+  "started_at": "2026-11-24T11:16:42Z"
+ },
+ "schema_version": "1.0"
+}

@@ -72,8 +72,7 @@ def main():
                       needs_human=True)
     for ch in inst.get("codehost", []):
         if ch["type"] != "github":
-            c.gap(f"codehost:{ch['type']}", "adapter not implemented (future)")
-            continue
+            continue   # another code host: its own collector (codehost-gitea, ...) covers it
         g = GH(ch["gh_user"])
         repos, err = g.api(f"/users/{ch['owner']}/repos?per_page=100&type=owner", paginate=False)
         if repos is None:
