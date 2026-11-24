@@ -7,6 +7,9 @@ Components are versioned independently (docs/design.md §5). Entries name the co
 - **detections 0.2.1**: in-cluster Falco detections fire on a rule's first match (Falco exports a rule counter only
   after it matched once: a new series counts, not only an increase); IPv6 loopback, ULA and link-local are expected
   outbound destinations (lab: pods talking to [::1] were reported).
+- Log-store rules skip non-JSON lines (Falco start-up messages made the whole query fail), the Falco pod label is
+  `k8s_pod` (it collided with the stream label `pod`), and the kubelet's fsGroup setgid on volume directories is not a
+  setuid/setgid event.
 ## 2026-11-24 — overview dashboard
 
 - **generators 0.6.0**: a second dashboard, **Security overview** (`dist/grafana-overview.json`, uid

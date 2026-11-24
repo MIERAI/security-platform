@@ -150,11 +150,13 @@
 - rule: SP Setuid or setgid bit set
   desc: >
     chmod set the setuid/setgid bit on a file (host or container). Creating setuid binaries is a persistence and
-    privilege escalation technique; package managers do it during upgrades (excluded by process name).
+    privilege escalation technique; package managers do it during upgrades and the kubelet sets setgid on volume
+    directories (fsGroup): both excluded.
   condition: >
     evt.type in (chmod, fchmod, fchmodat) and evt.rawres = 0
     and (evt.arg.mode contains "S_ISUID" or evt.arg.mode contains "S_ISGID")
-    and not proc.name in (dpkg, apt, apt-get, rpm, dnf, yum, apk, unattended-upgr, snapd, containerd, k3s)
+    and not proc.name in (dpkg, apt, apt-get, rpm, dnf, yum, apk, unattended-upgr, snapd, containerd, k3s, k3s-server, k3s-agent, kubelet)
+    and not evt.arg.filename startswith /var/lib/kubelet/
   output: Setuid/setgid bit set (file=%evt.arg.filename mode=%evt.arg.mode process=%proc.name command=%proc.cmdline user=%user.name container=%container.id ns=%k8s.ns.name pod=%k8s.pod.name)
   priority: ERROR
   tags: [security-platform, filesystem, mitre_privilege_escalation, T1548.001]

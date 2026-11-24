@@ -4,8 +4,8 @@ groups:
   interval: 1m
   rules:
   - alert: SecurityDetectionFalcoShellInContainer
-    expr: sum by (cluster, rule, ns, pod) (count_over_time({container="falco"} | json rule, ns="output_fields[\"k8s.ns.name\"]", pod="output_fields[\"k8s.pod.name\"]" | rule="Terminal shell in container"
-      [5m])) > 0
+    expr: sum by (cluster, rule, ns, k8s_pod) (count_over_time({container="falco"} |= "output_fields" | json rule, ns="output_fields[\"k8s.ns.name\"]", k8s_pod="output_fields[\"k8s.pod.name\"]" | __error__=""
+      | rule="Terminal shell in container" [5m])) > 0
     for: 0m
     labels:
       severity: ticket
@@ -13,13 +13,13 @@ groups:
       detection: falco-shell-in-container
       pillar: device
     annotations:
-      summary: Interactive shell in {{ $labels.ns }}/{{ $labels.pod }} ({{ $labels.cluster }})
+      summary: Interactive shell in {{ $labels.ns }}/{{ $labels.k8s_pod }} ({{ $labels.cluster }})
       title: Interactive shell in a container
       runbook_url: docs/runbooks/falco-shell-in-container.md
       attack: T1059, T1609
   - alert: SecurityDetectionFalcoUnexpectedOutbound
-    expr: sum by (cluster, ns, pod) (count_over_time({container="falco"} | json rule, ns="output_fields[\"k8s.ns.name\"]", pod="output_fields[\"k8s.pod.name\"]" | rule="SP Unexpected outbound connection
-      from container" [5m])) > 0
+    expr: sum by (cluster, ns, k8s_pod) (count_over_time({container="falco"} |= "output_fields" | json rule, ns="output_fields[\"k8s.ns.name\"]", k8s_pod="output_fields[\"k8s.pod.name\"]" | __error__=""
+      | rule="SP Unexpected outbound connection from container" [5m])) > 0
     for: 0m
     labels:
       severity: ticket
@@ -27,13 +27,13 @@ groups:
       detection: falco-unexpected-outbound
       pillar: network
     annotations:
-      summary: Outbound connection outside the expected networks from {{ $labels.ns }}/{{ $labels.pod }} ({{ $labels.cluster }})
+      summary: Outbound connection outside the expected networks from {{ $labels.ns }}/{{ $labels.k8s_pod }} ({{ $labels.cluster }})
       title: Unexpected outbound connection from a container
       runbook_url: docs/runbooks/falco-unexpected-outbound.md
       attack: T1041, T1071
   - alert: SecurityDetectionFalcoSensitiveFileRead
-    expr: sum by (cluster, rule, ns, pod) (count_over_time({container="falco"} | json rule, ns="output_fields[\"k8s.ns.name\"]", pod="output_fields[\"k8s.pod.name\"]" | rule=~"Read sensitive file untrusted|Search
-      Private Keys or Passwords" [5m])) > 0
+    expr: sum by (cluster, rule, ns, k8s_pod) (count_over_time({container="falco"} |= "output_fields" | json rule, ns="output_fields[\"k8s.ns.name\"]", k8s_pod="output_fields[\"k8s.pod.name\"]" | __error__=""
+      | rule=~"Read sensitive file untrusted|Search Private Keys or Passwords" [5m])) > 0
     for: 0m
     labels:
       severity: ticket
@@ -41,13 +41,14 @@ groups:
       detection: falco-sensitive-file-read
       pillar: device
     annotations:
-      summary: Sensitive file read / credential search ({{ $labels.rule }}) in {{ $labels.ns }}/{{ $labels.pod }} ({{ $labels.cluster }})
+      summary: Sensitive file read / credential search ({{ $labels.rule }}) in {{ $labels.ns }}/{{ $labels.k8s_pod }} ({{ $labels.cluster }})
       title: Sensitive file read or credential search
       runbook_url: docs/runbooks/falco-sensitive-file-read.md
       attack: T1003.008, T1552.001
   - alert: SecurityDetectionFalcoPrivilegeEscalation
-    expr: sum by (cluster, rule, ns, pod) (count_over_time({container="falco"} | json rule, ns="output_fields[\"k8s.ns.name\"]", pod="output_fields[\"k8s.pod.name\"]" | rule=~"SP Privilege escalation tool
-      in container|SP Setuid or setgid bit set|PTRACE attached to process|Linux Kernel Module Injection Detected|Detect release_agent File Container Escapes" [5m])) > 0
+    expr: sum by (cluster, rule, ns, k8s_pod) (count_over_time({container="falco"} |= "output_fields" | json rule, ns="output_fields[\"k8s.ns.name\"]", k8s_pod="output_fields[\"k8s.pod.name\"]" | __error__=""
+      | rule=~"SP Privilege escalation tool in container|SP Setuid or setgid bit set|PTRACE attached to process|Linux Kernel Module Injection Detected|Detect release_agent File Container Escapes" [5m]))
+      > 0
     for: 0m
     labels:
       severity: page
@@ -55,13 +56,13 @@ groups:
       detection: falco-privilege-escalation
       pillar: device
     annotations:
-      summary: Privilege escalation / escape signal ({{ $labels.rule }}) in {{ $labels.ns }}/{{ $labels.pod }} ({{ $labels.cluster }})
+      summary: Privilege escalation / escape signal ({{ $labels.rule }}) in {{ $labels.ns }}/{{ $labels.k8s_pod }} ({{ $labels.cluster }})
       title: Privilege escalation or container escape attempt
       runbook_url: docs/runbooks/falco-privilege-escalation.md
       attack: T1548, T1611, T1055.008, T1547.006
   - alert: SecurityDetectionFalcoCryptoMiner
-    expr: sum by (cluster, ns, pod) (count_over_time({container="falco"} | json rule, ns="output_fields[\"k8s.ns.name\"]", pod="output_fields[\"k8s.pod.name\"]" | rule="SP Crypto miner activity" [5m]))
-      > 0
+    expr: sum by (cluster, ns, k8s_pod) (count_over_time({container="falco"} |= "output_fields" | json rule, ns="output_fields[\"k8s.ns.name\"]", k8s_pod="output_fields[\"k8s.pod.name\"]" | __error__=""
+      | rule="SP Crypto miner activity" [5m])) > 0
     for: 0m
     labels:
       severity: page
@@ -69,13 +70,13 @@ groups:
       detection: falco-crypto-miner
       pillar: device
     annotations:
-      summary: Crypto mining indicator in {{ $labels.ns }}/{{ $labels.pod }} ({{ $labels.cluster }})
+      summary: Crypto mining indicator in {{ $labels.ns }}/{{ $labels.k8s_pod }} ({{ $labels.cluster }})
       title: Crypto miner activity
       runbook_url: docs/runbooks/falco-crypto-miner.md
       attack: T1496
   - alert: SecurityDetectionFalcoWriteBelowEtc
-    expr: sum by (cluster, ns, pod) (count_over_time({container="falco"} | json rule, ns="output_fields[\"k8s.ns.name\"]", pod="output_fields[\"k8s.pod.name\"]" | rule="SP Write below etc in container"
-      [5m])) > 0
+    expr: sum by (cluster, ns, k8s_pod) (count_over_time({container="falco"} |= "output_fields" | json rule, ns="output_fields[\"k8s.ns.name\"]", k8s_pod="output_fields[\"k8s.pod.name\"]" | __error__=""
+      | rule="SP Write below etc in container" [5m])) > 0
     for: 0m
     labels:
       severity: ticket
@@ -83,13 +84,13 @@ groups:
       detection: falco-write-below-etc
       pillar: device
     annotations:
-      summary: Run-time write below /etc in {{ $labels.ns }}/{{ $labels.pod }} ({{ $labels.cluster }})
+      summary: Run-time write below /etc in {{ $labels.ns }}/{{ $labels.k8s_pod }} ({{ $labels.cluster }})
       title: Write below /etc in a running container
       runbook_url: docs/runbooks/falco-write-below-etc.md
       attack: T1543, T1222
   - alert: SecurityDetectionFalcoDropAndExecute
-    expr: sum by (cluster, rule, ns, pod) (count_over_time({container="falco"} | json rule, ns="output_fields[\"k8s.ns.name\"]", pod="output_fields[\"k8s.pod.name\"]" | rule=~"Drop and execute new binary
-      in container|Fileless execution via memfd_create|Execution from /dev/shm" [5m])) > 0
+    expr: sum by (cluster, rule, ns, k8s_pod) (count_over_time({container="falco"} |= "output_fields" | json rule, ns="output_fields[\"k8s.ns.name\"]", k8s_pod="output_fields[\"k8s.pod.name\"]" | __error__=""
+      | rule=~"Drop and execute new binary in container|Fileless execution via memfd_create|Execution from /dev/shm" [5m])) > 0
     for: 0m
     labels:
       severity: page
@@ -97,13 +98,13 @@ groups:
       detection: falco-drop-and-execute
       pillar: device
     annotations:
-      summary: '{{ $labels.rule }} in {{ $labels.ns }}/{{ $labels.pod }} ({{ $labels.cluster }})'
+      summary: '{{ $labels.rule }} in {{ $labels.ns }}/{{ $labels.k8s_pod }} ({{ $labels.cluster }})'
       title: New or fileless binary executed in a container
       runbook_url: docs/runbooks/falco-drop-and-execute.md
       attack: T1105, T1620
   - alert: SecurityDetectionFalcoReverseShell
-    expr: sum by (cluster, rule, ns, pod) (count_over_time({container="falco"} | json rule, ns="output_fields[\"k8s.ns.name\"]", pod="output_fields[\"k8s.pod.name\"]" | rule=~"Redirect STDOUT/STDIN to Network
-      Connection in Container|Netcat Remote Code Execution in Container" [5m])) > 0
+    expr: sum by (cluster, rule, ns, k8s_pod) (count_over_time({container="falco"} |= "output_fields" | json rule, ns="output_fields[\"k8s.ns.name\"]", k8s_pod="output_fields[\"k8s.pod.name\"]" | __error__=""
+      | rule=~"Redirect STDOUT/STDIN to Network Connection in Container|Netcat Remote Code Execution in Container" [5m])) > 0
     for: 0m
     labels:
       severity: page
@@ -111,12 +112,13 @@ groups:
       detection: falco-reverse-shell
       pillar: network
     annotations:
-      summary: Reverse shell pattern ({{ $labels.rule }}) in {{ $labels.ns }}/{{ $labels.pod }} ({{ $labels.cluster }})
+      summary: Reverse shell pattern ({{ $labels.rule }}) in {{ $labels.ns }}/{{ $labels.k8s_pod }} ({{ $labels.cluster }})
       title: Reverse shell pattern
       runbook_url: docs/runbooks/falco-reverse-shell.md
       attack: T1059.004, T1095
   - alert: SecurityDetectionFalcoLogTampering
-    expr: sum by (cluster, ns, pod) (count_over_time({container="falco"} | json rule, ns="output_fields[\"k8s.ns.name\"]", pod="output_fields[\"k8s.pod.name\"]" | rule="Clear Log Activities" [5m])) > 0
+    expr: sum by (cluster, ns, k8s_pod) (count_over_time({container="falco"} |= "output_fields" | json rule, ns="output_fields[\"k8s.ns.name\"]", k8s_pod="output_fields[\"k8s.pod.name\"]" | __error__=""
+      | rule="Clear Log Activities" [5m])) > 0
     for: 0m
     labels:
       severity: ticket
@@ -124,12 +126,12 @@ groups:
       detection: falco-log-tampering
       pillar: device
     annotations:
-      summary: Log files truncated/removed in {{ $labels.ns }}/{{ $labels.pod }} ({{ $labels.cluster }})
+      summary: Log files truncated/removed in {{ $labels.ns }}/{{ $labels.k8s_pod }} ({{ $labels.cluster }})
       title: Log files cleared
       runbook_url: docs/runbooks/falco-log-tampering.md
       attack: T1070.002
   - alert: SecurityDetectionFalcoAuthorizedKeysModified
-    expr: sum by (cluster, hostname) (count_over_time({container="falco"} | json rule, hostname | rule="SP Authorized keys modified" [5m])) > 0
+    expr: sum by (cluster, hostname) (count_over_time({container="falco"} |= "output_fields" | json rule, hostname | __error__="" | rule="SP Authorized keys modified" [5m])) > 0
     for: 0m
     labels:
       severity: page
@@ -146,7 +148,7 @@ groups:
   rules:
   - alert: SecurityDetectionK8sPodExec
     expr: sum by (cluster, user, ns, name, sub) (count_over_time({source="k8s-audit"} |~ "exec|attach|portforward" | json verb, user="user.username", resource="objectRef.resource", sub="objectRef.subresource",
-      ns="objectRef.namespace", name="objectRef.name", code="responseStatus.code", uri="requestURI" | resource="pods" | sub=~"exec|attach|portforward" | code=~"1..|2.." [5m])) > 0
+      ns="objectRef.namespace", name="objectRef.name", code="responseStatus.code", uri="requestURI" | __error__="" | resource="pods" | sub=~"exec|attach|portforward" | code=~"1..|2.." [5m])) > 0
     for: 0m
     labels:
       severity: ticket
@@ -160,7 +162,7 @@ groups:
       attack: T1609
   - alert: SecurityDetectionK8sSecretReadUnexpected
     expr: sum by (cluster, user, ns) (count_over_time({source="k8s-audit"} |= "secrets" | json verb, user="user.username", resource="objectRef.resource", sub="objectRef.subresource", ns="objectRef.namespace",
-      name="objectRef.name", code="responseStatus.code", uri="requestURI" | resource="secrets" | verb=~"get|list|watch" | code=~"2.." | user!~"k3s-.*|system:(apiserver|kube-controller-manager|kube-scheduler|k3s-.*|node:.*|serviceaccount:(kube-system|argocd|cert-manager|cnpg-system|kyverno|monitoring|chaos-mesh|argo-rollouts):.*)"
+      name="objectRef.name", code="responseStatus.code", uri="requestURI" | __error__="" | resource="secrets" | verb=~"get|list|watch" | code=~"2.." | user!~"k3s-.*|system:(apiserver|kube-controller-manager|kube-scheduler|k3s-.*|node:.*|serviceaccount:(kube-system|argocd|cert-manager|cnpg-system|kyverno|monitoring|chaos-mesh|argo-rollouts):.*)"
       | label_format sa_ns=`{{ regexReplaceAll "^system:serviceaccount:([^:]+):.*$" .user "${1}" }}` | label_format own=`{{ if eq .sa_ns .ns }}yes{{ end }}` | own!="yes" [5m])) > 0
     for: 0m
     labels:
@@ -175,7 +177,7 @@ groups:
       attack: T1552.007
   - alert: SecurityDetectionK8sRbacChanged
     expr: sum by (cluster, user, resource, ns, name) (count_over_time({source="k8s-audit"} |= "rbac.authorization.k8s.io" | json verb, user="user.username", resource="objectRef.resource", sub="objectRef.subresource",
-      ns="objectRef.namespace", name="objectRef.name", code="responseStatus.code", uri="requestURI" | resource=~"roles|rolebindings|clusterroles|clusterrolebindings" | verb=~"create|update|patch|delete|deletecollection"
+      ns="objectRef.namespace", name="objectRef.name", code="responseStatus.code", uri="requestURI" | __error__="" | resource=~"roles|rolebindings|clusterroles|clusterrolebindings" | verb=~"create|update|patch|delete|deletecollection"
       | code=~"2.." | user!~"k3s-.*|system:(apiserver|kube-controller-manager|k3s-.*|serviceaccount:(kube-system|argocd|kyverno|cert-manager):.*)" [5m])) > 0
     for: 0m
     labels:
@@ -190,7 +192,7 @@ groups:
       attack: T1098, T1078.004
   - alert: SecurityDetectionK8sClusterrolebindingCreated
     expr: sum by (cluster, user, name) (count_over_time({source="k8s-audit"} |= "clusterrolebindings" | json verb, user="user.username", resource="objectRef.resource", sub="objectRef.subresource", ns="objectRef.namespace",
-      name="objectRef.name", code="responseStatus.code", uri="requestURI" | resource="clusterrolebindings" | verb="create" | code=~"2.." | user!~"k3s-.*|system:(apiserver|kube-controller-manager|kube-scheduler|k3s-.*|serviceaccount:kube-system:.*|node:.*)"
+      name="objectRef.name", code="responseStatus.code", uri="requestURI" | __error__="" | resource="clusterrolebindings" | verb="create" | code=~"2.." | user!~"k3s-.*|system:(apiserver|kube-controller-manager|kube-scheduler|k3s-.*|serviceaccount:kube-system:.*|node:.*)"
       [5m])) > 0
     for: 0m
     labels:
@@ -205,7 +207,7 @@ groups:
       attack: T1098
   - alert: SecurityDetectionK8sAnonymousAccess
     expr: sum by (cluster, uri) (count_over_time({source="k8s-audit"} |= "system:anonymous" | json verb, user="user.username", resource="objectRef.resource", sub="objectRef.subresource", ns="objectRef.namespace",
-      name="objectRef.name", code="responseStatus.code", uri="requestURI" | user="system:anonymous" | code=~"2.." | uri!~"/(healthz|livez|readyz|version|\\.well-known/openid-configuration|openid/v1/jwks).*"
+      name="objectRef.name", code="responseStatus.code", uri="requestURI" | __error__="" | user="system:anonymous" | code=~"2.." | uri!~"/(healthz|livez|readyz|version|\\.well-known/openid-configuration|openid/v1/jwks).*"
       [5m])) > 0
     for: 0m
     labels:
@@ -220,7 +222,7 @@ groups:
       attack: T1190, T1078.001
   - alert: SecurityDetectionK8sAuthFailuresBurst
     expr: sum by (cluster, user) (count_over_time({source="k8s-audit"} |~ "\"code\":40[13]" | json verb, user="user.username", resource="objectRef.resource", sub="objectRef.subresource", ns="objectRef.namespace",
-      name="objectRef.name", code="responseStatus.code", uri="requestURI" | code=~"401|403" [5m])) >= 30
+      name="objectRef.name", code="responseStatus.code", uri="requestURI" | __error__="" | code=~"401|403" [5m])) >= 30
     for: 0m
     labels:
       severity: ticket
@@ -234,7 +236,7 @@ groups:
       attack: T1110, T1580
   - alert: SecurityDetectionK8sTokenMinted
     expr: sum by (cluster, user, ns, name) (count_over_time({source="k8s-audit"} |= "serviceaccounts" | json verb, user="user.username", resource="objectRef.resource", sub="objectRef.subresource", ns="objectRef.namespace",
-      name="objectRef.name", code="responseStatus.code", uri="requestURI" | resource="serviceaccounts" | sub="token" | verb="create" | code=~"2.." | user!~"system:(apiserver|kube-controller-manager|node:.*|serviceaccount:kube-system:.*)"
+      name="objectRef.name", code="responseStatus.code", uri="requestURI" | __error__="" | resource="serviceaccounts" | sub="token" | verb="create" | code=~"2.." | user!~"system:(apiserver|kube-controller-manager|node:.*|serviceaccount:kube-system:.*)"
       [5m])) > 0
     for: 0m
     labels:
