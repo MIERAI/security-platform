@@ -94,7 +94,7 @@ controls:
     check: automated
     weight: 2
     source: {type: findings, kind: vulnerability, severity_in: [critical, high], asset_contains: "${self_image}",
-             require_collector: vuln-intel, max_age: 3d}
+             require_collector: vuln-intel, max_age: 3d, require_coverage: "image:${self_image}"}
   - id: self.dependencies-pinned
     title: Runtime dependencies are pinned by hash
     csf: GV.SC

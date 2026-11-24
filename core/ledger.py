@@ -269,7 +269,9 @@ def main():
                            "invalid": invalid})
     ledger["sli"] = sli
     ledger["updated_at"] = now_s
-    with open(lp + ".tmp", "w") as f:
+    if os.path.exists(lp + ".tmp"):
+        os.remove(lp + ".tmp")
+    with open(os.open(lp + ".tmp", os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "w") as f:   # 0600 whatever the umask
         json.dump(ledger, f, indent=1, sort_keys=True, ensure_ascii=False)
     os.replace(lp + ".tmp", lp)
     report(a.data, ledger)
