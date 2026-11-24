@@ -64,5 +64,28 @@ class Ledger(unittest.TestCase):
         self.assertTrue(L["entries"][f["id"]]["exception"]["expired"])
 
 
+    def test_sli_new_counter_baseline_then_increments(self):
+        f = json.load(open(FX))["findings"][0]            # ssh.password_auth_enabled -> SLI ssh_password_auth_hosts
+        L = run(self.write_run("1", [f]), self.d)          # first sight = baseline, not "new"
+        self.assertEqual(L["sli_new_total"]["ssh_password_auth_hosts"], 0)
+        L = run(self.write_run("2", []), self.d)           # fixed
+        L = run(self.write_run("3", [f]), self.d)          # back: entered the set again -> +1
+        self.assertEqual(L["sli_new_total"]["ssh_password_auth_hosts"], 1)
+        g = dict(f, id="ffffffffffff", asset="host:host-a/other")
+        L = run(self.write_run("4", [f, g]), self.d)       # a second one -> +1; the standing one does not count
+        self.assertEqual(L["sli_new_total"]["ssh_password_auth_hosts"], 2)
+        prom = open(os.path.join(self.d, "metrics", "ledger.prom")).read()
+        self.assertIn('security_sli_new_total{sli="ssh_password_auth_hosts"} 2', prom)
+
+    def test_accepted_finding_can_be_fixed(self):
+        f = json.load(open(FX))["findings"][0]
+        with open(os.path.join(self.d, "exceptions.yaml"), "w") as x:
+            x.write(f"exceptions:\n  {f['id']}: {{reason: test, approved_by: someone, expires: '2999-01-01'}}\n")
+        L = run(self.write_run("1", [f]), self.d)
+        self.assertEqual(L["entries"][f["id"]]["status"], "accepted")
+        L = run(self.write_run("2", []), self.d)
+        self.assertEqual(L["entries"][f["id"]]["status"], "fixed")
+
+
 if __name__ == "__main__":
     unittest.main()

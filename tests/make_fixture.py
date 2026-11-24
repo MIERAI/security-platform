@@ -27,9 +27,9 @@ def build(name):
         c = spsdk.Collector(name, open(os.path.join(ROOT, "collectors", name, "VERSION")).read().strip())
         c.ok(asset.split(":")[0] + ":example")
         c.gap("host:example-offline", "offline at scan time")
-        extra = dict(cve="CVE-2099-0001", kev=True, epss=0.9, published_at="2099-01-01") if kind == "vulnerability" else {}
+        extra = dict(cve="CVE-2099-0001", kev=True, epss=0.9, published_at="2099-01-01", alertable=True, exposed=False) if kind == "vulnerability" else {}
         c.finding(layer, asset, check, "synthetic example", "high", f"raw/{name}/example.json#x", "fix it", kind=kind, **extra)
-        c.metric("security_example_metric", 1, "example", label="x")
+        c.metric("security_example_metric", 1, "example", kind="x")
         c.write()
         return json.load(open(os.path.join(d, f"{name}.findings.json")))
 

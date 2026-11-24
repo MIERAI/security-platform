@@ -119,10 +119,17 @@
 | **集群内 CronJob（phase 1 以后，经 GitOps）** | k8s collector（RBAC/NetPol/特权/策略报告）、trivy-operator | phase 0 **不部署**任何东西进集群；从操作者工作站用 kubeconfig 只做 get/list。CIS（kube-bench）经 exec adapter 在节点上跑：解包到临时目录、只读配置与进程参数、结束即删 |
 | **操作者工作站（本地）** | host（经 exec adapter）、codehost、secrets-files、agent、编排与 ledger | 本地只跑一次性任务，不常驻 |
 
+自 runner 0.1.0 起（docs/runner.md）：上面每个位置都由同一个 `runner.py tick` 按实例配置里的 cron 日程定时运行；
+触发器（launchd / cron / systemd / Android JobScheduler / k8s CronJob）只负责每隔几分钟叫一次 tick。
+**hub**（持有 ledger 的那台）合并、出指标；**site**（如外部视角主机）只把 findings 放进 outbox，由 hub 的 ingest 拉取。
+
 ### 3.3 指标怎么进 Prometheus
 
 - 每个 collector 输出 `<collector>.prom`（文本暴露格式），core 输出 `sli.prom`。
-- 三种送达方式（实例选一）：
+- runner 0.1.0 起由 hub 统一产出 `<data>/metrics/security-platform.prom`（文本格式），再交给实例配置的 sink：
+  `textfile`（本地或经 exec 写到某主机）、`kubernetes-configmap`（+ deploy/kubernetes 里的 exporter，由集群
+  Prometheus 抓取，告警自带 namespace 标签）、`remote_write`（标准 remote-write 1.0，token 文件 600）。首选文本格式。
+- 旧说明（phase 0）：三种送达方式（实例选一）：
   1. **textfile collector**：写到 node_exporter 的 textfile 目录（最简单）。
   2. **remote_write**：用 `promtool`/小工具把 .prom 推到一个开了 `--web.enable-remote-write-receiver` 的 Prometheus（例如已有的长期指标库）。注意 remote_write 接收端本身要有访问控制，否则任何人都能伪造安全指标（本项目自己的一个 check）。
   3. **Pushgateway**：不推荐（陈旧数据不过期）。
@@ -370,6 +377,7 @@ check 目录和检测规则本身也要跟上游：CIS benchmark 版本、MITRE 
 |---|---|---|
 | **phase 0（现在）** | 骨架：schema、sdk、core ledger、7 个 collector（含 vuln-intel：SBOM + KEV/EPSS）、generators 草稿；对第一个实例做一次只读盘点；Top 风险与 phase 1 清单 | 代理，只读 |
 | **phase 1 紧急修复** | 按 summary 的清单逐项修；每项要用户批准；`needs_human` 的（密码、账户设置、GUI）由用户亲手做；生产变更走 GitOps（浸泡 + 回滚）；修完重跑 collector 确认 fixed。同时把指标送进 Prometheus、把规则/看板经 GitOps 上线 | 用户批准 + 代理执行 |
-| **phase 2 检测** | advisor 接入（攻击路径、根因分组，决策日志）；运行时检测（Falco 或 Tetragon，二选一先试 lab）、k8s 审计日志 + 主机 auth 日志 → Loki → 告警规则；collector 定时化（集群内 CronJob + vantage 定时）；回归告警上线 | |
+| **phase 1.5 持续运行（2026-11-24）** | runner（定时/抖动/超时/锁/重试）、site/hub、指标 sink、只在回归时告警、SLO 值、每日情报（KEV/EPSS/OSV 条件 GET + SBOM 复配）、周摘要 | 见 docs/runner.md |
+| **phase 2 检测** | advisor 接入（攻击路径、根因分组，决策日志）；运行时检测（Falco 或 Tetragon，二选一先试 lab）、k8s 审计日志 + 主机 auth 日志 → Loki → 告警规则；collector 集群内 CronJob | |
 | **phase 3 密钥与供应链** | 主机/路由器/手机的 SBOM 与 OSV 直连、厂商公告抽取（AI 抽取 + 人工校验）；密钥管理（SOPS/ESO/Vault 之一，轮换日程进 SLO）、SBOM（syft）与签名覆盖率、依赖更新 SLO、Prowler（若上云）、nuclei 外部扫描 | |
 | 持续 | 每月复盘 SLO；新 adapter 按需 | |

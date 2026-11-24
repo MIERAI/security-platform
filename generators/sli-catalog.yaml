@@ -1,6 +1,9 @@
 # Security SLI catalog (generic; depends only on check names / metric names of the findings contract).
-# source.findings: count OPEN ledger entries matching the selector; source.metric: aggregate a collector metric;
-# source.ledger: a computed ledger quantity. objective: the SLI must stay <= target.
+# source.findings: count OPEN ledger entries matching the selector (check_in, check_prefix, severity_in, layer_in, kind,
+#   kind_not, attr_true, attr_any_true); source.metric: aggregate a collector metric; source.ledger: a computed ledger
+#   quantity. objective: the SLI must stay <= target (slo-platform: security_sli_ok is the bool SLI).
+# alert (optional): REGRESSION-ONLY. `trigger: increase` fires when findings ENTER the SLI's set (new or reopened; counter
+#   security_sli_new_total), never on a standing backlog. No `alert` = SLO and weekly digest only.
 version: 1
 slis:
   - name: unauth_network_services
@@ -9,49 +12,51 @@ slis:
                                    loki.unauth, tempo.unauth_read, prometheus.admin_api_unauth, blackbox.open_probe,
                                    telnet.open]}}
     objective: {target: 0}
-    alert: {severity: ticket, for: 1h}
+    alert: {trigger: increase, severity: page, summary: "A new sensitive service answers without authentication"}
   - name: ssh_password_auth_hosts
     description: Hosts whose SSH server accepts passwords
     source: {findings: {check_in: [ssh.password_auth_enabled]}}
     objective: {target: 0}
-    alert: {severity: ticket, for: 1h}
+    alert: {trigger: increase, severity: ticket, summary: "A host started accepting SSH passwords"}
   - name: oldest_fixable_critical_cve_days
     description: Days since publication of the oldest CRITICAL CVE that has a fix, in running images / repos
     source: {ledger: oldest_fixable_critical_cve_days}
     objective: {target: 30}
-    alert: {severity: ticket, for: 1d}
+  - name: vuln_alertable
+    description: Vulnerabilities that affect our assets AND (are in CISA KEV OR are critical on an exposed asset) - the only vulnerability class that pages
+    source: {findings: {kind: vulnerability, attr_true: alertable}}
+    objective: {target: 0}
+    alert: {trigger: increase, severity: page, summary: "New KEV match, or a critical vulnerability on an exposed asset"}
   - name: kev_affecting_assets
     description: Open findings whose CVE is in CISA KEV (known exploited)
     source: {findings: {attr_true: kev}}
     objective: {target: 0}
-    alert: {severity: page, for: 0m}
   - name: kev_or_critical_exposed
-    description: KEV or CRITICAL vulnerabilities on exposed (reachable) assets - the only vuln class that pages
+    description: Vulnerability findings prioritized critical (KEV or CRITICAL, weighted by exposure and EPSS)
     source: {findings: {kind: vulnerability, severity_in: [critical]}}
     objective: {target: 0}
-    alert: {severity: page, for: 0m}
   - name: secrets_older_than_90d
     description: Secrets (files, cluster Secrets, CI secrets) not changed for more than 90 days
     source: {metric: {name: security_secrets_older_than_90d, agg: sum}}
     objective: {target: 0}
-    alert: {severity: ticket, for: 1d}
   - name: public_repos_without_protection
     description: Public repositories whose default branch has no protection / ruleset
     source: {metric: {name: security_repos_public_without_protection, agg: sum}}
     objective: {target: 0}
-    alert: {severity: ticket, for: 1d}
   - name: critical_open_findings
     description: Open findings of severity critical (any layer)
     source: {findings: {severity_in: [critical]}}
     objective: {target: 0}
-    alert: {severity: page, for: 0m}
+  - name: critical_config_findings
+    description: Open critical findings that are not vulnerabilities (configuration, exposure, identity, secrets, agents)
+    source: {findings: {severity_in: [critical], kind_not: vulnerability}}
+    objective: {target: 0}
+    alert: {trigger: increase, severity: ticket, summary: "The count of critical (non-vulnerability) findings went up"}
   - name: collector_coverage_gaps
     description: Assets in scope that a collector could not cover (platform health, inner loop)
     source: {ledger: coverage_gaps}
     objective: {target: 0}
-    alert: {severity: ticket, for: 1d}
   - name: check_catalog_age_days
     description: Days since the check catalog / benchmarks were last reviewed against upstream (CIS, ATT&CK, Sigma/Falco)
     source: {ledger: check_catalog_age_days}
     objective: {target: 90}
-    alert: {severity: ticket, for: 1d}

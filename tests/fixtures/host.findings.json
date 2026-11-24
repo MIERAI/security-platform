@@ -24,7 +24,7 @@
    "kind": "compliance",
    "layer": "identity",
    "needs_human": false,
-   "observed_at": "2026-11-24T05:46:38Z",
+   "observed_at": "2026-11-24T08:18:16Z",
    "owner": "platform",
    "remediation": "fix it",
    "severity": "high",
@@ -35,16 +35,16 @@
   {
    "help": "example",
    "labels": {
-    "label": "x"
+    "kind": "x"
    },
    "name": "security_example_metric",
    "value": 1.0
   }
  ],
  "run": {
-  "finished_at": "2026-11-24T05:46:38Z",
+  "finished_at": "2026-11-24T08:18:16Z",
   "instance": "",
-  "started_at": "2026-11-24T05:46:38Z"
+  "started_at": "2026-11-24T08:18:16Z"
  },
  "schema_version": "1.0"
 }

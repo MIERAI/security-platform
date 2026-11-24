@@ -27,9 +27,18 @@ def load_instance():
     p = os.environ.get("SP_INSTANCE")
     if not p:
         sys.exit("SP_INSTANCE not set (path to the private instance.yaml)")
-    import yaml  # provided by bin/run (uv --with pyyaml)
-    with open(p) as f:
-        return yaml.safe_load(f)
+    return load_config(p)
+
+
+def load_config(p):
+    """YAML when PyYAML is available; JSON (a subset of YAML) otherwise, so minimal hosts need only python3."""
+    with open(os.path.expanduser(p)) as f:
+        text = f.read()
+    try:
+        import yaml
+    except ImportError:
+        return json.loads(text)
+    return yaml.safe_load(text)
 
 
 class Collector:
@@ -117,7 +126,9 @@ def render(series):
             seen.add(n)
             if h:
                 lines.append(f"# HELP {n} {h}")
-            lines.append(f"# TYPE {n} gauge")
-        lab = ",".join('{}="{}"'.format(k, str(val).replace('"', "'")) for k, val in sorted(labels.items()))
-        lines.append(f"{n}{{{lab}}} {v:g}" if isinstance(v, float) else f"{n}{{{lab}}} {v}")
+            lines.append(f"# TYPE {n} {'counter' if n.endswith('_total') else 'gauge'}")
+        lab = ",".join('{}="{}"'.format(k, str(val).replace("\\", "/").replace('"', "'").replace("\n", " "))
+                       for k, val in sorted(labels.items()))
+        lab = "{" + lab + "}" if lab else ""
+        lines.append(f"{n}{lab} {v:g}" if isinstance(v, float) else f"{n}{lab} {v}")
     return "\n".join(lines) + "\n"

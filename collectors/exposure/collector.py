@@ -137,18 +137,21 @@ def main():
         res = json.loads(out)
     c.tools.update(res.get("tools", {}))
     ev = c.raw("probe.json", res)
-    unauth = 0
+    unauth = open_ports = 0
     for ip, ports in res["hosts"].items():
         asset = f"net-endpoint:{name_of.get(ip, ip)}@{ip}"
+        if not ports:   # -Pn scan: no open port = host down or fully filtered; cannot tell -> do not confirm "fixed"
+            c.gap(f"host:{name_of.get(ip, ip)}", "no open port seen from the vantage point (down or filtered)")
+            continue
         c.ok(asset)
-        c.metric("security_exposure_open_ports", len(ports), "Open TCP ports seen from the vantage point",
-                 target=name_of.get(ip, ip))
+        open_ports += len(ports)
         for port_s, e in ports.items():
             for check, sev, title, fix in classify(int(port_s), e):
                 if check not in ("metrics.unauth", "http.catch_all_unverified", "otlp.unauth_ingest"):
                     unauth += 1
                 c.finding("network", f"{asset}:{port_s}", check, f"{title} ({ip}:{port_s})", sev,
                           f"{ev}#{ip}/{port_s}", fix, kind="detection")
+    c.metric("security_exposure_open_ports", open_ports, "Open TCP ports seen from the vantage point (all targets)")
     c.metric("security_exposure_unauth_services", unauth,
              "Sensitive services answering without auth, seen from the vantage point")
     c.write()

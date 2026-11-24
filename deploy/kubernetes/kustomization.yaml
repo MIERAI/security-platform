@@ -1,0 +1,12 @@
+# security-platform on Kubernetes (component `deploy`). Base = the metrics exporter: a hub publishes the platform's
+# metrics into the ConfigMap `security-platform-metrics` (runner sink kubernetes-configmap); the exporter serves them
+# and the cluster's Prometheus scrapes it (ServiceMonitor), adding its own target labels (namespace, pod).
+# Optional: cronjob/ (a collection site inside the cluster). Instances set the image in their overlay:
+#   images: [{ name: security-platform, newName: ghcr.io/<owner>/security-platform, newTag: <tag> }]
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+labels:
+  - pairs: { app.kubernetes.io/part-of: security-platform }
+    includeSelectors: false
+resources:
+  - exporter.yaml

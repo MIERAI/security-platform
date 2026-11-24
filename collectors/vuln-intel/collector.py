@@ -2,11 +2,18 @@
 """Collector `vuln-intel`: SBOM inventory x vulnerability intelligence -> prioritized findings. READ-ONLY.
 
 Inputs (contracts, not other collectors' code):
-  * inventory/v1 files in the run dir (e.g. inventory.k8s-images.json from the k8s collector)
-  * instance config `intel: {feeds: [...], repos: [local checkout paths]}`
+  * inventory/v1 files in SP_INPUT_DIR (the runner's latest/) or the run dir (e.g. inventory.k8s-images.json)
+  * instance config `intel: {feeds: [...], repos: [...], update_db: bool, sbom_max_age_days: 30,
+                             registry_auth: [{host, username, token_file}]}`
 Steps: SBOM per image (trivy, CycloneDX, cached by digest) -> deterministic match against Trivy's DB
 (GHSA/OSV/NVD/distro advisories) -> enrich with CISA KEV + EPSS feeds -> priority = intel x our exposure.
-Registry credentials for private images: SP_REGISTRY_USER / SP_REGISTRY_TOKEN env (never logged).
+Registry credentials for private images: a READ-ONLY token in a 0600 file (intel.registry_auth) or the env
+SP_REGISTRY_USER / SP_REGISTRY_TOKEN; never logged. Without one, private images are coverage gaps (cached SBOMs of
+already-seen digests are still matched).
+Alerting attribute: `alertable` = affects our assets AND (in KEV OR (critical AND exposed)); the generated alert
+rules page only on those, everything else goes to the weekly digest.
+OSV (feed type osv): SBOM components are also matched directly against the OSV export (second, independent matcher,
+with the advisory's publication date for time-to-know); findings only for KEV aliases or critical advisories.
 """
 import concurrent.futures as cf
 import glob
@@ -19,9 +26,11 @@ import time
 
 HERE = os.path.dirname(__file__)
 ROOT = os.path.join(HERE, "..", "..")
-sys.path[:0] = [os.path.join(ROOT, "sdk"), ROOT]
+sys.path[:0] = [HERE, os.path.join(ROOT, "sdk"), ROOT]
+import osvmatch  # noqa: E402
 import spsdk  # noqa: E402
 from adapters import feeds  # noqa: E402
+from adapters.sinks import read_secret_file  # noqa: E402
 
 VERSION = open(os.path.join(HERE, "VERSION")).read().strip()
 DATA = os.environ.get("SP_DATA", ".")
@@ -40,6 +49,21 @@ def trivy(args, env_extra=None, timeout=900):
     return p.returncode, p.stdout, p.stderr
 
 
+REG_AUTH = {}   # host -> (user, token); filled from the instance, never printed
+
+
+def registry_env(ref):
+    for host, (user, token) in REG_AUTH.items():
+        if ref.startswith(host + "/"):
+            return {"TRIVY_USERNAME": user, "TRIVY_PASSWORD": token}
+    if os.environ.get("SP_REGISTRY_TOKEN") and ref.startswith(os.environ.get("SP_REGISTRY_HOST", "ghcr.io")):
+        return {"TRIVY_USERNAME": os.environ.get("SP_REGISTRY_USER", ""), "TRIVY_PASSWORD": os.environ["SP_REGISTRY_TOKEN"]}
+    return {}
+
+
+SBOM_MAX_AGE_D = 30
+
+
 def scan_image(item):
     ref = item["image"]
     if item.get("image_id") and "@sha256:" in item["image_id"]:
@@ -51,14 +75,20 @@ def scan_image(item):
     key = hashlib.sha1(ref_scan.encode()).hexdigest()[:16]
     sbom = os.path.join(DATA, "sbom", f"{key}.cdx.json")
     os.makedirs(os.path.dirname(sbom), exist_ok=True)
-    env = {}
-    if os.environ.get("SP_REGISTRY_TOKEN") and ref.startswith(os.environ.get("SP_REGISTRY_HOST", "ghcr.io")):
-        env = {"TRIVY_USERNAME": os.environ.get("SP_REGISTRY_USER", ""), "TRIVY_PASSWORD": os.environ["SP_REGISTRY_TOKEN"]}
-    if not os.path.exists(sbom):
+    env = registry_env(ref)
+    stale = os.path.exists(sbom) and time.time() - os.path.getmtime(sbom) > SBOM_MAX_AGE_D * 86400
+    if not os.path.exists(sbom) or stale:
         rc, out, err = trivy(["image", "--image-src", "remote", "--format", "cyclonedx", "--skip-db-update",
-                              "--output", sbom, ref_scan], env)
+                              "--output", sbom + ".tmp", ref_scan], env)
         if rc != 0:
-            return ref, None, f"sbom rc={rc}: {err.strip()[-160:]}"
+            if not stale:   # a stale SBOM of the same digest is still matched; only a missing one is a gap
+                hint = " (private image: no registry credential configured - coverage gap)" if not env and \
+                    ("UNAUTHORIZED" in err or "unauthorized" in err or "DENIED" in err) else ""
+                return ref, None, f"sbom rc={rc}{hint}: {err.strip()[-120:]}"
+            if os.path.exists(sbom + ".tmp"):
+                os.remove(sbom + ".tmp")
+        else:
+            os.replace(sbom + ".tmp", sbom)
     rc, out, err = trivy(["sbom", "--format", "json", "--skip-db-update", "--scanners", "vuln", sbom])
     if rc != 0:
         return ref, None, f"match rc={rc}: {err.strip()[-160:]}"
@@ -85,9 +115,21 @@ def score(v):
 
 
 def main():
+    global SBOM_MAX_AGE_D
     inst = spsdk.load_instance()
     cfg = inst.get("intel", {})
     c = spsdk.Collector("vuln-intel", VERSION)
+    SBOM_MAX_AGE_D = float(cfg.get("sbom_max_age_days", 30))
+    for ra in cfg.get("registry_auth") or []:
+        try:
+            REG_AUTH[ra["host"]] = (ra.get("username", ""), read_secret_file(ra["token_file"]))
+            c.ok(f"registry-auth:{ra['host']}")
+        except (OSError, PermissionError) as e:
+            c.gap(f"registry-auth:{ra['host']}", f"read-only registry credential unavailable ({type(e).__name__}): "
+                  "private images not refreshed - create a read-only token file (see docs/runner.md)")
+    if cfg.get("update_db"):
+        rc, _, err = trivy(["image", "--download-db-only"], timeout=1800)
+        (c.ok if rc == 0 else (lambda a: c.gap(a, f"trivy DB update rc={rc}: {err.strip()[-160:]}")))("feed:trivy-db")
     intel = {}
     for f in cfg.get("feeds", []):
         try:
@@ -104,9 +146,13 @@ def main():
         tv = json.loads(out)
         c.tools["trivy"] = tv.get("Version", "")
         c.tools["trivy-db"] = (tv.get("VulnerabilityDB") or {}).get("UpdatedAt", "")
+        db_at = (tv.get("VulnerabilityDB") or {}).get("UpdatedAt", "")
+        if db_at:
+            c.metric("security_intel_feed_age_seconds", int(time.time() - time.mktime(time.strptime(db_at[:19], "%Y-%m-%dT%H:%M:%S")) + time.timezone),
+                     "Age of the cached intel feed", feed="trivy-db")
     # ---- inventory (contract inventory/v1) -> unique images ---------------------------------------------
     items = []
-    for p in glob.glob(os.path.join(c.out, "inventory.*.json")):
+    for p in glob.glob(os.path.join(os.environ.get("SP_INPUT_DIR") or c.out, "inventory.*.json")):
         d = json.load(open(p))
         if d.get("schema") == "security-platform/inventory/v1" and d.get("kind") == "container-image":
             items += d["items"]
@@ -157,7 +203,8 @@ def main():
                          cvss=score(v), base_severity=sev, published_at=pub[:10], kev=in_kev,
                          kev_added=(kev.get(cve) or {}).get("date_added"), epss=ep,
                          exposed=meta.get("exposed", False), prod=meta.get("prod", False),
-                         clusters=sorted(meta.get("clusters", [])), target=target)
+                         clusters=sorted(meta.get("clusters", [])), target=target, matcher="trivy")
+            attrs["alertable"] = bool(in_kev or (sev == "critical" and attrs["exposed"]))
             if in_kev or sev == "critical":
                 if in_kev:
                     prio = "critical" if attrs["exposed"] else "high"
@@ -190,6 +237,41 @@ def main():
     for path, rep in repos.items():
         if rep:
             handle(f"repo:{os.path.basename(path.rstrip('/'))}", {"exposed": False, "prod": True, "clusters": []}, rep)
+    # ---- OSV: second matcher over the same SBOMs ------------------------------------------------------------
+    osv_idx = intel.get("osv", {}).get("index", {})
+    osv_hits = 0
+    if osv_idx:
+        for ref, meta in images.items():
+            if not meta.get("sbom"):
+                continue
+            try:
+                cdx = json.load(open(os.path.join(DATA, meta["sbom"])))
+            except (OSError, ValueError):
+                continue
+            for eco, name, ver, adv in osvmatch.match(osvmatch.components(cdx), osv_idx):
+                osv_hits += 1
+                cves = [a for a in adv["aliases"] if a.startswith("CVE-")]
+                in_kev = any(x in kev for x in cves)
+                if not (in_kev or adv["severity"] == "critical"):
+                    continue
+                vid = cves[0] if cves else adv["id"]
+                asset = f"image:{ref}"
+                exposed = meta.get("exposed", False)
+                prio = ("critical" if exposed else "high")
+                fixed = osvmatch.fixed_version(adv)
+                attrs = dict(cve=vid, osv_id=adv["id"], package=name, installed=ver, fixed=fixed, base_severity=adv["severity"] or "unknown",
+                             published_at=adv["published"][:10], kev=in_kev,
+                             kev_added=next(((kev.get(x) or {}).get("date_added") for x in cves if x in kev), None),
+                             epss=max([epss.get(x) or 0 for x in cves] or [0]) or None, exposed=exposed, prod=meta.get("prod", False),
+                             clusters=sorted(meta.get("clusters", [])), target=eco, matcher="osv")
+                attrs["alertable"] = bool(in_kev or (adv["severity"] == "critical" and exposed))
+                evidence[f"{asset}|{vid}"] = attrs
+                c.finding("supply-chain", asset, f"vuln.{vid.lower()}",
+                          f"{vid} in {name} {ver}" + (f" (fix {fixed})" if fixed else " (no fix yet)") + (" [KEV]" if in_kev else "") + " [OSV]",
+                          prio, f"raw/vuln-intel/matches.json#{asset}|{vid}",
+                          f"update {name} to {fixed}" if fixed else "mitigate (reduce exposure) / watch for a fix",
+                          kind="vulnerability", refs=[vid, adv["id"]], **attrs)
+        c.metric("security_vuln_osv_matches", osv_hits, "Component x advisory matches found by the OSV matcher")
     high = evidence.pop("_high", {})
     c.raw("matches.json", evidence)
     c.raw("high-aggregate.json", high)
@@ -200,6 +282,8 @@ def main():
     c.metric("security_vuln_matches", counts["high"], "Vulnerability matches", severity="high")
     c.metric("security_vuln_kev_matches", counts["kev"], "Matches that are in CISA KEV")
     c.metric("security_sbom_images", sum(1 for r in results.values() if r), "Images with an SBOM")
+    c.metric("security_vuln_alertable_matches", sum(1 for f in c.findings if (f.get("attributes") or {}).get("alertable")),
+             "Matches that affect our assets AND (KEV OR critical+exposed): the only class that pages")
     c.write()
 
 

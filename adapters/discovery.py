@@ -2,13 +2,15 @@
 
   discover(cfg) -> [ {name, address, os, online, attrs{}} ]
 
-Implemented: tailscale (local `tailscale status --json`), static (addresses/CIDRs listed in the instance config).
+Implemented: tailscale (local `tailscale status --json`), static (addresses/CIDRs listed in the instance config),
+file (a JSON list in the same shape, e.g. exported by a hub for a site that cannot discover by itself; `max_age`
+seconds: older = error, so a stale list becomes a coverage gap instead of a silent scan of the wrong hosts).
 Future (interface only): aws-vpc (ec2:DescribeInstances), gcp (compute.instances.list), azure, cmdb.
 """
 import json
 import subprocess
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 
 
 def tailscale(cfg):
@@ -28,11 +30,22 @@ def static(cfg):
             for t in cfg.get("targets", [])]
 
 
+def file(cfg):
+    import os
+    import time
+    p = os.path.expanduser(cfg["path"])
+    age = time.time() - os.path.getmtime(p)
+    if cfg.get("max_age") and age > float(cfg["max_age"]):
+        raise RuntimeError(f"asset list is {int(age)}s old (max_age {cfg['max_age']})")
+    return [dict(name=d["name"], address=d.get("address"), os=d.get("os", ""), online=bool(d.get("online", True)),
+                 attrs=d.get("attrs", {})) for d in json.load(open(p))]
+
+
 def _future(cfg):
     raise NotImplementedError(f"discovery adapter {cfg.get('type')!r} is a documented future adapter")
 
 
-ADAPTERS = {"tailscale": tailscale, "static": static, "aws-vpc": _future, "gcp": _future, "azure": _future}
+ADAPTERS = {"tailscale": tailscale, "static": static, "file": file, "aws-vpc": _future, "gcp": _future, "azure": _future}
 
 
 def discover(cfg):

@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """core ledger: merge one run's findings documents into the private ledger, compute SLIs, write outputs.
 
-usage: ledger.py --run <run dir> --data <private data dir>
+usage: ledger.py --run <run dir> --data <private data dir> [--latest <dir>]
 Inputs (contracts only): <run>/*.findings.json (schema findings/v1), <data>/exceptions.yaml (human-approved),
 <data>/catalog-review.yaml (last Re-plan review dates), generators/sli-catalog.yaml.
-Outputs: <data>/ledger.json, <run>/sli.prom, <run>/ledger.prom, <data>/reports/latest-auto.md, <run>/ocsf.jsonl
+Outputs: <data>/ledger.json, <run>/sli.prom, <data>/metrics/ledger.prom, <data>/reports/latest-auto.md, <run>/ocsf.jsonl
+--latest: the newest document of EVERY collector (the runner keeps it); collector-reported metrics and coverage gaps
+are computed from it, so a run of one collector does not hide the others' numbers.
 Lifecycle rules (docs/design.md section 1): only a run that COVERED the asset can mark a finding fixed;
 only a human (exceptions.yaml) can make it `accepted`; expired exceptions reopen it.
 """
@@ -31,6 +33,18 @@ def t(s):
         time.mktime(time.strptime(s[:10], "%Y-%m-%d")) - time.timezone
 
 
+def selected(e, sel):
+    at = e.get("attributes") or {}
+    return (("check_in" not in sel or e["check"] in sel["check_in"])
+            and ("check_prefix" not in sel or any(e["check"].startswith(x) for x in sel["check_prefix"]))
+            and ("severity_in" not in sel or e["severity"] in sel["severity_in"])
+            and ("layer_in" not in sel or e["layer"] in sel["layer_in"])
+            and ("kind" not in sel or e["kind"] == sel["kind"])
+            and ("kind_not" not in sel or e["kind"] != sel["kind_not"])
+            and ("attr_true" not in sel or at.get(sel["attr_true"]))
+            and ("attr_any_true" not in sel or any(at.get(x) for x in sel["attr_any_true"])))
+
+
 def load_yaml(p, default):
     if not os.path.exists(p):
         return default
@@ -42,6 +56,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--run", required=True)
     ap.add_argument("--data", required=True)
+    ap.add_argument("--latest")
     a = ap.parse_args()
     lp = os.path.join(a.data, "ledger.json")
     ledger = json.load(open(lp)) if os.path.exists(lp) else {"schema": "security-platform/ledger/v1", "entries": {}, "runs": []}
@@ -80,7 +95,7 @@ def main():
                     e["disclosed_at"] = disclosed
                     e["time_to_know_hours"] = round(max(0, t(e["first_seen"]) - t(disclosed)) / 3600, 1)
         for fid_, e in E.items():
-            if e.get("collector") != col or fid_ in seen or e["status"] not in ("open",):
+            if e.get("collector") != col or fid_ in seen or e["status"] not in ("open", "accepted"):
                 continue
             if any(g and g in e["asset"] for g in gap_names):
                 continue  # not covered this time: unknown, keep state
@@ -103,9 +118,24 @@ def main():
     # ---- SLIs ----------------------------------------------------------------------------------------------
     catalog = load_yaml(os.path.join(HERE, "..", "generators", "sli-catalog.yaml"), {"slis": []})
     metrics = {}
-    for p in glob.glob(os.path.join(a.run, "*.findings.json")):
-        for m in json.load(open(p)).get("metrics", []):
+    cur_docs = docs
+    if a.latest:
+        cur_docs = []
+        for p in sorted(glob.glob(os.path.join(a.latest, "*.findings.json"))):
+            d = json.load(open(p))
+            if not validate.validate_findings(d):
+                cur_docs.append(d)
+        gaps_total = sum(1 for d in cur_docs for g in d["coverage"] if g["status"] == "gap")
+    for d in cur_docs:
+        for m in d.get("metrics", []):
             metrics.setdefault(m["name"], []).append(m["value"])
+    # platform health per collector: the last run that covered at least one asset ("no findings != secure")
+    cols = ledger.setdefault("collectors", {})
+    for d in docs:
+        c = cols.setdefault(d["collector"]["name"], {})
+        c["last_run"] = d["run"]["finished_at"]
+        if any(g["status"] == "ok" for g in d["coverage"]):
+            c["last_good_run"] = d["run"]["finished_at"]
     openE = [e for e in E.values() if e["status"] == "open"]
     review = load_yaml(os.path.join(a.data, "catalog-review.yaml"), {})
     last_review = review.get("last_reviewed")
@@ -121,11 +151,15 @@ def main():
         src = s["source"]
         if "findings" in src:
             sel = src["findings"]
-            v = sum(1 for e in openE
-                    if ("check_in" not in sel or e["check"] in sel["check_in"])
-                    and ("severity_in" not in sel or e["severity"] in sel["severity_in"])
-                    and ("kind" not in sel or e["kind"] == sel["kind"])
-                    and ("attr_true" not in sel or e["attributes"].get(sel["attr_true"])))
+            members = sorted(e["id"] for e in openE if selected(e, sel))
+            v = len(members)
+            prev = ledger.setdefault("sli_members", {}).get(s["name"])
+            cnt = ledger.setdefault("sli_new_total", {})
+            if prev is not None:        # first sight of an SLI = baseline, not "new"
+                cnt[s["name"]] = cnt.get(s["name"], 0) + len(set(members) - set(prev))
+            else:
+                cnt.setdefault(s["name"], 0)
+            ledger["sli_members"][s["name"]] = members
         elif "metric" in src:
             vals = metrics.get(src["metric"]["name"], [])
             v = (max if src["metric"].get("agg") == "max" else sum)(vals) if vals else 0
@@ -142,6 +176,14 @@ def main():
         counts[k] = counts.get(k, 0) + 1
     series += [("security_findings", {"layer": l, "severity": s, "status": st}, n, "Ledger entries by layer/severity/status")
                for (l, s, st), n in sorted(counts.items())]
+    series += [("security_sli_ok", {"sli": k}, 1 if v["ok"] else 0, "1 while the SLI meets its objective (slo-platform bool SLI)")
+               for k, v in sli.items()]
+    series += [("security_sli_new_total", {"sli": k}, n, "Findings that ENTERED the SLI's set (new or reopened; counter)")
+               for k, n in sorted(ledger.get("sli_new_total", {}).items())]
+    for col, c in sorted(cols.items()):
+        if c.get("last_good_run"):
+            series.append(("security_collector_last_good_run_timestamp_seconds", {"collector": col}, int(t(c["last_good_run"])),
+                           "Last run that covered at least one asset (a blind run does not count)"))
     series += [("security_findings_reopened_total", {}, sum(e.get("reopened_count", 0) for e in E.values()),
                 "Regressions: fixed findings that came back (counter)"),
                ("security_exceptions_active", {}, sum(1 for e in E.values() if e["status"] == "accepted"), "Active exceptions"),
@@ -152,6 +194,10 @@ def main():
                ("security_ledger_last_update_timestamp_seconds", {}, int(time.time()), "Ledger heartbeat")]
     with open(os.path.join(a.run, "sli.prom"), "w") as f:
         f.write(render(series))
+    os.makedirs(os.path.join(a.data, "metrics"), exist_ok=True)
+    with open(os.path.join(a.data, "metrics", "ledger.prom.tmp"), "w") as f:
+        f.write(render(series))
+    os.replace(os.path.join(a.data, "metrics", "ledger.prom.tmp"), os.path.join(a.data, "metrics", "ledger.prom"))
     # cat all collector .prom + sli.prom => one file for textfile/remote_write
     with open(os.path.join(a.run, "all.prom"), "w") as f:
         for p in sorted(glob.glob(os.path.join(a.run, "*.prom"))):
@@ -165,7 +211,9 @@ def main():
                            "invalid": invalid})
     ledger["sli"] = sli
     ledger["updated_at"] = now_s
-    json.dump(ledger, open(lp, "w"), indent=1, sort_keys=True, ensure_ascii=False)
+    with open(lp + ".tmp", "w") as f:
+        json.dump(ledger, f, indent=1, sort_keys=True, ensure_ascii=False)
+    os.replace(lp + ".tmp", lp)
     report(a.data, ledger)
     print(f"[ledger {VERSION}] entries={len(E)} open={len(openE)} invalid_docs={len(invalid)} gaps={gaps_total}", file=sys.stderr)
     for k, v in sli.items():

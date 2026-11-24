@@ -20,6 +20,38 @@ secrets_files:
 agents:
   - {type: claude-code, settings: ["~/.claude/settings.json"]}
 intel:
-  feeds: [{type: cisa-kev}, {type: epss}]
+  feeds: [{type: cisa-kev}, {type: epss}, {type: osv, ecosystems: [Go, PyPI]}]
+  update_db: true                    # refresh Trivy's DB before matching
+  sbom_max_age_days: 30
+  registry_auth: [{host: registry.example.com, username: security-bot, token_file: ~/.config/security-platform/registry.token}]
   repos: ["~/src/service-a"]
 advisor: {type: none}
+runner:                              # continuous operation (docs/runner.md)
+  site: hub
+  role: hub
+  sinks:
+    - {type: textfile, path: /var/lib/node_exporter/textfile/security-platform.prom}
+    # - {type: kubernetes-configmap, kubeconfig: ~/.kube/prod.yaml, namespace: security-platform, name: security-platform-metrics}
+    # - {type: remote_write, url: https://metrics.example.com/api/v1/write, bearer_token_file: ~/.config/security-platform/rw.token}
+  jobs:
+    host:            {schedule: "15 2 * * *", jitter: 30m, timeout: 30m, retries: 2, retry_delay: 30m}
+    k8s:             {schedule: "45 2 * * *", jitter: 15m, timeout: 45m, retries: 2}
+    intel:           {collector: vuln-intel, schedule: "30 6 * * *", timeout: 2h, retries: 2, retry_delay: 1h}
+    codehost-github: {schedule: "0 7 * * *", jitter: 30m, timeout: 30m, retries: 2}
+    secrets-files:   {schedule: "30 7 * * *", jitter: 30m, timeout: 30m}
+    agent-claude-code: {schedule: "0 8 * * *", timeout: 5m}
+    ingest-scanner:                  # the external vantage host runs exposure itself (role: site) ...
+      type: ingest
+      schedule: "*/30 * * * *"
+      site: vantage
+      source: {type: exec, exec: {type: ssh, host: scanner.example.net}, dir: "~/.local/share/security-platform/outbox"}
+      site_state: "~/.local/share/security-platform/site-state"
+      site_collectors: {exposure: "30 3 * * *"}
+      publish_assets: {dir: "~/.local/share/security-platform/assets", discovery: [{type: static, targets: [{name: web-1, address: 192.0.2.10}]}]}
+    digest:          {type: digest, schedule: "0 9 * * 1"}
+# ... and the vantage host's own config (JSON is fine; no PyYAML needed there):
+# {"name": "example", "exposure": {"discovery": [{"type": "file", "path": "~/.local/share/security-platform/assets/assets.json", "max_age": 259200}],
+#  "vantage": {"type": "local"}},
+#  "runner": {"site": "vantage", "role": "site", "outbox": {"type": "local", "dir": "~/.local/share/security-platform/outbox"},
+#             "state_outbox": {"type": "local", "dir": "~/.local/share/security-platform/site-state"},
+#             "jobs": {"exposure": {"schedule": "30 3 * * *", "jitter": "20m", "max_delay": "3h", "timeout": "2h", "retries": 1}}}}

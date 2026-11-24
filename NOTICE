@@ -1,0 +1,7 @@
+security-platform
+Copyright 2026 The security-platform authors
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+It wraps, but does not include, third-party tools installed separately by the operator: nmap, Trivy, kube-bench,
+kubectl, the GitHub CLI. Threat-intelligence data it downloads at run time (CISA KEV, FIRST/Empirical EPSS,
+OSV.dev) is subject to the respective providers' terms.

@@ -1,0 +1,12 @@
+# The runner image: built once per commit on main, scanned, SBOM, signed keyless by the shared build workflow (the
+# clusters' signature policy trusts that workflow's identity).
+name: image
+on:
+  push: { branches: [main] }
+  workflow_dispatch:
+permissions: { contents: read }
+jobs:
+  image:
+    permissions: { contents: read, packages: write, id-token: write }
+    uses: MIERAI/gitops-platform-blueprint/.github/workflows/build-image.yml@main
+    with: { image: security-platform, sign: true }

@@ -2,7 +2,7 @@
  "collector": {
   "name": "vuln-intel",
   "tools": {},
-  "version": "0.1.0"
+  "version": "0.2.0"
  },
  "coverage": [
   {
@@ -19,8 +19,10 @@
   {
    "asset": "image:registry.example/app:1.0",
    "attributes": {
+    "alertable": true,
     "cve": "CVE-2099-0001",
     "epss": 0.9,
+    "exposed": false,
     "kev": true,
     "published_at": "2099-01-01"
    },
@@ -30,7 +32,7 @@
    "kind": "vulnerability",
    "layer": "supply-chain",
    "needs_human": false,
-   "observed_at": "2026-11-24T05:46:38Z",
+   "observed_at": "2026-11-24T08:18:16Z",
    "owner": "platform",
    "remediation": "fix it",
    "severity": "high",
@@ -41,16 +43,16 @@
   {
    "help": "example",
    "labels": {
-    "label": "x"
+    "kind": "x"
    },
    "name": "security_example_metric",
    "value": 1.0
   }
  ],
  "run": {
-  "finished_at": "2026-11-24T05:46:38Z",
+  "finished_at": "2026-11-24T08:18:16Z",
   "instance": "",
-  "started_at": "2026-11-24T05:46:38Z"
+  "started_at": "2026-11-24T08:18:16Z"
  },
  "schema_version": "1.0"
 }

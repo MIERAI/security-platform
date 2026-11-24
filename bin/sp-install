@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Install this product tree (the committed HEAD, never the working tree) as a versioned release on a host:
+#   <root>/releases/<describe>/  and  <root>/current -> releases/<describe>
+# usage: bin/sp-install <root>                      local
+#        bin/sp-install --ssh <ssh target> <root>   on another host (needs only sh + tar there)
+# Old releases are kept (rollback = point `current` back); prune them by hand.
+set -euo pipefail
+ROOT=$(cd "$(dirname "$0")/.." && pwd)
+SSH=
+[[ ${1:-} == --ssh ]] && { SSH=$2; shift 2; }
+DEST=${1:?usage: sp-install [--ssh host] <root>}
+REL=$(git -C "$ROOT" describe --tags --always --dirty)
+[[ $REL == *-dirty ]] && echo "note: uncommitted changes are NOT installed (HEAD is)" >&2
+REL=${REL%-dirty}
+SCRIPT="set -e; umask 022; mkdir -p $DEST/releases/$REL; tar -x -C $DEST/releases/$REL; ln -sfn releases/$REL $DEST/current; echo installed $REL in $DEST"
+if [[ -n $SSH ]]; then
+  git -C "$ROOT" archive HEAD | ssh -o BatchMode=yes "$SSH" "$SCRIPT"
+else
+  git -C "$ROOT" archive HEAD | sh -c "$SCRIPT"
+fi

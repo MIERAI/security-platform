@@ -1,10 +1,32 @@
 #!/usr/bin/env bash
-# Fail if the product tree contains instance-specific values. Patterns come from a PRIVATE file (one ERE per line),
-# so this script itself stays generic:  bin/check-residue <patterns-file>
+# Fail if the product contains instance-specific values. Patterns come from a PRIVATE file (one ERE per line; in CI
+# from a secret), so this script itself stays generic.
+#   bin/check-residue <patterns-file>             the working tree
+#   bin/check-residue --history <patterns-file>   every commit reachable from HEAD (run before publishing)
+# Paths listed in .residue-ignore (git pathspecs, one per line) are skipped: only this repository's own hosting
+# configuration belongs there (e.g. CI workflows that must name the repository owner).
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-PAT=${1:?usage: check-residue <patterns-file>}
-if grep -rInE -f <(grep -v '^#' "$PAT" | sed '/^$/d') "$ROOT" --exclude-dir=.git; then
-  echo "residue found: instance-specific values in the product repo" >&2; exit 1
+HIST=
+[[ ${1:-} == --history ]] && { HIST=1; shift; }
+PAT=${1:?usage: check-residue [--history] <patterns-file>}
+PATS=$(mktemp); trap 'rm -f "$PATS"' EXIT
+grep -v '^#' "$PAT" | sed '/^$/d' > "$PATS"
+[[ -s $PATS ]] || { echo "no patterns in $PAT" >&2; exit 2; }
+EXCL=()
+if [[ -f $ROOT/.residue-ignore ]]; then
+  while IFS= read -r l; do [[ -n $l && $l != \#* ]] && EXCL+=(":(exclude)$l"); done < "$ROOT/.residue-ignore"
 fi
-echo "no residue"
+cd "$ROOT"
+found=0
+if [[ -n $HIST ]]; then
+  for c in $(git rev-list HEAD); do
+    if git grep -I -n -E -f "$PATS" "$c" -- . "${EXCL[@]}" ; then found=1; fi
+    # commit messages too (public once pushed); author identity is the publishing account's own noreply address
+    if git log -1 --format='%B' "$c" | grep -n -E -f "$PATS" | sed "s/^/$c:message:/" | grep . ; then found=1; fi
+  done
+else
+  if git ls-files -co --exclude-standard -- . "${EXCL[@]}" | tr '\n' '\0' | xargs -0 grep -I -n -E -f "$PATS" -- 2>/dev/null; then found=1; fi
+fi
+[[ $found == 0 ]] || { echo "residue found: instance-specific values in the product repo" >&2; exit 1; }
+echo "no residue${HIST:+ (all $(git rev-list --count HEAD) commits)}"
