@@ -195,7 +195,7 @@ class Runner:
 
     def job_collector(self, name, j, run_dir, argv=None):
         col = j.get("as") or j["collector"]
-        argv = argv or [sys.executable, os.path.join(ROOT, "collectors", col, "collector.py")]
+        argv = argv or [sys.executable, os.path.join(ROOT, "collectors", j["collector"], "collector.py")]
         rc = self.spawn(argv, self.env(j, run_dir), cron.parse_duration(j.get("timeout", "1h")),
                         os.path.join(run_dir, f"{col}.log"))
         doc = os.path.join(run_dir, f"{col}.findings.json")
