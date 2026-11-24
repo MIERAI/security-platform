@@ -171,7 +171,24 @@ def main():
             d = json.load(open(p))
             if not validate.validate_findings(d):
                 cur_docs.append(d)
-        gaps_total = sum(1 for d in cur_docs for g in d["coverage"] if g["status"] == "gap")
+    # coverage exceptions: a gap a HUMAN accepted for a while (an offline personal device declared out of scope, a
+    # device waiting for a credential). Same rules as finding exceptions: approved_by + expires, else ignored;
+    # expired = counted again. Keyed by the coverage asset, optionally "<collector>|<asset>".
+    cexc = load_yaml(os.path.join(a.data, "exceptions.yaml"), {}).get("coverage_exceptions") or {}
+    gaps_total, gaps_excepted, cexc_expired, gaps_by_col = 0, 0, 0, {}
+    for d in cur_docs:
+        gaps_by_col.setdefault(d["collector"]["name"], 0)
+        for g in d["coverage"]:
+            if g["status"] != "gap":
+                continue
+            x = cexc.get(f"{d['collector']['name']}|{g['asset']}") or cexc.get(g["asset"])
+            if x and x.get("approved_by") and x.get("expires"):
+                if t(str(x["expires"])) > time.time():
+                    gaps_excepted += 1
+                    continue
+                cexc_expired += 1
+            gaps_total += 1
+            gaps_by_col[d["collector"]["name"]] += 1
     for d in cur_docs:
         for m in d.get("metrics", []):
             metrics.setdefault(m["name"], []).append(m["value"])
@@ -236,7 +253,10 @@ def main():
     series += [("security_findings_reopened_total", {}, sum(e.get("reopened_count", 0) for e in E.values()),
                 "Regressions: fixed findings that came back (counter)"),
                ("security_exceptions_active", {}, sum(1 for e in E.values() if e["status"] == "accepted"), "Active exceptions"),
-               ("security_exceptions_expired", {}, expired, "Exceptions past expiry (finding reopened)"),
+               ("security_exceptions_expired", {}, expired + cexc_expired, "Exceptions past expiry (finding reopened / gap counted again)"),
+               ("security_coverage_gaps_excepted", {}, gaps_excepted, "Coverage gaps under a human-approved, unexpired exception"),
+              ] + [("security_coverage_gaps_open", {"collector": k}, v, "Coverage gaps not under an exception, per collector (latest documents)")
+                   for k, v in sorted(gaps_by_col.items())] + [
                ("security_time_to_fix_days", {"quantile": "0.5"}, statistics.median(fixed) if fixed else 0, "Time to fix"),
                ("security_time_to_fix_days", {"quantile": "1"}, max(fixed) if fixed else 0, "Time to fix"),
                ("security_contract_invalid_documents", {}, len(invalid), "Findings documents rejected by schema validation"),

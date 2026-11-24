@@ -110,11 +110,13 @@ def main():
         except Exception as err:  # noqa: BLE001
             c.gap(f"discovery:{dcfg.get('type')}", f"{type(err).__name__}: {err}")
     ev_dev = c.raw("devices.json", devices)
-    targets, name_of = [], {}
+    targets, name_of, verified = [], {}, set()
     for d in devices:
         if not d.get("address"):
             continue
         name_of[d["address"]] = d["name"]
+        if d["online"] and d["attrs"].get("online_verified"):
+            verified.add(d["address"])
         if not d["online"]:
             c.gap(f"host:{d['name']}", "offline at scan time")
             continue
@@ -141,7 +143,11 @@ def main():
     unauth = open_ports = 0
     for ip, ports in res["hosts"].items():
         asset = f"net-endpoint:{name_of.get(ip, ip)}@{ip}"
-        if not ports:   # -Pn scan: no open port = host down or fully filtered; cannot tell -> do not confirm "fixed"
+        if not ports:
+            if ip in verified:   # discovery saw it online at scan time: nothing open = fully filtered (the goal)
+                c.ok(asset)
+                continue
+            # -Pn scan of an address nobody vouched for: down or filtered cannot be told apart -> no "fixed"
             c.gap(f"host:{name_of.get(ip, ip)}", "no open port seen from the vantage point (down or filtered)")
             continue
         c.ok(asset)

@@ -40,13 +40,63 @@ controls:
     weight: 2
     source: {type: sli, sli: oldest_fixable_critical_cve_days}
   - id: intel.vendor-advisories
-    title: Unstructured vendor advisories (routers, phones, appliances) are extracted and matched
+    title: Unstructured vendor advisories (routers, phones, appliances) are extracted as candidates and every firmware vendor has a readable source
     csf: ID.RA
     cis: ["7.1"]
     pillars: [device, software]
     check: automated
     weight: 1
-    source: {type: none, reason: "vendor advisory extraction (AI extract + human validation) not built"}
+    source:
+      type: all
+      of:
+        - {type: metric, name: security_intel_feed_age_seconds, match: {feed: vendor-advisories}, agg: max, op: "<=", value: 172800}
+        - {type: metric, name: security_intel_source_unreadable, agg: sum, op: "<=", value: 0, absent: pass}
+        - {type: metric, name: security_intel_firmware_vendors_without_source, agg: max, op: "<=", value: 0}
+    remediation: add a readable advisory source for the vendor (a page, feed or API); never circumvent bot protection
+  - id: intel.hosts-matched
+    title: Every host's software and platform are matched against advisories (distro trackers, platform bulletins, KEV)
+    csf: ID.RA
+    cis: ["7.1", "7.5"]
+    pillars: [device, software]
+    check: automated
+    weight: 3
+    source:
+      type: all
+      of:
+        - {type: findings, require_collector: vuln-intel, require_coverage: "host:", max_age: 2d, check_in: [], max: 0}
+        - {type: metric, name: security_coverage_gaps_open, match: {collector: vuln-intel}, agg: max, op: "<=", value: 0}
+  - id: intel.platform-advisories-fresh
+    title: Platform advisory sources (mobile OS bulletins, desktop OS security releases, monthly OS updates) are younger than 2 days
+    csf: ID.RA
+    cis: ["7.1"]
+    pillars: [device]
+    check: automated
+    weight: 2
+    source: {type: metric, name: security_intel_feed_age_seconds, match: {feed: "android-bulletins|apple-security-releases|msrc-cvrf"}, agg: max, op: "<=", value: 172800}
+  - id: intel.time-to-know
+    title: KEV / critical / high advisories reach a finding within the time-to-know objective, and matching runs at least every 3 hours
+    csf: ID.RA
+    cis: ["7.1", "7.2"]
+    pillars: [network, device, software]
+    check: automated
+    weight: 3
+    source:
+      type: all
+      of:
+        - {type: sli, sli: time_to_know_hours}
+        - {type: collector_fresh, collectors: [vuln-intel], max_age: 3h}
+  - id: intel.code-dependencies-matched
+    title: Dependencies of our own repositories are matched against OSV (independent second matcher) and the DB
+    csf: ID.RA
+    cis: ["16.4", "7.5"]
+    pillars: [software]
+    check: automated
+    weight: 2
+    source:
+      type: all
+      of:
+        - {type: metric, name: security_sbom_repos, agg: max, op: ">=", value: 1}
+        - {type: metric, name: security_intel_feed_age_seconds, match: {feed: osv}, agg: max, op: "<=", value: 172800}
   - id: intel.attack-mapping
     title: Checks and detections are mapped to MITRE ATT&CK techniques
     csf: ID.RA

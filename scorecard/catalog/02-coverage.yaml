@@ -56,3 +56,58 @@ controls:
     check: automated
     weight: 1
     source: {type: none, reason: "no cloud/SaaS posture collector yet"}
+  - id: coverage.host-software-inventory
+    title: Every host in scope has a current software inventory (OS packages, platform / firmware version)
+    csf: ID.AM
+    cis: ["2.1", "1.1"]
+    pillars: [device, software]
+    check: automated
+    weight: 3
+    source:
+      type: all
+      of:
+        - {type: collector_fresh, collectors: [host-sbom], max_age: 3d}
+        - {type: metric, name: security_coverage_gaps_open, match: {collector: host-sbom}, agg: max, op: "<=", value: 0}
+    remediation: give the collector an exec path to the host (or a human-approved, expiring coverage exception)
+  - id: coverage.secrets-every-host
+    title: Where secrets live is known on every host (files scan covers every host, Windows included)
+    csf: ID.AM
+    cis: ["3.1", "3.2"]
+    pillars: [device]
+    check: automated
+    weight: 2
+    source:
+      type: all
+      of:
+        - {type: collector_fresh, collectors: [secrets-files], max_age: 3d}
+        - {type: metric, name: security_coverage_gaps_open, match: {collector: secrets-files}, agg: max, op: "<=", value: 0}
+  - id: coverage.code-dependencies
+    title: Every code-host repository we own is in scope of dependency matching (default branch HEAD)
+    csf: ID.AM
+    cis: ["2.1", "16.4"]
+    pillars: [software]
+    check: automated
+    weight: 2
+    source:
+      type: all
+      of:
+        - {type: metric, name: security_sbom_repos_in_scope, agg: max, op: ">=", value: 1}
+        - {type: metric, name: security_sbom_repos, agg: max, op: ">=", value: 1}
+        - {type: metric, name: security_coverage_gaps_open, match: {collector: vuln-intel}, agg: max, op: "<=", value: 0}
+  - id: coverage.unmanaged-devices-attested
+    title: Devices no collector can reach (personal phones, offline laptops) are listed and their basics attested
+    csf: ID.AM
+    cis: ["1.1", "1.2", "4.1"]
+    pillars: [device, people]
+    check: attested
+    validity: 90d
+    question: "For each device that is out of collector scope: OS auto-update on, patch level < 60 days old, screen lock, disk encryption, overlay-network access limited?"
+    weight: 1
+  - id: coverage.limitations-documented
+    title: Known coverage limitations and their compensating controls are documented and reviewed (90 days)
+    csf: ID.AM
+    cis: ["1.1"]
+    pillars: [network, device, software]
+    check: evidence
+    weight: 1
+    source: {type: file, path: "${data}/coverage-limitations.md", max_age: 90d, contains: "(?i)compensating"}
