@@ -43,7 +43,9 @@ def load_config(p):
 
 class Collector:
     def __init__(self, name, version):
-        self.name, self.version = name, version
+        # SP_COLLECTOR_NAME: the same collector deployed twice with different scopes (e.g. in-cluster and from a
+        # workstation) reports under distinct names, so each one only ever resolves (fixes) its own findings
+        self.name, self.version = os.environ.get("SP_COLLECTOR_NAME") or name, version
         self.started = now_iso()
         self.findings, self.metrics, self.coverage, self.tools = [], [], {}, {}
         self.out = os.environ.get("SP_RUN_DIR") or sys.exit("SP_RUN_DIR not set")

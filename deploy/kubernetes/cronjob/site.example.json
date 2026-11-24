@@ -1,0 +1,5 @@
+{"name": "example",
+ "kubernetes": [{"name": "prod", "kubeconfig": "in-cluster", "role": "prod", "parts": ["workloads", "rbac", "policy"]}],
+ "runner": {"site": "cluster-prod", "role": "site",
+            "outbox": {"type": "kubernetes-secret", "namespace": "security-platform-prod"},
+            "jobs": {"k8s": {"schedule": "45 2 * * *", "as": "k8s-incluster", "timeout": "40m"}}}}

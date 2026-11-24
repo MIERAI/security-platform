@@ -75,7 +75,7 @@ versioned release directory per commit, `current` symlink; rollback = point `cur
 | `cron` | any Unix | one crontab line |
 | `systemd` | Linux | `.service` + `.timer`, `Persistent=true` |
 | `termux-job` | Android (Termux) | JobScheduler, 15 min minimum, survives reboots (`--persisted`); no cron daemon needed |
-| Kubernetes | a cluster | `deploy/kubernetes/`: the metrics exporter; `cronjob/` for an in-cluster site |
+| Kubernetes | a cluster | `deploy/kubernetes/`: the metrics exporter; `deploy/kubernetes/cronjob/`: an in-cluster site (CronJob → Secret outbox → hub `ingest` with `source: {type: kubernetes-secret, namespace, kubeconfig}`) |
 
 ## Metrics delivery (choose per instance)
 

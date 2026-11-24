@@ -31,6 +31,8 @@ trigger stays dumb and the same everywhere:
         max_delay: 3h                          optional: skip a slot older than this (e.g. keep a scan off-peak);
                                                default: a missed slot is caught up once (laptops sleep)
         env: {NAME: value}                     non-secret environment for the job
+        as: <name>                             report under another collector name (SP_COLLECTOR_NAME): the same
+                                               collector deployed twice with different scopes
 Locking: one lock per job (no overlapping runs of the same job) and one ledger lock (merges are serialized).
 """
 import argparse
@@ -144,6 +146,8 @@ class Runner:
         e = dict(os.environ, SP_INSTANCE=self.instance_path, SP_DATA=self.data, SP_RUN_DIR=run_dir,
                  SP_INPUT_DIR=self.latest, SP_INSTANCE_NAME=str(self.inst.get("name", "")))
         e.update({k: str(v) for k, v in (j.get("env") or {}).items()})
+        if j.get("as"):
+            e["SP_COLLECTOR_NAME"] = j["as"]
         return e
 
     def spawn(self, argv, env, timeout, logf):
@@ -170,7 +174,7 @@ class Runner:
         return self.job_collector(name, j, run_dir, argv=[os.path.expanduser(x) for x in j["argv"]])
 
     def job_collector(self, name, j, run_dir, argv=None):
-        col = j["collector"]
+        col = j.get("as") or j["collector"]
         argv = argv or [sys.executable, os.path.join(ROOT, "collectors", col, "collector.py")]
         rc = self.spawn(argv, self.env(j, run_dir), cron.parse_duration(j.get("timeout", "1h")),
                         os.path.join(run_dir, f"{col}.log"))
@@ -378,7 +382,7 @@ class Runner:
         # expected interval per collector, wherever it runs (sites declare theirs in the hub's ingest job)
         for name, j in self.jobs.items():
             if j["type"] in ("collector", "command"):
-                s.append(("security_collector_expected_interval_seconds", {"collector": j["collector"]}, j["_cron"].interval(now),
+                s.append(("security_collector_expected_interval_seconds", {"collector": j.get("as") or j["collector"]}, j["_cron"].interval(now),
                           "Seconds between scheduled runs of the collector"))
             for col, sched in (j.get("site_collectors") or {}).items():
                 s.append(("security_collector_expected_interval_seconds", {"collector": col}, cron.Cron(sched).interval(now),

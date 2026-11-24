@@ -24,7 +24,7 @@
    "kind": "detection",
    "layer": "network",
    "needs_human": false,
-   "observed_at": "2026-11-24T08:18:16Z",
+   "observed_at": "2026-11-24T08:34:55Z",
    "owner": "platform",
    "remediation": "fix it",
    "severity": "high",
@@ -42,9 +42,9 @@
   }
  ],
  "run": {
-  "finished_at": "2026-11-24T08:18:16Z",
+  "finished_at": "2026-11-24T08:34:55Z",
   "instance": "",
-  "started_at": "2026-11-24T08:18:16Z"
+  "started_at": "2026-11-24T08:34:55Z"
  },
  "schema_version": "1.0"
 }
