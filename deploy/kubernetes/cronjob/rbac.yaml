@@ -17,7 +17,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata: { name: security-platform-site-read }
 roleRef: { apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: security-platform-site-read }
-subjects: [{ kind: ServiceAccount, name: security-platform-site, namespace: security-platform }]   # kustomize rewrites the namespace
+subjects: [{ kind: ServiceAccount, name: security-platform-site, namespace: default }]   # kustomize sets the overlay namespace (it only rewrites "default" or empty)
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
