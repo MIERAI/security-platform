@@ -395,3 +395,31 @@ check 目录和检测规则本身也要跟上游：CIS benchmark 版本、MITRE 
 | **phase 2 检测** | advisor 接入（攻击路径、根因分组，决策日志）；运行时检测（Falco 或 Tetragon，二选一先试 lab）、k8s 审计日志 + 主机 auth 日志 → Loki → 告警规则；collector 集群内 CronJob | |
 | **phase 3 密钥与供应链** | 主机/路由器/手机的 SBOM 与 OSV 直连、厂商公告抽取（AI 抽取 + 人工校验）；密钥管理（SOPS/ESO/Vault 之一，轮换日程进 SLO）、SBOM（syft）与签名覆盖率、依赖更新 SLO、Prowler（若上云）、nuclei 外部扫描 | |
 | 持续 | 每月复盘 SLO；新 adapter 按需 | |
+
+---
+
+## 13. 修复流程（remediation workflow，step 4）
+
+每个开放的 finding 都要有**负责人**和一条**按 SLO 计时的关闭路径**。实现：`core/remediation.py`（runner job `type: remediation`）
++ `adapters/trackers.py`（跟踪项放哪里）。
+
+| 规则（确定性） | 说明 |
+|---|---|
+| 一个 finding → 一个跟踪项 | id = finding id；状态镜像 ledger：open / accepted / fixed / false_positive；输出 `<data>/tracker/items.json`（契约 `security-platform/tracker/v1`） |
+| 负责人 | `remediation.owners` 规则（layer_in / asset_prefix / check_prefix / severity_in）→ finding 自带 owner → `default_owner` → `unassigned`（`security_remediation_unassigned` 指标与周摘要里单独列出） |
+| SLO | 类别 = `kev_exposed`（KEV 且资产暴露）或严重度；默认 KEV+暴露 1 天、critical 7 天、high 30 天、medium 90 天、low 180 天（与 §11.6 一致）；info 默认无 SLO。`due_at = opened_at（或 reopened_at）+ SLO` |
+| 关闭 | **只有** ledger 判 fixed（一次覆盖了该资产的采集里 finding 消失）才关闭。tracker、issue 被关、advisor 都不能关闭 |
+| 例外 | 沿用 ledger 的 `exceptions.yaml`（approved_by + expires）：有效期内 = accepted、不算超期；到期 ledger 回到 open → 跟踪项 reopen（`reopen_reason: exception expired`），SLO 重新计时 |
+| 回归 | fixed → 再出现 = reopen（`regression`），SLO 从 reopened_at 重新计时 |
+| 修复时长 | `time_to_remediate_days`（opened/reopened → fixed）；指标 `security_time_to_remediate_days{severity,quantile}`、`security_remediation_open/overdue{severity}`、`security_remediation_slo_seconds{severity}` |
+| 告警与复盘 | `SecurityRemediationOverdue`（critical/high 超期，ticket）；周摘要有 "Overdue remediation" 与 "Time to remediate vs SLO" 两节 |
+| AI advisor | 可插拔，默认 none。配置后只为没有草稿的开放项**起草**修复 runbook / PR 文本（`tracker/drafts/<id>.md`，并写决策日志 `decisions/`）。草稿永不自动应用、合并或关闭任何东西 |
+
+**决策（2026-11-24）：跟踪项放在哪里。** 跟踪项含资产、检查名与修复说明——和 findings 一样是攻击者情报，所以跟踪系统的
+访问控制至少要和 findings 一样严。成熟公司的做法：漏洞工单放在受限的私有项目里，公开仓库只出现中性措辞的修复 PR。
+
+- 默认 `files`：私有数据目录里的 markdown + JSON（`tracker/README.md` 索引按"超期 → 严重度"排序，每项一个 `<id>.md`），
+  无网络、无第三方，随 ledger 一起做快照/备份。
+- `github-issues`：只给**私有**仓库用，且默认关闭（`remediation.tracker: {type: github-issues, repo: owner/name, enabled: true}`）；
+  每次同步前检查仓库可见性，非 private 直接拒绝（一个字都不发）。issue 状态不回流：关 issue 不会关闭 finding。
+- 以后：jira / linear / gitlab-issues 同一接口（`sync(items) -> {created, updated, closed}`）。

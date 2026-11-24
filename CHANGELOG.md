@@ -2,6 +2,23 @@
 
 Components are versioned independently (docs/design.md §5). Entries name the component and its new version.
 
+## 2026-11-24 — remediation workflow
+
+- **core 0.3.0**: `core/remediation.py`: one tracking item per open finding (contract `security-platform/tracker/v1`,
+  `<data>/tracker/items.json`): owner rules (`remediation.owners`, `default_owner`, else `unassigned`), SLO class
+  (`kev_exposed` or severity; defaults 1d / 7d / 30d / 90d / 180d), `due_at`, `overdue`, closure only when the
+  ledger says fixed, reopen on regression or expired exception (SLO restarts), `time_to_remediate_days`; metrics
+  `security_remediation_open|overdue{severity}`, `security_remediation_unassigned`, `security_time_to_remediate_days`,
+  `security_remediation_slo_seconds` in `<data>/metrics/remediation.prom`. Advisor drafts (proposals only) under
+  `tracker/drafts/`, logged in `decisions/`. Digest: "Overdue remediation" and "Time to remediate vs SLO".
+  advisor 0.2.0: an adapter registry (`ADVISORS`).
+- **adapters/trackers 0.1.0** (new): `files` (default: private markdown in the data dir), `github-issues` (off unless
+  `enabled: true`; refuses any repository that is not private; issue state never feeds back).
+- **runner 0.4.0**: job type `remediation`; publishes `remediation.prom` with `ledger.prom`; snapshot default paths include
+  `tracker`.
+- **generators 0.4.0**: `SecurityRemediationOverdue` (critical/high past SLO, ticket), runbook `remediation-overdue`,
+  dashboard panels (overdue by severity, time to remediate).
+
 ## 2026-11-24 — in-cluster hub
 
 - **deploy 0.3.0**: `deploy/kubernetes/hub/` — the hub as a CronJob (tick every 15 min) with its state on a PVC, a

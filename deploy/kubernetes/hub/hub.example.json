@@ -14,6 +14,7 @@
                           "site_state": {"type": "kubernetes-secret", "site": "workstation", "box": "state"},
                           "accept_control": ["exceptions", "catalog-review"],
                           "site_collectors": {"host": "15 0 * * *", "secrets-files": "30 2 * * *"}},
+   "remediation": {"type": "remediation", "schedule": "50 * * * *"},
    "digest":   {"type": "digest", "schedule": "0 0 * * 1"},
    "snapshot": {"type": "snapshot", "schedule": "5 * * * *", "to": {"type": "kubernetes-secret", "name": "security-platform-snapshot"}}
   }}}

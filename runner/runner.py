@@ -26,8 +26,9 @@ trigger stays dumb and the same everywhere:
                                     # hub that sleeps at night (a laptop) sets e.g. 12h
     jobs:
       <name>:
-        type: collector | command | ingest | digest | snapshot | push | pull-snapshot
+        type: collector | command | ingest | digest | remediation | snapshot | push | pull-snapshot
                                                (default collector; collector = job name unless `collector:`)
+                                               remediation: core/remediation.py (owners, SLO due dates, tracker)
                                                snapshot: commit the private data directory if it is a git
                                                repository (`paths:` default ledger.json, reports, exceptions.yaml,
                                                tracker); with `to: {kubernetes Secret}` publish a tar.gz of the same
@@ -413,6 +414,12 @@ class Runner:
                           self.env(j, run_dir), cron.parse_duration(j.get("timeout", "10m")),
                           os.path.join(run_dir, "digest.log")), "digest written"
 
+    def job_remediation(self, name, j, run_dir):
+        rc = self.spawn([sys.executable, os.path.join(ROOT, "core", "remediation.py"), "--data", self.data,
+                         "--instance", self.instance_path], self.env(j, run_dir), cron.parse_duration(j.get("timeout", "10m")),
+                        os.path.join(run_dir, "remediation.log"))
+        return rc, "tracker synced" if rc == 0 else f"remediation rc={rc} (see remediation.log)"
+
     SNAPSHOT_PATHS = ["ledger.json", "reports", "exceptions.yaml", "catalog-review.yaml", "tracker"]
 
     def job_snapshot(self, name, j, run_dir):
@@ -555,9 +562,9 @@ class Runner:
         parts = []
         for p in sorted(glob.glob(os.path.join(self.latest, "*.prom"))):
             parts.append(open(p).read())
-        lp = os.path.join(self.data, "metrics", "ledger.prom")
-        if os.path.exists(lp):
-            parts.append(open(lp).read())
+        for lp in (os.path.join(self.data, "metrics", f) for f in ("ledger.prom", "remediation.prom")):
+            if os.path.exists(lp):
+                parts.append(open(lp).read())
         parts.append(render(self.runner_series(now)))
         parts.append(render([("security_metrics_published_timestamp_seconds", {"site": self.site}, int(now),
                               "When the hub last published these metrics")]))
