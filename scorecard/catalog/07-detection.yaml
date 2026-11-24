@@ -1,4 +1,7 @@
 # Dimension 7: detection and response. Owner of this file: the detection work stream.
+# Evidence comes from the `detection` collector (pipeline checked end to end from outside, quality metrics) and the
+# product's own documents. "Every cluster / every expected source" is decided by the collector (findings
+# detection.cluster_not_covered / sensor_missing / source_silent), so a cluster or host nobody watches fails here.
 schema: security-platform/scorecard-catalog/v1
 dimension:
   id: detection
@@ -7,30 +10,76 @@ dimension:
   description: If someone gets in, we see it (audit logs, runtime detection, auth logs) and know what to do.
   pillars: [network, device, people, software]
 controls:
-  - id: detection.k8s-audit-log
-    title: Kubernetes API audit logs are collected centrally and alerted on
-    csf: DE.CM
-    cis: ["8.2", "8.5"]
-    pillars: [software]
-    check: automated
-    weight: 3
-    source: {type: none, reason: "no audit-log pipeline yet"}
   - id: detection.runtime
-    title: Runtime threat detection runs on every cluster (e.g. Falco, Tetragon)
+    title: Runtime threat detection runs on every node of every cluster (e.g. Falco, Tetragon)
     csf: DE.CM
     cis: ["10.1", "13.2"]
     pillars: [device, software]
     check: automated
     weight: 3
-    source: {type: none, reason: "no runtime detection yet"}
+    source: {type: findings, check_in: [detection.sensor_missing, detection.cluster_not_covered], require_collector: detection,
+             require_coverage: "k8s-cluster:"}
+  - id: detection.k8s-audit-log
+    title: Kubernetes API audit logs of every cluster reach the log store and are alerted on
+    csf: DE.CM
+    cis: ["8.2", "8.5"]
+    pillars: [software, network]
+    check: automated
+    weight: 3
+    source:
+      type: all
+      of:
+        - {type: findings, check_in: [detection.source_silent], asset_contains: "log-source:k8s-audit/", require_collector: detection,
+           require_coverage: "log-source:k8s-audit/"}
+        - {type: findings, check_in: [detection.cluster_not_covered], require_collector: detection}
   - id: detection.auth-logs
-    title: Host and identity-provider authentication logs are collected and alerted on
+    title: Authentication logs (sshd, sudo, key changes) of every expected host reach the log store and are alerted on
     csf: DE.CM
     cis: ["8.2", "8.5"]
     pillars: [device, people]
     check: automated
     weight: 2
-    source: {type: none, reason: "no auth-log collection yet"}
+    source: {type: findings, check_in: [detection.source_silent], asset_contains: "log-source:auth/", require_collector: detection,
+             require_coverage: "log-source:auth/"}
+  - id: detection.saas-audit
+    title: Code-host account and overlay-network control-plane audit events are ingested and alerted on
+    csf: DE.CM
+    cis: ["8.2", "8.5"]
+    pillars: [network, people]
+    check: automated
+    weight: 2
+    source:
+      type: all
+      of:
+        - {type: findings, check_in: [detection.source_silent], asset_contains: "log-source:codehost/", require_collector: detection,
+           require_coverage: "log-source:codehost/"}
+        - {type: findings, check_in: [detection.source_silent], asset_contains: "log-source:overlay-network/", require_collector: detection,
+           require_coverage: "log-source:overlay-network/"}
+  - id: detection.rules-deployed
+    title: Every catalog detection rule is loaded and evaluating in the log store's ruler
+    csf: DE.AE
+    cis: ["8.11"]
+    pillars: [network, device, people, software]
+    check: automated
+    weight: 2
+    source: {type: findings, check_in: [detection.ruler_incomplete], require_collector: detection, require_coverage: "detection-ruler:"}
+  - id: detection.backstop
+    title: Runtime detections also alert in-cluster (no single point of failure in the log store)
+    csf: DE.CM
+    cis: ["8.11"]
+    pillars: [device, software]
+    check: automated
+    weight: 1
+    source: {type: findings, check_in: [detection.backstop_missing, detection.sensor_missing], require_collector: detection,
+             require_coverage: "k8s-cluster:"}
+  - id: detection.page-routing
+    title: Page-severity detection alerts reach a human (a notifying receiver), not only a record
+    csf: RS.CO
+    cis: ["17.2"]
+    pillars: [network, device, people, software]
+    check: automated
+    weight: 2
+    source: {type: metric, name: security_detection_page_route, op: ">=", value: 1}
   - id: detection.secret-leak-alerts
     title: No open secret-scanning alert on any repository
     csf: DE.AE
@@ -47,12 +96,51 @@ controls:
     check: evidence
     weight: 2
     source: {type: file, path: docs/runbooks.md, contains: "emergency-disclosure"}
+  - id: detection.ir-playbook
+    title: An incident-response playbook with evidence preservation, and a runbook for every detection
+    csf: RS.MA
+    cis: ["17.4", "17.6"]
+    pillars: [network, device, people, software]
+    check: evidence
+    weight: 1
+    source:
+      type: all
+      of:
+        - {type: file, path: docs/incident-response.md, contains: "Evidence preservation"}
+        - {type: file, path: docs/runbooks/k8s-pod-exec.md, contains: "Contain"}
   - id: detection.ir-exercise
-    title: An incident-response drill (lab only) or tabletop was run within 180 days
+    title: A detection drill (lab only, benign) was run within 90 days and detected in time
     csf: RS.MA
     cis: ["17.7"]
     pillars: [network, device, people, software]
-    check: attested
-    validity: 180d
-    question: "Did you run an IR drill in the lab or a tabletop exercise in the last 180 days?"
+    check: automated
     weight: 2
+    source:
+      type: all
+      of:
+        - {type: metric, name: security_detection_drill_last_timestamp_seconds, age: true, op: "<=", value: 90d}
+        - {type: findings, check_in: [detection.drill_overdue, detection.drill_failed], require_collector: detection}
+  - id: detection.time-to-detect
+    title: Time to detect in the last drill is within 5 minutes
+    csf: DE.AE
+    cis: ["17.7"]
+    pillars: [network, device, people, software]
+    check: automated
+    weight: 2
+    source: {type: metric, name: security_detection_drill_ttd_seconds, op: "<=", value: 300}
+  - id: detection.false-positive-rate
+    title: False-positive rate of judged detection alerts is measured and at most 50% (30 days)
+    csf: DE.AE
+    cis: ["8.11"]
+    pillars: [network, device, people, software]
+    check: automated
+    weight: 1
+    source: {type: metric, name: security_detection_false_positive_ratio, op: "<=", value: 0.5}
+  - id: detection.ruleset-fresh
+    title: Detection rule content reviewed against upstream within 90 days
+    csf: ID.IM
+    cis: ["8.11"]
+    pillars: [network, device, people, software]
+    check: automated
+    weight: 1
+    source: {type: metric, name: security_detection_ruleset_age_days, op: "<=", value: 90}
