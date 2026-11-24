@@ -2,6 +2,24 @@
 
 Components are versioned independently (docs/design.md §5). Entries name the component and its new version.
 
+## 2026-11-24 — install and operations docs, second-environment e2e test
+
+- **docs**: `quickstart.md` (first findings in 15 minutes, starting with the local machine; add the environment one
+  section at a time; keep it running; see it daily), `instance-reference.md` (every key and its default),
+  `adapters.md` (writing a discovery/exec/sink/notifier adapter or a collector, with the rules every plugin follows),
+  `upgrade.md` (versioning, upgrade and rollback, two-step breaking changes, compatibility promises), `faq.md`,
+  summaries in Japanese (`summary.ja.md`) and Chinese (`summary.zh.md`); README quick start uses `sp`.
+- **e2e/kind** (new): `e2e/kind/run.sh` installs the product from the public repository (or `--local` HEAD) into a
+  fictional company's environment unlike the first instance: static CIDR discovery, plain ssh servers (one with
+  password login), Gitea (no GitHub), kind + kube-prometheus-stack. It checks findings from every collector, no false
+  coverage gaps, remediation owners, the scorecard, the daily summary (no asset details), the scheduled install
+  (sp-install, render.py env/wrapper, a tick with a notify job), Prometheus scraping the exporter through its
+  ServiceMonitor, and both Grafana dashboards; measures clone-to-first-findings; tears everything down; writes
+  `e2e/kind/last-pass.json`. Gaps it found were fixed in the product (CIDR discovery, Gitea collector, default owner)
+  or documented (kindnet and egress-deny NetworkPolicies; the published image is amd64 only).
+- **image**: also ships the documents the scorecard reads as evidence (CHANGELOG, bin, dist, docs, examples, e2e,
+  tests), so an in-cluster hub scores the same evidence controls as a host install. Nothing there is executed.
+
 ## 2026-11-24 — detections 0.2.1
 
 - **detections 0.2.1**: in-cluster Falco detections fire on a rule's first match (Falco exports a rule counter only
