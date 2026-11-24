@@ -1,0 +1,58 @@
+# Dimension 2: discovery coverage. Owner of this file: the coverage + intel work stream.
+schema: security-platform/scorecard-catalog/v1
+dimension:
+  id: coverage
+  order: 2
+  title: Discovery coverage
+  description: Everything we own is in scope of a collector, and the collectors actually saw it (no findings != secure).
+  pillars: [network, device, software]
+controls:
+  - id: coverage.no-gaps
+    title: No asset in scope is a coverage gap
+    csf: ID.AM
+    cis: ["1.1", "1.2"]
+    pillars: [network, device, software]
+    check: automated
+    weight: 3
+    source: {type: sli, sli: collector_coverage_gaps}
+  - id: coverage.collectors-fresh
+    title: Every collector covered at least one asset within 3 days
+    csf: ID.AM
+    cis: ["1.1"]
+    pillars: [network, device, people, software]
+    check: automated
+    weight: 3
+    source: {type: collector_fresh, collectors: "*", max_age: 3d}
+  - id: coverage.external-vantage
+    title: The external (attacker's) view is scanned at least every 3 days
+    csf: ID.AM
+    cis: ["12.1", "4.4"]
+    pillars: [network]
+    check: automated
+    weight: 2
+    source: {type: collector_fresh, collectors: [exposure], max_age: 3d}
+  - id: coverage.sbom-running-software
+    title: Running images have an SBOM (software inventory)
+    csf: ID.AM
+    cis: ["2.1"]
+    pillars: [software]
+    check: automated
+    weight: 2
+    source: {type: metric, name: security_sbom_images, op: ">=", value: 1}
+  - id: coverage.inventory-complete
+    title: Every device, account, cluster, repository and SaaS the organisation owns is in scope (or listed as out of scope)
+    csf: ID.AM
+    cis: ["1.1", "2.1", "5.1"]
+    pillars: [network, device, people, software]
+    check: attested
+    validity: 90d
+    question: "Compare the inventory (instance config + latest coverage) with reality: anything missing?"
+    weight: 2
+  - id: coverage.cloud-saas-posture
+    title: Cloud / SaaS configuration posture is collected (e.g. Prowler, SaaS security APIs)
+    csf: ID.AM
+    cis: ["4.1"]
+    pillars: [software]
+    check: automated
+    weight: 1
+    source: {type: none, reason: "no cloud/SaaS posture collector yet"}

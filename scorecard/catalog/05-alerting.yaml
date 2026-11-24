@@ -1,0 +1,66 @@
+# Dimension 5: alerting and SLO.
+schema: security-platform/scorecard-catalog/v1
+dimension:
+  id: alerting
+  order: 5
+  title: Alerting and SLO
+  description: Regressions page or ticket a human through the normal alert routing; SLOs make the backlog visible.
+  pillars: [network, device, people, software]
+controls:
+  - id: alerting.rules-generated
+    title: Regression-only alert rules are generated from the SLI catalog
+    csf: DE.AE
+    cis: ["8.11"]
+    pillars: [software]
+    check: evidence
+    weight: 1
+    source: {type: file, path: dist/prometheus-rules.yaml, contains: "SecurityCollectorStale"}
+  - id: alerting.metrics-in-monitoring
+    title: The platform's metrics reached the monitoring system within a day
+    csf: DE.AE
+    cis: ["8.9"]
+    pillars: [software]
+    check: automated
+    weight: 2
+    source: {type: metric, name: security_runner_sink_last_success_timestamp_seconds, agg: max, age: true, op: "<=", value: 1d}
+  - id: alerting.end-to-end-test
+    title: An end-to-end alert test (synthetic regression -> notification received by a human) passed within 90 days
+    csf: DE.AE
+    cis: ["17.2"]
+    pillars: [network, device, people, software]
+    check: attested
+    validity: 90d
+    question: "Did a synthetic security regression reach you as a notification in the last 90 days?"
+    weight: 3
+  - id: alerting.runbooks
+    title: Every alert has a runbook anchor
+    csf: RS.MA
+    cis: ["17.4"]
+    pillars: [software]
+    check: evidence
+    weight: 1
+    source: {type: file, path: docs/runbooks.md, contains: "^## regression"}
+  - id: alerting.slo-definitions
+    title: SLOs exist for collector freshness and every SLI
+    csf: GV.OV
+    cis: []
+    pillars: [software]
+    check: evidence
+    weight: 1
+    source: {type: file, path: dist/slo-platform-slos.yaml}
+  - id: alerting.slis-within-objective
+    title: Every security SLI is within its objective
+    csf: DE.AE
+    cis: ["7.1"]
+    pillars: [network, device, people, software]
+    check: automated
+    weight: 2
+    source: {type: metric, name: security_sli_ok, agg: min, op: ">=", value: 1}
+  - id: alerting.score-regression-alert
+    title: A scorecard dimension dropping below its threshold raises an alert
+    csf: DE.AE
+    cis: []
+    pillars: [network, device, people, software]
+    check: evidence
+    weight: 1
+    source: {type: file, path: dist/prometheus-rules.yaml, contains: "SecurityScoreRegression"}

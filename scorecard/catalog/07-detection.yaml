@@ -1,0 +1,58 @@
+# Dimension 7: detection and response. Owner of this file: the detection work stream.
+schema: security-platform/scorecard-catalog/v1
+dimension:
+  id: detection
+  order: 7
+  title: Detection and response
+  description: If someone gets in, we see it (audit logs, runtime detection, auth logs) and know what to do.
+  pillars: [network, device, people, software]
+controls:
+  - id: detection.k8s-audit-log
+    title: Kubernetes API audit logs are collected centrally and alerted on
+    csf: DE.CM
+    cis: ["8.2", "8.5"]
+    pillars: [software]
+    check: automated
+    weight: 3
+    source: {type: none, reason: "no audit-log pipeline yet"}
+  - id: detection.runtime
+    title: Runtime threat detection runs on every cluster (e.g. Falco, Tetragon)
+    csf: DE.CM
+    cis: ["10.1", "13.2"]
+    pillars: [device, software]
+    check: automated
+    weight: 3
+    source: {type: none, reason: "no runtime detection yet"}
+  - id: detection.auth-logs
+    title: Host and identity-provider authentication logs are collected and alerted on
+    csf: DE.CM
+    cis: ["8.2", "8.5"]
+    pillars: [device, people]
+    check: automated
+    weight: 2
+    source: {type: none, reason: "no auth-log collection yet"}
+  - id: detection.secret-leak-alerts
+    title: No open secret-scanning alert on any repository
+    csf: DE.AE
+    cis: ["16.1"]
+    pillars: [people, software]
+    check: automated
+    weight: 2
+    source: {type: findings, check_in: [repo.secret_scanning_alerts_open], require_collector: codehost-github}
+  - id: detection.ir-plan
+    title: Incident response runbooks exist (emergency disclosure, regression, compromise)
+    csf: RS.MA
+    cis: ["17.1", "17.3", "17.4"]
+    pillars: [network, device, people, software]
+    check: evidence
+    weight: 2
+    source: {type: file, path: docs/runbooks.md, contains: "emergency-disclosure"}
+  - id: detection.ir-exercise
+    title: An incident-response drill (lab only) or tabletop was run within 180 days
+    csf: RS.MA
+    cis: ["17.7"]
+    pillars: [network, device, people, software]
+    check: attested
+    validity: 180d
+    question: "Did you run an IR drill in the lab or a tabletop exercise in the last 180 days?"
+    weight: 2

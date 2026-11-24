@@ -20,7 +20,13 @@ generators/  SLI catalog -> rules / dashboard / SLOs                     secrets
 deploy/      triggers (launchd, cron, systemd, termux,      docs/        design, runner (operations), runbooks
              Kubernetes manifests)                          tests/       contract, ledger, runner, outputs, intel tests
 dist/        generated rules / dashboard / SLO values (generic; instances regenerate with --instance)
+scorecard/   control catalog (one file per dimension) -> score per dimension / pillar / NIST CSF function
 ```
+
+**Scorecard** (docs/scorecard.md): every dimension of the programme (design, coverage, intel, operation, alerting,
+remediation, detection, platform self-security, generality, usability, people/identity) gets a 0-100 score from its
+controls (automated, evidence, or human attestations that expire); the overall status FAILS when any dimension is
+below 75 - security is decided by the weakest link. Bring your own catalog and weights.
 
 Quick start (any environment):
 
@@ -31,6 +37,7 @@ python3 runner/runner.py tick --instance /secure/place/instance.yaml --data /sec
 deploy/render.py env --install DIR          # once, at deploy time: pinned environment (ticks never touch the network)
 deploy/render.py launchd|cron|systemd|termux-job --install DIR --instance ... --data ...          # keep ticking
 uv run -q --with pyyaml python3 generators/gen.py --instance /secure/place/instance.yaml --out <gitops dir>
+uv run -q --with pyyaml python3 scorecard/scorecard.py compute --data /secure/place/data   # (the runner does this too)
 uv run -q --with pyyaml python3 -m unittest discover -s tests       # tests
 ```
 

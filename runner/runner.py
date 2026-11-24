@@ -39,7 +39,7 @@ trigger stays dumb and the same everywhere:
                                                control files to the outbox when they change (the hub's ingest
                                                accepts them only from sites listed with `accept_control`)
                                                ingest: `source:` a spool; `site_state:` a dir on the source host or a
-                                               spool; `accept_control: [exceptions, catalog-review]`
+                                               spool; `accept_control: [exceptions, catalog-review, attestations]`
                                                command: `argv: [...]` any program that writes <collector>.findings.json
                                                into $SP_RUN_DIR (e.g. a wrapper around a third-party scanner)
         schedule: "30 3 * * *"                 cron, local time of the host (TZ)
@@ -362,7 +362,7 @@ class Runner:
             notes.append(f"ingested {n}")
         return rc_all, "; ".join(notes) or "outbox empty"
 
-    CONTROL = {"exceptions": "exceptions.yaml", "catalog-review": "catalog-review.yaml"}
+    CONTROL = {"exceptions": "exceptions.yaml", "catalog-review": "catalog-review.yaml", "attestations": "attestations.yaml"}
 
     def accept_control(self, j, src, n):
         """A human-approved control file (exceptions, catalog review) sent by a trusted site: replaces the hub's copy.
@@ -420,7 +420,7 @@ class Runner:
                         os.path.join(run_dir, "remediation.log"))
         return rc, "tracker synced" if rc == 0 else f"remediation rc={rc} (see remediation.log)"
 
-    SNAPSHOT_PATHS = ["ledger.json", "reports", "exceptions.yaml", "catalog-review.yaml", "tracker"]
+    SNAPSHOT_PATHS = ["ledger.json", "reports", "exceptions.yaml", "catalog-review.yaml", "tracker", "attestations.yaml"]
 
     def job_snapshot(self, name, j, run_dir):
         """Audit trail of the ledger: a local commit (never pushed by the runner), or (`to:`) a tar.gz in a private
@@ -562,13 +562,24 @@ class Runner:
         parts = []
         for p in sorted(glob.glob(os.path.join(self.latest, "*.prom"))):
             parts.append(open(p).read())
-        for lp in (os.path.join(self.data, "metrics", f) for f in ("ledger.prom", "remediation.prom")):
+        for lp in (os.path.join(self.data, "metrics", f) for f in ("ledger.prom", "remediation.prom", "scorecard.prom")):
             if os.path.exists(lp):
                 parts.append(open(lp).read())
         parts.append(render(self.runner_series(now)))
         parts.append(render([("security_metrics_published_timestamp_seconds", {"site": self.site}, int(now),
                               "When the hub last published these metrics")]))
         return merge_families("".join(parts))
+
+    def scorecard(self, now):
+        """Recompute the scorecard on every publish (attestations expire by the clock, not by runs). Off with
+        `scorecard: {enabled: false}` in the instance. A failure is logged; the previous scorecard.prom stays."""
+        if (self.inst.get("scorecard") or {}).get("enabled") is False:
+            return
+        p = subprocess.run([sys.executable, os.path.join(ROOT, "scorecard", "scorecard.py"), "compute", "--data", self.data,
+                            "--instance", self.instance_path, "--now", str(int(now))],
+                           capture_output=True, text=True, timeout=300)
+        if p.returncode != 0:
+            log(f"scorecard: rc={p.returncode}: {p.stderr.strip()[-300:]}")
 
     def sink_state(self):
         try:
@@ -581,6 +592,7 @@ class Runner:
         host) is logged, counted and retried on the next tick; it never fails the tick or blocks the other sinks."""
         if self.role != "hub":
             return
+        self.scorecard(now)
         text = self.metrics_text(now)
         local = {"path": os.path.join(self.data, "metrics", "security-platform.prom")}
         sinks.textfile(local, text)

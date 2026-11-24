@@ -1,0 +1,74 @@
+# Dimension 1: design / architecture. One file per dimension: only this file's owners edit it (docs/scorecard.md).
+schema: security-platform/scorecard-catalog/v1
+dimension:
+  id: design
+  order: 1
+  title: Design and architecture
+  description: The programme is designed, not accreted - threat model, contracts, separation of product and instance.
+  pillars: [network, device, people, software]
+controls:
+  - id: design.design-doc
+    title: The platform design is written down and kept current
+    csf: GV.PO
+    cis: ["4.1"]
+    pillars: [network, device, people, software]
+    check: evidence
+    weight: 2
+    source: {type: file, path: docs/design.md, max_age: 180d}
+  - id: design.instance-threat-model
+    title: The instance has a threat model (assets, adversaries, entry points, controls, gaps) reviewed within 90 days
+    csf: GV.RM
+    cis: ["1.1", "3.1"]
+    pillars: [network, device, people, software]
+    check: evidence
+    weight: 3
+    source: {type: file, path: "${data}/threat-model.md", max_age: 90d}
+    remediation: copy docs/threat-model-template.md into the private data directory and fill it in
+  - id: design.contract-tests
+    title: Components meet only through versioned contracts, enforced by contract tests
+    csf: GV.SC
+    cis: ["16.1"]
+    pillars: [software]
+    check: evidence
+    weight: 2
+    source: {type: file, path: tests/test_contract.py, contains: "def test_every_collector_has_valid_fixture"}
+  - id: design.product-instance-separation
+    title: Product code and instance data are separated (no environment values in the product)
+    csf: GV.PO
+    cis: ["3.3"]
+    pillars: [software]
+    check: evidence
+    weight: 1
+    source: {type: file, path: bin/check-residue}
+  - id: design.ai-deterministic-split
+    title: AI only proposes; deterministic rules decide (documented guard rails, decision log)
+    csf: GV.RR
+    cis: []
+    pillars: [people, software]
+    check: evidence
+    weight: 1
+    source: {type: file, path: docs/design.md, contains: "advisor"}
+  - id: design.catalog-reviewed
+    title: The check catalog was reviewed against upstream content within its objective
+    csf: ID.IM
+    cis: ["7.1"]
+    pillars: [network, device, people, software]
+    check: automated
+    weight: 2
+    source: {type: sli, sli: check_catalog_age_days}
+  - id: design.four-pillars-automated
+    title: Every pillar (network, device, people, software) has at least one passing automated control
+    csf: GV.OV
+    cis: []
+    pillars: [network, device, people, software]
+    check: automated
+    weight: 3
+    source: {type: builtin, name: pillars_covered}
+  - id: design.csf-functions-covered
+    title: Every NIST CSF function (Govern, Identify, Protect, Detect, Respond, Recover) has a passing control
+    csf: GV.OV
+    cis: []
+    pillars: [network, device, people, software]
+    check: automated
+    weight: 2
+    source: {type: builtin, name: functions_covered, check: [automated, evidence, attested]}

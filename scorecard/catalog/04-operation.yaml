@@ -1,0 +1,66 @@
+# Dimension 4: continuous operation / reliability. Owner of this file: the runner / hub work stream.
+schema: security-platform/scorecard-catalog/v1
+dimension:
+  id: operation
+  order: 4
+  title: Continuous operation and reliability
+  description: The platform runs itself on schedule, survives offline hosts, and its data is safe.
+  pillars: [software]
+controls:
+  - id: operation.runner-heartbeat
+    title: The hub's trigger ticked within a day
+    csf: DE.CM
+    cis: ["8.2"]
+    pillars: [software]
+    check: automated
+    weight: 2
+    source: {type: metric, name: security_runner_tick_timestamp_seconds, agg: max, age: true, op: "<=", value: 1d}
+  - id: operation.jobs-healthy
+    title: Every runner job succeeded within 3 days
+    csf: DE.CM
+    cis: ["8.2"]
+    pillars: [software]
+    check: automated
+    weight: 3
+    source: {type: job, jobs: "*", max_age: 3d}
+  - id: operation.ledger-fresh
+    title: The ledger merged a run within 2 days
+    csf: DE.CM
+    cis: ["8.2"]
+    pillars: [software]
+    check: automated
+    weight: 2
+    source: {type: metric, name: security_ledger_last_update_timestamp_seconds, agg: max, age: true, op: "<=", value: 2d}
+  - id: operation.sinks-delivering
+    title: Metrics reach monitoring (no sink failing 4 ticks in a row)
+    csf: DE.CM
+    cis: ["8.9"]
+    pillars: [software]
+    check: automated
+    weight: 2
+    source: {type: metric, name: security_runner_sink_consecutive_failures, agg: max, op: "<=", value: 3, absent: fail}
+  - id: operation.contract-valid
+    title: No findings document was rejected by the contract
+    csf: DE.CM
+    cis: []
+    pillars: [software]
+    check: automated
+    weight: 1
+    source: {type: metric, name: security_contract_invalid_documents, agg: max, op: "<=", value: 0}
+  - id: operation.always-on-hub
+    title: The hub runs on always-on infrastructure (not a workstation that sleeps)
+    csf: PR.IR
+    cis: []
+    pillars: [software]
+    check: automated
+    weight: 2
+    source: {type: none, reason: "hub still on a workstation; in-cluster hub in progress"}
+  - id: operation.backup-restore
+    title: The private data is backed up off the hub host (encrypted) and a restore was tested within 180 days
+    csf: RC.RP
+    cis: ["11.1", "11.2", "11.3", "11.5"]
+    pillars: [software]
+    check: attested
+    validity: 180d
+    question: "Is there an encrypted off-host backup of the data directory, and did a test restore work in the last 180 days?"
+    weight: 2

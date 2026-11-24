@@ -21,6 +21,7 @@ COPY sdk sdk
 COPY adapters adapters
 COPY collectors collectors
 COPY generators generators
+COPY scorecard scorecard
 COPY schema schema
 COPY deploy deploy
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 SP_IMAGE_VERSION=${VERSION}

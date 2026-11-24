@@ -1,0 +1,67 @@
+# Dimension 9: generality. Owner of this file: the generality + usability work stream.
+schema: security-platform/scorecard-catalog/v1
+dimension:
+  id: generality
+  order: 9
+  title: Generality
+  description: Another organisation can adopt the product without forking it (adapters, contracts, own catalog).
+  pillars: [software]
+controls:
+  - id: generality.adapters-documented
+    title: Every environment integration is an adapter behind a documented interface
+    csf: GV.PO
+    cis: []
+    pillars: [software]
+    check: evidence
+    weight: 2
+    source: {type: file, path: adapters/README.md}
+  - id: generality.example-instance
+    title: A generic example instance exists
+    csf: GV.PO
+    cis: []
+    pillars: [software]
+    check: evidence
+    weight: 2
+    source: {type: file, path: examples/instance.example.yaml}
+  - id: generality.components-versioned
+    title: Every component has its own version
+    csf: GV.SC
+    cis: []
+    pillars: [software]
+    check: evidence
+    weight: 1
+    source: {type: all, of: [{type: file, path: core/VERSION}, {type: file, path: sdk/VERSION}, {type: file, path: runner/VERSION},
+                             {type: file, path: generators/VERSION}, {type: file, path: scorecard/VERSION}]}
+  - id: generality.scorecard-own-catalog
+    title: The scorecard takes an organisation's own catalog and weights
+    csf: GV.PO
+    cis: []
+    pillars: [software]
+    check: evidence
+    weight: 1
+    source: {type: file, path: docs/scorecard.md, contains: "catalog_dirs"}
+  - id: generality.identity-adapters
+    title: Identity providers are adapters (GitHub, Google Workspace, Okta, Entra behind one interface)
+    csf: GV.PO
+    cis: ["5.1"]
+    pillars: [people, software]
+    check: evidence
+    weight: 1
+    source: {type: file, path: adapters/identity.py}
+  - id: generality.no-residue
+    title: "`bin/check-residue --history` passes (no instance values in the product, ever)"
+    csf: PR.DS
+    cis: ["3.3"]
+    pillars: [software]
+    check: attested
+    validity: 30d
+    question: "Did bin/check-residue --history pass on the current main?"
+    weight: 2
+  - id: generality.second-instance
+    title: A second, different environment ran the product end to end
+    csf: GV.PO
+    cis: []
+    pillars: [software]
+    check: automated
+    weight: 2
+    source: {type: none, reason: "only one instance so far"}

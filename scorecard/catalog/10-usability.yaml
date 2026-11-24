@@ -1,0 +1,58 @@
+# Dimension 10: usability. Owner of this file: the generality + usability work stream.
+schema: security-platform/scorecard-catalog/v1
+dimension:
+  id: usability
+  order: 10
+  title: Usability
+  description: An operator gets value quickly and keeps getting it (quick start, digest, dashboard, clear next steps).
+  pillars: [software]
+controls:
+  - id: usability.quickstart
+    title: The README has a quick start
+    csf: GV.PO
+    cis: []
+    pillars: [software]
+    check: evidence
+    weight: 2
+    source: {type: file, path: README.md, contains: "(?i)quick start"}
+  - id: usability.installer
+    title: One command installs a versioned release (and rolls back)
+    csf: PR.PS
+    cis: []
+    pillars: [software]
+    check: evidence
+    weight: 1
+    source: {type: file, path: bin/sp-install}
+  - id: usability.weekly-digest
+    title: The weekly digest was produced within 8 days
+    csf: GV.OV
+    cis: []
+    pillars: [software]
+    check: automated
+    weight: 2
+    source: {type: job, jobs: [digest], max_age: 8d}
+  - id: usability.dashboard
+    title: A dashboard is generated (aggregates only)
+    csf: GV.OV
+    cis: []
+    pillars: [software]
+    check: evidence
+    weight: 1
+    source: {type: file, path: dist/grafana-dashboard.json}
+  - id: usability.time-to-first-run
+    title: Time from clone to the first ledger is measured and under an hour
+    csf: GV.PO
+    cis: []
+    pillars: [software]
+    check: automated
+    weight: 2
+    source: {type: none, reason: "not measured"}
+  - id: usability.operator-review
+    title: The operator reviewed the digest / dashboard usefulness within 90 days
+    csf: GV.OV
+    cis: []
+    pillars: [people, software]
+    check: attested
+    validity: 90d
+    question: "In the last 90 days, did you review whether the digest and dashboard tell you what to do next?"
+    weight: 1
