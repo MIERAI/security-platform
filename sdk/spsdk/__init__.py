@@ -41,6 +41,22 @@ def load_config(p):
     return yaml.safe_load(text)
 
 
+def asset_scope(inst, name):
+    """Per-asset scope (instance `scope:` list): [{names: [..], scope: [collector, ...], offline: gap|expected,
+    reason}]. Returns the matching entry or None (= every collector, offline is a gap). Matching is by any of the
+    names (the same device may be `dorm-router` in `hosts` and its overlay-network host name in discovery)."""
+    for s in (inst or {}).get("scope") or []:
+        if name in (s.get("names") or []):
+            return s
+    return None
+
+
+def in_scope(inst, name, collector):
+    """False when the instance limits this asset to other collectors (it is then skipped: not a gap)."""
+    s = asset_scope(inst, name)
+    return s is None or collector in (s.get("scope") or [])
+
+
 class Collector:
     def __init__(self, name, version):
         # SP_COLLECTOR_NAME: the same collector deployed twice with different scopes (e.g. in-cluster and from a

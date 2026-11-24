@@ -138,6 +138,8 @@ def main():
     c = spsdk.Collector("host", VERSION)
     for h in inst.get("hosts", []):
         a = f"host:{h['name']}"
+        if not spsdk.in_scope(inst, h["name"], "host"):
+            continue   # instance scope: another collector covers this asset (not a gap)
         if not h.get("exec"):
             c.gap(a, h.get("gap", "no exec adapter configured"))
             continue

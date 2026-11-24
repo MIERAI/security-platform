@@ -114,6 +114,8 @@ def main():
         if h.get("sbom") is False:
             continue
         a = f"host:{h['name']}"
+        if not spsdk.in_scope(inst, h["name"], "host-sbom"):
+            continue   # instance scope: another collector covers this asset (not a gap)
         if not h.get("exec"):
             c.gap(a, h.get("gap", "no exec adapter configured"))
             continue

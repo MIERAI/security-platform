@@ -2,6 +2,14 @@
 
 Components are versioned independently (docs/design.md §5). Entries name the component and its new version.
 
+## 2026-11-25 — per-asset scope
+
+- **sdk 0.3.0** `asset_scope` / `in_scope`; **discovery 0.4.0** `apply_scope`: instance `scope: [{names, scope:
+  [collectors], offline: gap|expected, reason}]` limits an asset to some collectors (e.g. personal devices: exposure
+  only). Other collectors skip it (no coverage gap); `offline: expected` = scanned only when online, offline is not
+  a gap. Honoured by host 0.2.0, host-sbom 0.1.1, secrets-files 0.2.1, exposure 0.4.1 and the runner's
+  `publish_assets` (runner 0.7.1, so sites running older code honour it too).
+
 ## 2026-11-25 — checks mapped to ATT&CK
 
 - **scorecard**: `scorecard/attack-map.yaml` (check prefix -> MITRE ATT&CK Enterprise v17 techniques; detections

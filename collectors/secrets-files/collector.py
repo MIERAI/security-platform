@@ -30,6 +30,8 @@ def main():
     for t in inst.get("secrets_files", []):
         host = t["host"]
         A = f"host:{host}"
+        if not spsdk.in_scope(inst, host, "secrets-files"):
+            continue   # instance scope: another collector covers this asset (not a gap)
         if not t.get("exec"):
             c.gap(A, t.get("gap", "no exec adapter"))
             continue
