@@ -32,6 +32,11 @@ Components are versioned independently (docs/design.md §5). Entries name the co
 - **adapters**: feeds 0.2.0 (conditional GET, `osv` adapter), discovery 0.2.0 (`file`), sinks 0.1.0 (textfile,
   kubernetes-configmap, remote_write), spool 0.1.0 (exec / local).
 - **bin/check-residue**: `--history` (every commit, and commit messages), `.residue-ignore`.
+- **collectors/k8s 0.2.0**: `parts` (workloads, rbac, secrets, policy, operator, cis), in-cluster kubectl
+  (`kubeconfig: in-cluster`), one inventory file per collector instance.
+- **sdk**: `SP_COLLECTOR_NAME` (runner job `as:`): the same collector in two scopes reports under two names.
+- **deploy**: `deploy/kubernetes/cronjob` (in-cluster site: CronJob, read-only ClusterRole without secrets, outbox
+  Role `create secrets`); **spool 0.2.0**: `kubernetes-secret`.
 - Tests: runner, sinks, intel, output contracts (metric labels, rules, SLO values, dashboard, digest).
 
 ## 2026-11-24 — phase 0

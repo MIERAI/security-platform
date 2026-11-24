@@ -1,0 +1,11 @@
+# An in-cluster collection SITE: a CronJob runs one runner job (`runner.py run <job>`) with a read-only identity and
+# leaves the findings document in a Secret of its own namespace (spool kubernetes-secret); the hub's ingest job reads
+# and deletes it. Kubernetes provides the schedule (schedule), no overlap (concurrencyPolicy Forbid), the timeout
+# (activeDeadlineSeconds) and retries (backoffLimit). The instance supplies site.json in the ConfigMap
+# security-platform-site (example below) and patches the schedule. Secrets are NOT readable by this identity: the
+# k8s collector runs with parts [workloads, rbac, policy] here.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - rbac.yaml
+  - cronjob.yaml
