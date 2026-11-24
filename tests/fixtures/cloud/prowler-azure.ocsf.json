@@ -1,0 +1,311 @@
+[
+ {
+  "metadata": {
+   "event_code": "network_ssh_internet_access_restricted",
+   "product": {
+    "name": "Prowler",
+    "uid": "prowler",
+    "vendor_name": "Prowler",
+    "version": "5.49.0"
+   },
+   "version": "1.5.0"
+  },
+  "class_uid": 2004,
+  "severity": "High",
+  "severity_id": 4,
+  "status": "New",
+  "status_code": "FAIL",
+  "status_detail": "NSG nsg-web allows SSH from the internet.",
+  "finding_info": {
+   "title": "Ensure that SSH access from the Internet is evaluated and restricted",
+   "uid": "prowler-azure-network_ssh_internet_access_restricted-33333333-3333-4333-8333-333333333333-westeurope-nsg-web"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/33333333-3333-4333-8333-333333333333/resourceGroups/rg-web/providers/Microsoft.Network/networkSecurityGroups/nsg-web",
+    "name": "nsg-web",
+    "region": "westeurope",
+    "group": {
+     "name": "network"
+    },
+    "type": "Resource"
+   }
+  ],
+  "cloud": {
+   "account": {
+    "uid": "33333333-3333-4333-8333-333333333333",
+    "type": "Azure Subscription"
+   },
+   "provider": "azure",
+   "region": "westeurope"
+  },
+  "remediation": {
+   "desc": "See the check's documentation."
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-2.0": [
+     "6.2"
+    ],
+    "CIS-3.0": [
+     "7.2"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "storage_blob_public_access_level_is_disabled",
+   "product": {
+    "name": "Prowler",
+    "uid": "prowler",
+    "vendor_name": "Prowler",
+    "version": "5.49.0"
+   },
+   "version": "1.5.0"
+  },
+  "class_uid": 2004,
+  "severity": "High",
+  "severity_id": 4,
+  "status": "New",
+  "status_code": "FAIL",
+  "status_detail": "Storage account acmepublicsa allows public blob access.",
+  "finding_info": {
+   "title": "Ensure that 'Public access level' is disabled for storage accounts with blob containers",
+   "uid": "prowler-azure-storage_blob_public_access_level_is_disabled-33333333-3333-4333-8333-333333333333-westeurope-acmepublicsa"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/33333333-3333-4333-8333-333333333333/resourceGroups/rg-web/providers/Microsoft.Storage/storageAccounts/acmepublicsa",
+    "name": "acmepublicsa",
+    "region": "westeurope",
+    "group": {
+     "name": "storage"
+    },
+    "type": "Resource"
+   }
+  ],
+  "cloud": {
+   "account": {
+    "uid": "33333333-3333-4333-8333-333333333333",
+    "type": "Azure Subscription"
+   },
+   "provider": "azure",
+   "region": "westeurope"
+  },
+  "remediation": {
+   "desc": "See the check's documentation."
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-2.0": [
+     "3.7"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "entra_non_privileged_user_has_mfa",
+   "product": {
+    "name": "Prowler",
+    "uid": "prowler",
+    "vendor_name": "Prowler",
+    "version": "5.49.0"
+   },
+   "version": "1.5.0"
+  },
+  "class_uid": 2004,
+  "severity": "High",
+  "severity_id": 4,
+  "status": "New",
+  "status_code": "FAIL",
+  "status_detail": "User contractor has no MFA.",
+  "finding_info": {
+   "title": "Ensure that 'Multi-Factor Auth Status' is 'Enabled' for all Non-Privileged Users",
+   "uid": "prowler-azure-entra_non_privileged_user_has_mfa-33333333-3333-4333-8333-333333333333-global-contractor@acme.example"
+  },
+  "resources": [
+   {
+    "uid": "55555555-5555-4555-8555-555555555555",
+    "name": "contractor@acme.example",
+    "region": "global",
+    "group": {
+     "name": "entra"
+    },
+    "type": "Resource"
+   }
+  ],
+  "cloud": {
+   "account": {
+    "uid": "33333333-3333-4333-8333-333333333333",
+    "type": "Azure Subscription"
+   },
+   "provider": "azure",
+   "region": "global"
+  },
+  "remediation": {
+   "desc": "See the check's documentation."
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-2.0": [
+     "1.1.2"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "monitor_diagnostic_settings_exists",
+   "product": {
+    "name": "Prowler",
+    "uid": "prowler",
+    "vendor_name": "Prowler",
+    "version": "5.49.0"
+   },
+   "version": "1.5.0"
+  },
+  "class_uid": 2004,
+  "severity": "Medium",
+  "severity_id": 3,
+  "status": "New",
+  "status_code": "FAIL",
+  "status_detail": "No diagnostic setting exports the activity log.",
+  "finding_info": {
+   "title": "Ensure that a 'Diagnostic Setting' exists for Subscription Activity Logs",
+   "uid": "prowler-azure-monitor_diagnostic_settings_exists-33333333-3333-4333-8333-333333333333-global-33333333-3333-4333-8333-333333333333"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/33333333-3333-4333-8333-333333333333",
+    "name": "33333333-3333-4333-8333-333333333333",
+    "region": "global",
+    "group": {
+     "name": "monitor"
+    },
+    "type": "Resource"
+   }
+  ],
+  "cloud": {
+   "account": {
+    "uid": "33333333-3333-4333-8333-333333333333",
+    "type": "Azure Subscription"
+   },
+   "provider": "azure",
+   "region": "global"
+  },
+  "remediation": {
+   "desc": "See the check's documentation."
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-2.0": [
+     "5.1.1"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "defender_ensure_system_updates_are_applied",
+   "product": {
+    "name": "Prowler",
+    "uid": "prowler",
+    "vendor_name": "Prowler",
+    "version": "5.49.0"
+   },
+   "version": "1.5.0"
+  },
+  "class_uid": 2004,
+  "severity": "High",
+  "severity_id": 4,
+  "status": "New",
+  "status_code": "FAIL",
+  "status_detail": "vm-legacy is missing system updates.",
+  "finding_info": {
+   "title": "Ensure that 'System updates' are applied",
+   "uid": "prowler-azure-defender_ensure_system_updates_are_applied-33333333-3333-4333-8333-333333333333-westeurope-vm-legacy"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/33333333-3333-4333-8333-333333333333/resourceGroups/rg-web/providers/Microsoft.Compute/virtualMachines/vm-legacy",
+    "name": "vm-legacy",
+    "region": "westeurope",
+    "group": {
+     "name": "defender"
+    },
+    "type": "Resource"
+   }
+  ],
+  "cloud": {
+   "account": {
+    "uid": "33333333-3333-4333-8333-333333333333",
+    "type": "Azure Subscription"
+   },
+   "provider": "azure",
+   "region": "westeurope"
+  },
+  "remediation": {
+   "desc": "See the check's documentation."
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-2.0": [
+     "2.1.13"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "vm_ensure_using_managed_disks",
+   "product": {
+    "name": "Prowler",
+    "uid": "prowler",
+    "vendor_name": "Prowler",
+    "version": "5.49.0"
+   },
+   "version": "1.5.0"
+  },
+  "class_uid": 2004,
+  "severity": "Medium",
+  "severity_id": 3,
+  "status": "New",
+  "status_code": "FAIL",
+  "status_detail": "vm-legacy uses unmanaged disks.",
+  "finding_info": {
+   "title": "Ensure Virtual Machines are utilizing Managed Disks",
+   "uid": "prowler-azure-vm_ensure_using_managed_disks-33333333-3333-4333-8333-333333333333-westeurope-vm-legacy"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/33333333-3333-4333-8333-333333333333/resourceGroups/rg-web/providers/Microsoft.Compute/virtualMachines/vm-legacy",
+    "name": "vm-legacy",
+    "region": "westeurope",
+    "group": {
+     "name": "vm"
+    },
+    "type": "Resource"
+   }
+  ],
+  "cloud": {
+   "account": {
+    "uid": "33333333-3333-4333-8333-333333333333",
+    "type": "Azure Subscription"
+   },
+   "provider": "azure",
+   "region": "westeurope"
+  },
+  "remediation": {
+   "desc": "See the check's documentation."
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-2.0": [
+     "7.2"
+    ]
+   }
+  }
+ }
+]

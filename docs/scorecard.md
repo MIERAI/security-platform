@@ -37,6 +37,7 @@ controls is data, and an organisation brings its own.
 | 9 | generality | Can another organisation adopt it without forking? | software | GV | - |
 | 10 | usability | Does an operator get value quickly and keep getting it? | software | GV | - |
 | 11 | people | Who can act as us (humans, tokens, keys, AI agents): known, strongly authenticated, reviewed? | people | PR, GV, RC, DE | 5.1-5.4, 6.1-6.5, 14.1-14.3 |
+| 12 | cloud | Are the cloud accounts scanned read-only and do they meet the CIS Foundations baselines (AWS/GCP/Azure)? *Not applicable without cloud.* | all | ID, PR, DE | 3.3, 4.4, 5.3, 6.3, 8.2, 12.2 |
 
 `scorecard.py list` prints every control with its pillars and CSF category; `reports/scorecard.md` has the CIS column.
 
@@ -86,6 +87,24 @@ A new KIND of evidence is one function in `EVALUATORS`; a new control is only YA
 
 `require_collector` and `require_coverage` make "0 findings" mean something: a control over a check that nobody ran,
 or over an adapter that is not configured (e.g. an identity provider API without a key), is `unknown`, not `pass`.
+
+### Not applicable (environments without the thing)
+
+A dimension or control may declare when it applies; otherwise it is **not applicable**: excluded from every score
+(dimension, pillar, function, overall) and listed separately (`not_applicable` in scorecard.json, "NOT APPLICABLE"
+in the report, no `security_score{dimension=...}` series). This is decided from configuration and coverage, never
+guessed, and needs no attestation:
+
+```yaml
+dimension: {id: cloud, ..., applies_when: {any: [{instance: cloud.accounts}, {instance: cloud.imports}, {coverage_prefix: "cloud:"}]}}
+controls:
+  - id: self.cloud-credential-read-only
+    applies_when: {instance: cloud.accounts}     # control level: inside an otherwise applicable dimension
+```
+
+`{instance: <dotted key>}`: the instance has a non-empty value there; `{coverage_prefix: <asset prefix>}`: a
+collector's newest document covered such an asset; `{any: [..]}`. An organisation that has cloud accounts but did not
+configure them is a coverage problem, not "not applicable": list them (an import counts).
 
 ### Instance variables
 

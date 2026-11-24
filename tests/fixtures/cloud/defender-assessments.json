@@ -1,0 +1,73 @@
+{
+ "data": [
+  {
+   "id": "/subscriptions/33333333-3333-4333-8333-333333333333/resourceGroups/rg-web/providers/Microsoft.Compute/virtualMachines/vm-legacy/providers/Microsoft.Security/assessments/a1",
+   "name": "a1",
+   "type": "microsoft.security/assessments",
+   "properties": {
+    "displayName": "Management ports should be closed on your virtual machines",
+    "status": {
+     "code": "Unhealthy",
+     "description": "SSH open"
+    },
+    "resourceDetails": {
+     "Id": "/subscriptions/33333333-3333-4333-8333-333333333333/resourceGroups/rg-web/providers/Microsoft.Compute/virtualMachines/vm-legacy"
+    },
+    "metadata": {
+     "severity": "Medium"
+    }
+   }
+  },
+  {
+   "id": "/subscriptions/33333333-3333-4333-8333-333333333333/resourceGroups/rg-web/providers/Microsoft.Storage/storageAccounts/acmepublicsa/providers/Microsoft.Security/assessments/a2",
+   "name": "a2",
+   "type": "microsoft.security/assessments",
+   "properties": {
+    "displayName": "Storage account public access should be disallowed",
+    "status": {
+     "code": "Unhealthy"
+    },
+    "resourceDetails": {
+     "Id": "/subscriptions/33333333-3333-4333-8333-333333333333/resourceGroups/rg-web/providers/Microsoft.Storage/storageAccounts/acmepublicsa"
+    },
+    "metadata": {
+     "severity": "Medium"
+    }
+   }
+  },
+  {
+   "id": "/subscriptions/33333333-3333-4333-8333-333333333333/resourceGroups/rg-web/providers/Microsoft.Compute/virtualMachines/vm-legacy/providers/Microsoft.Security/assessments/a3",
+   "name": "a3",
+   "type": "microsoft.security/assessments",
+   "properties": {
+    "displayName": "System updates should be installed on your machines",
+    "status": {
+     "code": "Unhealthy"
+    },
+    "resourceDetails": {
+     "Id": "/subscriptions/33333333-3333-4333-8333-333333333333/resourceGroups/rg-web/providers/Microsoft.Compute/virtualMachines/vm-legacy"
+    },
+    "metadata": {
+     "severity": "High"
+    }
+   }
+  },
+  {
+   "id": "/subscriptions/33333333-3333-4333-8333-333333333333/resourceGroups/rg-web/providers/Microsoft.Network/networkSecurityGroups/nsg-web/providers/Microsoft.Security/assessments/a4",
+   "name": "a4",
+   "type": "microsoft.security/assessments",
+   "properties": {
+    "displayName": "Secure transfer to storage accounts should be enabled",
+    "status": {
+     "code": "Healthy"
+    },
+    "resourceDetails": {
+     "Id": "/subscriptions/33333333-3333-4333-8333-333333333333/resourceGroups/rg-web/providers/Microsoft.Storage/storageAccounts/acmepublicsa"
+    },
+    "metadata": {
+     "severity": "High"
+    }
+   }
+  }
+ ]
+}

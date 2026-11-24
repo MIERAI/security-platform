@@ -29,6 +29,12 @@ identity:                              # the people pillar (collectors/identity;
   credentials: {kubeconfigs: ["~/.kube/*.yaml"], ssh_dirs: ["~/.ssh"], docker_configs: ["~/.docker/config.json"],
                 token_files: ["~/.config/security-platform/*.token"]}
   max_token_age_days: 90
+# cloud:                               # docs/cloud.md; without it the cloud scorecard dimension is not applicable
+#   accounts:
+#     - {provider: aws, account_id: "123456789012", role_arn: "arn:aws:iam::123456789012:role/security-platform-audit",
+#        audience: sts.amazonaws.com, identity_token: {type: file, path: /var/run/secrets/tokens/aws}, regions: [eu-west-1]}
+#   engines:
+#     prowler: {path: ~/.local/opt/security-platform/tools/prowler/current/bin/prowler}
 scorecard:                             # docs/scorecard.md: the weakest dimension decides
   threshold: 75
   vars: {hub_host: "host:sec-hub", self_repo: "repo:github/example-co/security-platform", self_image: "ghcr.io/example-co/security-platform"}

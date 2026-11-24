@@ -12,7 +12,8 @@ page is the recipe. The interfaces themselves are listed in `adapters/README.md`
 | run read-only commands on machines a new way (SSM, osquery, an agent) | an **exec** adapter (`adapters/exec.py`) | 20-40 lines | `local`, `ssh` |
 | deliver metrics somewhere new | a **sink** (`adapters/sinks.py`) | 20-60 lines | `textfile`, `kubernetes-configmap`, `remote_write` |
 | send the daily summary somewhere new | a **notifier** (`notifier/notifiers.py`) | 10-20 lines | `telegram`, `webhook`, `exec` |
-| check a new kind of system (a code host, a cloud account, an IdP) | a **collector** (`collectors/<name>/`) | 100-200 lines | `codehost-gitea` |
+| check a new kind of system (a code host, an IdP) | a **collector** (`collectors/<name>/`) | 100-200 lines | `codehost-gitea` |
+| a new cloud provider / check engine / native posture service | a provider class in `adapters/cloud.py`, an entry in `ENGINES` / `IMPORTERS` of `collectors/cloud/engines.py` | 30-120 lines | `prowler`, `steampipe`, `securityhub` ([cloud.md](cloud.md)) |
 | wrap a third-party scanner you already run | a `command` job (no code in this repository) | — | `runner.jobs.x: {type: command, argv: [...]}` |
 
 Rule of thumb: if the *checks* stay the same and only the *way to reach* things changes, it is an adapter. If you

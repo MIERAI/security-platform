@@ -17,7 +17,7 @@ def to_ocsf(e):
           "resources": [{"type": e["asset"].split(":", 1)[0], "name": e["asset"].split(":", 1)[1]}],
           "remediation": {"desc": e["remediation"]}}
     if uid == 2003:
-        ev["compliance"] = {"control": e["check"], "standards": [r for r in e.get("refs", []) if r.startswith("cis:")]}
+        ev["compliance"] = {"control": e["check"], "standards": [r for r in e.get("refs", []) if r.startswith(("cis:", "cis-"))]}
     if uid == 2002:
         a = e.get("attributes", {})
         ev["vulnerabilities"] = [{"cve": {"uid": a.get("cve"), "cvss": [{"base_score": a.get("cvss")}] if a.get("cvss") else [],

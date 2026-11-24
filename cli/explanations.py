@@ -434,6 +434,109 @@ CHECKS = {
     "agent.settings_writable_by_others": dict(
         what="An AI assistant's settings file can be changed by other users.", why="Others could grant it more power.",
         fix="`chmod 600` the settings file.", verify=NEXT_SCAN),
+    # --- cloud (collectors/cloud: any engine or native-service import) -------------------------------------------
+    "cloud.firewall_admin_port_open": dict(
+        what="A cloud firewall rule (security group, VPC firewall, network security group) lets anyone on the internet "
+             "reach remote-administration ports (SSH 22, RDP 3389).",
+        why="Bots scan every cloud address for these ports within minutes; one weak password or unpatched service "
+            "and the machine is taken over.",
+        fix="1. Change the rule's source from 'anywhere' (the all-addresses range, IPv4 and IPv6) to your office/VPN addresses.\n"
+            "2. Better: remove the rule and use the provider's session service (SSM Session Manager, IAP, Bastion).",
+        verify=NEXT_SCAN),
+    "cloud.firewall_open_to_internet": dict(
+        what="A cloud firewall rule opens all ports to the whole internet.",
+        why="Every service on the machine, including ones never meant to be public, becomes reachable by anyone.",
+        fix="Replace the rule with rules for the specific ports the service needs, from the sources that need them.",
+        verify=NEXT_SCAN),
+    "cloud.public_endpoint": dict(
+        what="A cloud resource (instance, database) has a public address.",
+        why="It can be attacked directly from the internet, bypassing load balancers and filters.",
+        fix="Remove the public address; reach it through a load balancer, a private endpoint or a VPN.", verify=NEXT_SCAN),
+    "cloud.volume_unencrypted": dict(
+        what="A disk (block volume) or disk snapshot in the cloud is not encrypted.",
+        why="Copies of the disk (snapshots shared by mistake, a leaked backup) expose all the data on it.",
+        fix="Turn on 'encrypt new volumes by default' for the account/region; copy data to an encrypted volume and "
+            "delete the old one.", verify=NEXT_SCAN),
+    "cloud.instance_unpatched": dict(
+        what="A cloud machine is missing updates, or nothing manages its updates.",
+        why="Known vulnerabilities are exploited within days of publication.",
+        fix="Enrol the machine in the provider's patch management (Systems Manager, OS Config, Update Manager) and "
+            "apply the missing updates.", verify=NEXT_SCAN),
+    "cloud.instance_metadata_v1": dict(
+        what="A cloud machine answers metadata requests without a session token (IMDSv1).",
+        why="A request-forgery bug in any app on the machine can then steal the machine's cloud credentials.",
+        fix="Set the instance's metadata option to 'tokens required' (IMDSv2).", verify=NEXT_SCAN),
+    "cloud.user_without_mfa": dict(
+        what="A person can sign in to the cloud console with a password but without a second factor.",
+        why="A phished or reused password is then enough to control cloud resources.",
+        fix="Turn on MFA for the user (a passkey or security key is best) and enforce MFA by policy; better, move "
+            "people to single sign-on.", verify=NEXT_SCAN),
+    "cloud.root_mfa_disabled": dict(
+        what="The cloud account's root (owner) login has no second factor.",
+        why="Root can do everything, including closing the account; its password alone protects it.",
+        fix="Add a hardware key or passkey MFA to the root login and store the recovery details offline.",
+        verify=NEXT_SCAN),
+    "cloud.root_access_key": dict(
+        what="The cloud account's root login has programmatic access keys.",
+        why="A leaked root key gives full, unrestricted control of the account.",
+        fix="Delete the root access keys; use roles for automation.", verify=NEXT_SCAN),
+    "cloud.root_used": dict(
+        what="The cloud account's root login was used recently.",
+        why="Day-to-day use of the all-powerful login multiplies the chance of it being stolen.",
+        fix="Use named, least-privilege identities; keep root for break-glass only.", verify=NEXT_SCAN),
+    "cloud.access_key_old": dict(
+        what="A long-lived cloud access key (or service-account key) has not been changed for more than 90 days.",
+        why="Old keys end up in laptops, logs and repositories; the longer a key lives the likelier it has leaked.",
+        fix="Replace the key with federation or a role; if a key is unavoidable, create a new one, switch over, then "
+            "delete the old one.", verify=NEXT_SCAN),
+    "cloud.credential_unused": dict(
+        what="A cloud password or access key has not been used for weeks.",
+        why="Nobody notices if an unused credential is stolen and starts being used.",
+        fix="Disable it, wait a little, then delete it.", verify=NEXT_SCAN),
+    "cloud.service_account_key_user_managed": dict(
+        what="A cloud service account has a downloadable (long-lived) key.",
+        why="Key files get copied around and leak; whoever has the file is that service account.",
+        fix="Use workload identity federation or the platform's attached service account instead; delete the keys.",
+        verify=NEXT_SCAN),
+    "cloud.admin_privileges_broad": dict(
+        what="A workload identity holds an administrator role.",
+        why="Any bug in that workload becomes full control of the project or account.",
+        fix="Grant only the specific roles the workload needs.", verify=NEXT_SCAN),
+    "cloud.password_policy_weak": dict(
+        what="The cloud account's password policy is weaker than the benchmark (short passwords, reuse allowed).",
+        why="Weak or reused passwords are guessed or come from other sites' leaks.",
+        fix="Require at least 14 characters and prevent reuse; better, move people to single sign-on.",
+        verify=NEXT_SCAN),
+    "cloud.platform_credential_over_privileged": dict(
+        what="The cloud identity this security platform uses can change things, but it only needs to read.",
+        why="The platform's credential is a target: if it is stolen it should not be able to change or delete "
+            "anything. The platform refuses to scan with it until it is fixed.",
+        fix="Remove every policy/role from the platform's identity except the read-only audit ones (AWS SecurityAudit "
+            "+ ViewOnlyAccess, GCP Security Reviewer + Viewer, Azure Reader + Security Reader; docs/cloud.md).",
+        verify=NEXT_SCAN),
+    "cloud.storage_public": dict(
+        what="A cloud storage bucket or container can be read (or written) by anyone on the internet.",
+        why="Public buckets are found by automated scanners; their contents leak or get replaced.",
+        fix="Turn on 'block public access' for the account and the bucket; share single files with signed URLs or "
+            "through a CDN with origin access.", verify=NEXT_SCAN),
+    "cloud.storage_unencrypted": dict(
+        what="A cloud storage bucket has no default encryption setting.",
+        why="New objects may be stored unencrypted, against most policies and benchmarks.",
+        fix="Enable default encryption (provider-managed or your own key) on the bucket.", verify=NEXT_SCAN),
+    "cloud.storage_insecure_transport": dict(
+        what="A cloud storage bucket accepts plain-HTTP requests.",
+        why="Data and credentials could be read or changed on the network.",
+        fix="Add a policy that denies requests without TLS (AWS: aws:SecureTransport false; Azure: secure transfer "
+            "required).", verify=NEXT_SCAN),
+    "cloud.snapshot_public": dict(
+        what="A disk snapshot or machine image is shared with everyone.",
+        why="Anyone can copy the disk and read the data or secrets on it.",
+        fix="Remove the public sharing permission; block public sharing at account level.", verify=NEXT_SCAN),
+    "cloud.audit_log_disabled": dict(
+        what="The cloud account does not record who did what (audit trail missing or off in some regions).",
+        why="Without it an intrusion cannot be detected or investigated.",
+        fix="Create an account-wide, all-regions audit trail (CloudTrail, Cloud Audit Logs, Activity Log export) "
+            "into protected storage.", verify=NEXT_SCAN),
 }
 
 FAMILIES = [
@@ -469,6 +572,11 @@ FAMILIES = [
         what="The cluster fails an item of the CIS Kubernetes benchmark (a public hardening checklist).",
         why="Each item closes a known way to attack or misuse a cluster.",
         fix="Read the benchmark item's remediation text (in the finding) and apply it on the node or control plane.")),
+    ("cloud.", dict(
+        what="A cloud security check (CIS Foundations benchmark or a scanner's best practice) failed for this resource.",
+        why="Each check closes a known way to attack or leak data from a cloud account.",
+        fix="Read the remediation line and the engine's reference (refs) below; apply it in the account, or record an "
+            "exception with an owner and an end date.")),
     ("vuln.", dict(
         what="A known vulnerability (CVE) affects software you run.",
         why="Public vulnerabilities, especially ones listed as exploited in the wild (KEV), are attacked at scale.",

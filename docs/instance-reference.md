@@ -26,6 +26,7 @@ network or GitHub): `e2e/kind/instance.yaml`.
 | `codehost` | `[]` | GitHub, Gitea, Forgejo organisations or users |
 | `secrets_files` | `[]` | where secrets lie on disk (metadata only, never values) |
 | `agents` | `[]` | AI coding assistants' permission settings |
+| `cloud` | — | cloud accounts (AWS, GCP, Azure), check engines and native-service imports ([cloud.md](cloud.md)) |
 | `intel` | — | advisories (CISA KEV, EPSS, OSV, Trivy DB) matched against your software inventory |
 | `remediation` | owners `unassigned`, SLOs below | who fixes what, by when |
 | `advisor` | `{type: none}` | optional AI that drafts text; never changes a status |
@@ -163,6 +164,57 @@ runner:
 
 `webhook` `format`: `slack` (`{"text"}`: Slack, Mattermost, Rocket.Chat), `json` (`{"title","text"}`: Teams
 workflows, generic), `text` (plain body: ntfy, Gotify-like). Default `slack`. Adding a notifier: [adapters.md](adapters.md).
+
+## cloud
+
+Collector `cloud` ([cloud.md](cloud.md)). Without this section the cloud scorecard dimension is *not applicable*.
+
+```yaml
+cloud:
+  refuse_over_privileged: true        # default: an identity that can write is reported AND not used (per account too)
+  accounts:                           # one entry per AWS account / GCP project / Azure subscription
+    - provider: aws                   # aws | gcp | azure
+      account_id: "123456789012"
+      mode: web_identity              # default; or `profile` (an SSO/role profile: aws configure export-credentials)
+      role_arn: arn:aws:iam::123456789012:role/security-platform-audit
+      audience: sts.amazonaws.com     # optional pre-check of the token's aud (all providers)
+      identity_token: {type: file, path: /var/run/secrets/tokens/aws}   # | {type: command, argv: [..]} | {type: env, name: X}
+      chain_role_arn: ...             # optional: then AssumeRole into this role (cross-account), `external_id` optional
+      session_seconds: 3600           # default 3600; refreshed 300 s before expiry
+      regions: [eu-west-1]            # first = home region
+      endpoint_url: http://127.0.0.1:4566   # optional: an emulator (the e2e) or a private endpoint
+      engines: [prowler, steampipe]   # default: every key of cloud.engines (prowler if none); [] = login + self-check only
+    - provider: gcp
+      project_id: my-project
+      workload_identity_provider: projects/<number>/locations/global/workloadIdentityPools/<pool>/providers/<provider>
+      service_account: audit@my-project.iam.gserviceaccount.com
+      identity_token: {type: file, path: ...}
+      project_ids: [my-project, other-project]       # optional: what the engines scan (default project_id)
+      # sts_url, iamcredentials_url, resourcemanager_url: optional endpoint overrides (default: Google's)
+    - provider: azure
+      subscription_id: ...
+      tenant_id: ...
+      client_id: ...                  # app registration / user-assigned identity with a federated credential
+      identity_token: {type: file, path: ...}
+      subscription_ids: [...]         # optional
+      # authority_host, arm_url, scope: optional endpoint overrides (default: Microsoft Entra / ARM public cloud)
+  engines:                            # external processes; install with `render.py tool-env --tool <name>`
+    prowler:    {path: <install>/tools/prowler/current/bin/prowler, checks: [..], services: [..], excluded_checks: [..],
+                 scan_unused_services: true, timeout: 3h, extra_args: []}
+    steampipe:  {path: <install>/tools/steampipe/current/bin/steampipe, install_dir: <install>/tools/steampipe/current/home,
+                 plugin: aws@1.34.1, queries: [ids], timeout: 10m}
+    scoutsuite: {path: <install>/tools/scoutsuite/current/bin/scout, services: [..], timeout: 3h}
+  imports:                            # exports of the provider's own posture service, merged with engine results
+    - {type: securityhub, file: <ASFF json>, max_age: 2d, accounts: ["123456789012"]}
+    - {type: scc, file: <gcloud scc findings list --format=json>, accounts: [my-project]}
+    - {type: defender, file: <Resource Graph securityresources assessments json>, accounts: [<subscription id>]}
+runner:
+  jobs:
+    cloud: {schedule: "30 4 * * *", timeout: 4h}
+```
+
+Refused: any long-lived key in an account entry (`access_key_id`, `secret_access_key`, `client_secret`,
+`private_key`, ...). An import older than `max_age` (default 2d) is a coverage gap, not a pass.
 
 ## scorecard
 
