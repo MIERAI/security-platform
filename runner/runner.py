@@ -335,7 +335,10 @@ class Runner:
             self.save_state(name, st)
             log(f"{name}: rc={rc} in {dur:.0f}s: {note[:200]}")
             if self.role == "site" and self.cfg.get("state_outbox"):
-                spool.spool(self.cfg["state_outbox"]).put(f"{name}.json", json.dumps(self.public_state(name, st)))
+                try:
+                    spool.spool(self.cfg["state_outbox"]).put(f"{name}.json", json.dumps(self.public_state(name, st)))
+                except Exception as e:  # noqa: BLE001 - the hub then sees a stale state; the job result stands
+                    log(f"{name}: state outbox: {type(e).__name__}: {str(e)[:160]}")
             return rc
         finally:
             lk.close()
