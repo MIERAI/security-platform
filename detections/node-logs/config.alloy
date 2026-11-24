@@ -1,0 +1,108 @@
+// node-logs (component `detections`): this node's security logs → Loki. One Alloy per node (DaemonSet), read-only
+// host mounts, no Kubernetes API access. Contract (docs/detection.md "Log contract"):
+//   labels               source = k8s-audit | auth, cluster, host (node name), ident (auth: the syslog identifier)
+//   structured metadata  auth lines that the parsers below recognise carry event, user, src_ip
+//                        (event: ssh_login_success | ssh_login_failure | sudo | sudo_failure)
+// The raw line is always kept: it is the evidence. Detection rules (catalog.yaml → loki/rules.yaml) run in the log
+// store's ruler; nothing here decides what is an incident.
+// Environment: CLUSTER, NODE_NAME, LOKI_URL, LOKI_TOKEN ("" = no Authorization header).
+
+// ---- Kubernetes API audit log (written by the API server on control-plane nodes; absent elsewhere = no targets)
+local.file_match "audit" {
+  path_targets = [{"__path__" = "/host/audit/audit.log", "source" = "k8s-audit"}]
+  sync_period  = "15s"
+}
+
+loki.source.file "audit" {
+  targets       = local.file_match.audit.targets
+  tail_from_end = true          // first start: do not replay days of history into the store
+  forward_to    = [loki.process.common.receiver]
+}
+
+// ---- authentication and privilege use from the systemd journal (facilities auth=4, authpriv=10)
+loki.relabel "journal" {
+  forward_to = []
+  rule {
+    source_labels = ["__journal_syslog_identifier"]
+    target_label  = "ident"
+  }
+}
+
+loki.source.journal "auth" {
+  path          = "/host/journal"
+  matches       = "SYSLOG_FACILITY=4 SYSLOG_FACILITY=10"
+  max_age       = "12h"
+  labels        = {source = "auth"}
+  relabel_rules = loki.relabel.journal.rules
+  forward_to    = [loki.process.auth.receiver]
+}
+
+loki.process "auth" {
+  // OpenSSH (sshd / sshd-session)
+  stage.match {
+    selector = "{ident=~\"sshd.*\"} |~ \"^Accepted \""
+    stage.regex { expression = "^Accepted \\S+ for (?P<user>\\S+) from (?P<src_ip>\\S+) port" }
+    stage.template {
+      source   = "event"
+      template = "ssh_login_success"
+    }
+  }
+  stage.match {
+    selector = "{ident=~\"sshd.*\"} |~ \"^Failed \""
+    stage.regex { expression = "^Failed \\S+ for (?:invalid user )?(?P<user>\\S+) from (?P<src_ip>\\S+) port" }
+    stage.template {
+      source   = "event"
+      template = "ssh_login_failure"
+    }
+  }
+  stage.match {
+    selector = "{ident=~\"sshd.*\"} |~ \"^Invalid user \""
+    stage.regex { expression = "^Invalid user (?P<user>\\S*) from (?P<src_ip>\\S+)" }
+    stage.template {
+      source   = "event"
+      template = "ssh_login_failure"
+    }
+  }
+  // sudo: "<user> : [TTY=… ;] PWD=… ; USER=… ; COMMAND=…"; failures carry a reason before the fields
+  stage.match {
+    selector = "{ident=\"sudo\"} |~ \"COMMAND=\" !~ \"incorrect password|NOT in sudoers|password is required|authentication failure\""
+    stage.regex { expression = "^\\s*(?P<user>\\S+) : " }
+    stage.template {
+      source   = "event"
+      template = "sudo"
+    }
+  }
+  stage.match {
+    selector = "{ident=\"sudo\"} |~ \"incorrect password|NOT in sudoers|password is required|authentication failure\""
+    stage.regex { expression = "^\\s*(?P<user>\\S+) : " }
+    stage.template {
+      source   = "event"
+      template = "sudo_failure"
+    }
+  }
+  stage.structured_metadata {
+    values = {event = "", user = "", src_ip = ""}
+  }
+  forward_to = [loki.process.common.receiver]
+}
+
+loki.process "common" {
+  stage.static_labels {
+    values = {host = sys.env("NODE_NAME")}
+  }
+  forward_to = [loki.write.store.receiver]
+}
+
+loki.write "store" {
+  endpoint {
+    url                 = sys.env("LOKI_URL")
+    bearer_token        = sys.env("LOKI_TOKEN")
+    batch_size          = "512KiB"
+    batch_wait          = "5s"
+    remote_timeout      = "10s"
+    min_backoff_period  = "1s"
+    max_backoff_period  = "30s"
+    max_backoff_retries = 10
+  }
+  external_labels = {cluster = sys.env("CLUSTER")}
+}

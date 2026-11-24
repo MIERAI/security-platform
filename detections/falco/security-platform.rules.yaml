@@ -1,0 +1,170 @@
+# security-platform curated Falco rules (component `detections`, see ../VERSION). Loaded after the upstream
+# falcosecurity/rules file (falco_rules.yaml, pinned by the instance: falcoctl ref falco-rules:<version>).
+#
+# Selection model (low noise by construction): the instance's falco.yaml disables every rule and enables only the
+# tag `security-platform`:
+#     rules: [{disable: {rule: "*"}}, {enable: {tag: security-platform}}]
+# This file (1) adds that tag to the upstream rules we keep (an upstream rename makes Falco fail to start: loud, not
+# silent), and (2) defines our own rules for what upstream does not cover well. Our own rules use only `sp_` macros
+# and Falco fields, so they do not depend on upstream macro names.
+#
+# Every rule here maps to a catalog entry (../catalog.yaml, source falco): that is where severity, the alert and the
+# runbook are defined. Falco `priority` is only the log level; routing never depends on it.
+
+# ---- upstream rules we keep (tag them) -------------------------------------------------------------------------
+- rule: Terminal shell in container
+  tags: [security-platform]
+  override: {tags: append}
+
+- rule: Read sensitive file untrusted
+  tags: [security-platform]
+  override: {tags: append}
+
+- rule: Drop and execute new binary in container
+  tags: [security-platform]
+  override: {tags: append}
+
+- rule: Fileless execution via memfd_create
+  tags: [security-platform]
+  override: {tags: append}
+
+- rule: Execution from /dev/shm
+  tags: [security-platform]
+  override: {tags: append}
+
+- rule: PTRACE attached to process
+  tags: [security-platform]
+  override: {tags: append}
+
+- rule: Linux Kernel Module Injection Detected
+  tags: [security-platform]
+  override: {tags: append}
+
+- rule: Detect release_agent File Container Escapes
+  tags: [security-platform]
+  override: {tags: append}
+
+- rule: Redirect STDOUT/STDIN to Network Connection in Container
+  tags: [security-platform]
+  override: {tags: append}
+
+- rule: Netcat Remote Code Execution in Container
+  tags: [security-platform]
+  override: {tags: append}
+
+- rule: Search Private Keys or Passwords
+  tags: [security-platform]
+  override: {tags: append}
+
+- rule: Clear Log Activities
+  tags: [security-platform]
+  override: {tags: append}
+
+# ---- our macros and lists -------------------------------------------------------------------------------------
+- macro: sp_container
+  condition: (container.id != host and container.id != "")
+
+- macro: sp_spawned
+  condition: (evt.type in (execve, execveat))
+
+- macro: sp_open_write
+  condition: (evt.type in (open, openat, openat2) and evt.is_open_write = true and fd.typechar = 'f' and fd.num >= 0)
+
+# Destinations a pod may reach without an alert: private ranges, the overlay network (CGNAT) and link-local.
+# Instances extend it with `- list: sp_allowed_outbound_nets` + `override: {items: append}` in their own rules file.
+- list: sp_allowed_outbound_nets
+  items: ['"10.0.0.0/8"', '"172.16.0.0/12"', '"192.168.0.0/16"', '"100.64.0.0/10"', '"127.0.0.0/8"', '"169.254.0.0/16"']
+
+# Namespaces whose workloads legitimately talk to the internet (GitOps controller fetching repositories, certificate
+# issuers, intel feeds ...). Empty in the product; instances append (`override: {items: append}`).
+- list: sp_outbound_namespaces
+  items: []
+
+# Images whose processes may write below /etc at run time (instances append).
+- list: sp_etc_writer_images
+  items: []
+
+- list: sp_miner_ports
+  items: [3333, 3334, 3335, 4444, 5555, 5556, 6666, 7777, 8888, 9999, 14433, 14444, 45560, 45700]
+
+- list: sp_miner_binaries
+  items: [xmrig, xmr-stak, minerd, cpuminer, cgminer, bfgminer, ethminer, nbminer, t-rex, lolminer, phoenixminer, ccminer, kdevtmpfsi, kinsing]
+
+- list: sp_setuid_tools
+  items: [sudo, su, doas, pkexec, newgrp, sg]
+
+# ---- our rules -----------------------------------------------------------------------------------------------
+- rule: SP Unexpected outbound connection from container
+  desc: >
+    A container opened a connection to an address outside the private, overlay and link-local ranges, from a
+    namespace that is not expected to reach the internet. First signal of exfiltration, a reverse shell or a
+    downloader. Instances list the namespaces that legitimately go out (sp_outbound_namespaces).
+  condition: >
+    evt.type = connect and (fd.typechar = 4 or fd.typechar = 6)
+    and sp_container
+    and fd.sip != "0.0.0.0" and not fd.snet in (sp_allowed_outbound_nets)
+    and (evt.rawres >= 0 or evt.res = EINPROGRESS)
+    and not k8s.ns.name in (sp_outbound_namespaces)
+  output: Unexpected outbound connection from a container (dest=%fd.sip:%fd.sport proto=%fd.l4proto process=%proc.name command=%proc.cmdline user=%user.name ns=%k8s.ns.name pod=%k8s.pod.name image=%container.image.repository)
+  priority: WARNING
+  tags: [security-platform, network, container, mitre_exfiltration, mitre_command_and_control, T1041, T1071]
+
+- rule: SP Crypto miner activity
+  desc: >
+    A process connected to a well-known mining-pool port, runs a known miner binary or carries a stratum URL on its
+    command line. Resource hijacking (T1496) is the most common payload after an exposed service is taken over.
+  condition: >
+    (sp_spawned and (proc.name in (sp_miner_binaries) or proc.cmdline contains "stratum+tcp" or proc.cmdline contains "stratum+ssl"
+                     or proc.cmdline contains "--donate-level" or proc.cmdline contains "cryptonight"))
+    or (evt.type = connect and (fd.typechar = 4 or fd.typechar = 6) and fd.sport in (sp_miner_ports)
+        and not fd.snet in (sp_allowed_outbound_nets))
+  output: Crypto mining indicator (process=%proc.name command=%proc.cmdline dest=%fd.name user=%user.name container=%container.id ns=%k8s.ns.name pod=%k8s.pod.name image=%container.image.repository)
+  priority: CRITICAL
+  tags: [security-platform, host, container, mitre_impact, T1496]
+
+- rule: SP Write below etc in container
+  desc: >
+    A process inside a running container opened a file below /etc for writing. Images are immutable; a run-time
+    write to /etc is persistence or tampering (users, cron, resolver, sudoers). Instances list exceptions by image.
+  condition: >
+    sp_open_write and sp_container and fd.name startswith /etc/
+    and not fd.name in (/etc/hosts, /etc/resolv.conf, /etc/hostname)
+    and not container.image.repository in (sp_etc_writer_images)
+    and proc.vpid != 1
+  output: File below /etc opened for writing in a container (file=%fd.name process=%proc.name command=%proc.cmdline user=%user.name ns=%k8s.ns.name pod=%k8s.pod.name image=%container.image.repository)
+  priority: ERROR
+  tags: [security-platform, filesystem, container, mitre_persistence, T1543]
+
+- rule: SP Privilege escalation tool in container
+  desc: >
+    sudo, su, pkexec and friends were executed inside a container. Containers have no business switching users at
+    run time; together with a setuid binary this is the classic local privilege escalation path.
+  condition: >
+    sp_spawned and sp_container and proc.name in (sp_setuid_tools)
+  output: Privilege escalation tool executed in a container (process=%proc.name command=%proc.cmdline user=%user.name uid=%user.uid parent=%proc.pname ns=%k8s.ns.name pod=%k8s.pod.name image=%container.image.repository)
+  priority: ERROR
+  tags: [security-platform, process, container, mitre_privilege_escalation, T1548]
+
+- rule: SP Setuid or setgid bit set
+  desc: >
+    chmod set the setuid/setgid bit on a file (host or container). Creating setuid binaries is a persistence and
+    privilege escalation technique; package managers do it during upgrades (excluded by process name).
+  condition: >
+    evt.type in (chmod, fchmod, fchmodat) and evt.rawres = 0
+    and (evt.arg.mode contains "S_ISUID" or evt.arg.mode contains "S_ISGID")
+    and not proc.name in (dpkg, apt, apt-get, rpm, dnf, yum, apk, unattended-upgr, snapd, containerd, k3s)
+  output: Setuid/setgid bit set (file=%evt.arg.filename mode=%evt.arg.mode process=%proc.name command=%proc.cmdline user=%user.name container=%container.id ns=%k8s.ns.name pod=%k8s.pod.name)
+  priority: ERROR
+  tags: [security-platform, filesystem, mitre_privilege_escalation, T1548.001]
+
+- rule: SP Authorized keys modified
+  desc: >
+    A process opened an SSH authorized_keys file (or sshd's drop-in configuration) for writing, on the host or in a
+    container. A new key is the cheapest persistence there is; configuration management changes it rarely and on
+    purpose (correlate with the change record).
+  condition: >
+    sp_open_write and (fd.name endswith "/.ssh/authorized_keys" or fd.name endswith "/.ssh/authorized_keys2"
+                       or fd.name startswith /etc/ssh/sshd_config)
+  output: SSH authorized keys or sshd configuration opened for writing (file=%fd.name process=%proc.name command=%proc.cmdline user=%user.name parent=%proc.pname container=%container.id)
+  priority: CRITICAL
+  tags: [security-platform, host, filesystem, mitre_persistence, T1098.004]

@@ -392,7 +392,7 @@ check 目录和检测规则本身也要跟上游：CIS benchmark 版本、MITRE 
 | **phase 0（现在）** | 骨架：schema、sdk、core ledger、7 个 collector（含 vuln-intel：SBOM + KEV/EPSS）、generators 草稿；对第一个实例做一次只读盘点；Top 风险与 phase 1 清单 | 代理，只读 |
 | **phase 1 紧急修复** | 按 summary 的清单逐项修；每项要用户批准；`needs_human` 的（密码、账户设置、GUI）由用户亲手做；生产变更走 GitOps（浸泡 + 回滚）；修完重跑 collector 确认 fixed。同时把指标送进 Prometheus、把规则/看板经 GitOps 上线 | 用户批准 + 代理执行 |
 | **phase 1.5 持续运行（2026-11-24）** | runner（定时/抖动/超时/锁/重试）、site/hub、指标 sink、只在回归时告警、SLO 值、每日情报（KEV/EPSS/OSV 条件 GET + SBOM 复配）、周摘要 | 见 docs/runner.md |
-| **phase 2 检测** | advisor 接入（攻击路径、根因分组，决策日志）；运行时检测（Falco 或 Tetragon，二选一先试 lab）、k8s 审计日志 + 主机 auth 日志 → Loki → 告警规则；collector 集群内 CronJob | |
+| **phase 2 检测**（检测部分见 docs/detection.md，2026-11-24 起） | advisor 接入（攻击路径、根因分组，决策日志）；运行时检测（Falco 或 Tetragon，二选一先试 lab）、k8s 审计日志 + 主机 auth 日志 → Loki → 告警规则；collector 集群内 CronJob | |
 | **phase 3 密钥与供应链** | 主机/路由器/手机的 SBOM 与 OSV 直连、厂商公告抽取（AI 抽取 + 人工校验）；密钥管理（SOPS/ESO/Vault 之一，轮换日程进 SLO）、SBOM（syft）与签名覆盖率、依赖更新 SLO、Prowler（若上云）、nuclei 外部扫描 | |
 | 持续 | 每月复盘 SLO；新 adapter 按需 | |
 

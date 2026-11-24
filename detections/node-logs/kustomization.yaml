@@ -1,0 +1,8 @@
+# node-logs (component `detections`): see daemonset.yaml. Instances: set the namespace, the environment (CLUSTER,
+# LOKI_URL, LOKI_TOKEN from a Secret) in an overlay; pin this base by commit.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources: [daemonset.yaml]
+configMapGenerator:
+  - name: node-logs
+    files: [config.alloy]
