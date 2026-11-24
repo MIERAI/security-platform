@@ -218,7 +218,7 @@ g -H 'Content-Type: application/json' http://127.0.0.1:13000/api/ds/query -d "{\
 unset GPW
 
 DUR=$(( $(date +%s) - T_START ))
-python3 - "$HERE/last-pass.json" "$(ops 'git -C ~/security-platform describe --tags --always')" "$FIRST_FINDINGS" "$DUR" \
+python3 - "$HERE/last-pass.json" "$(ops 'git -C ~/security-platform describe --tags --match "v[0-9]*" --always')" "$FIRST_FINDINGS" "$DUR" \
   "$KPS_VERSION" "$GITEA_IMAGE" "$(kubectl --context "$KCTX" version -o json | python3 -c 'import json,sys; print(json.load(sys.stdin)["serverVersion"]["gitVersion"])')" <<'EOF'
 import json, sys, time
 p, ref, first, dur, kps, gitea, k8s = sys.argv[1:]
