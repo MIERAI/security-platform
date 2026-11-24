@@ -28,7 +28,8 @@ Quick start (any environment):
 cp examples/instance.example.yaml /secure/place/instance.yaml       # pick adapters, targets and the job schedule
 python3 runner/runner.py run host --instance /secure/place/instance.yaml --data /secure/place/data   # one job now
 python3 runner/runner.py tick --instance /secure/place/instance.yaml --data /secure/place/data       # whatever is due
-deploy/render.py launchd|cron|systemd|termux-job --install ... --instance ... --data ...           # keep ticking
+deploy/render.py env --install DIR          # once, at deploy time: pinned environment (ticks never touch the network)
+deploy/render.py launchd|cron|systemd|termux-job --install DIR --instance ... --data ...          # keep ticking
 uv run -q --with pyyaml python3 generators/gen.py --instance /secure/place/instance.yaml --out <gitops dir>
 uv run -q --with pyyaml python3 -m unittest discover -s tests       # tests
 ```

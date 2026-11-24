@@ -2,6 +2,24 @@
 
 Components are versioned independently (docs/design.md §5). Entries name the component and its new version.
 
+## 2026-11-24 — offline-safe runner
+
+- **deploy 0.2.0**: `render.py env` builds the runtime environment ONCE at deploy time from `deploy/requirements.lock`
+  (exact versions + sha256 of every distribution; uv or venv+pip; `--find-links` for air-gapped hosts) and points
+  `<install>/env` at it; the wrapper's default interpreter is that environment, it exports `PIP_NO_INDEX`/`UV_OFFLINE`
+  and refuses a `--python` that resolves packages per run (`uv run --with …`, which made every tick fail while the
+  host was offline). Errors go to the runner log: the wrapper logs a non-zero exit and a missing release; launchd,
+  systemd and cron append the trigger's output to the same log (no more /dev/null). The image installs the same lock.
+- **runner 0.2.0**: sinks are retried every tick and reported (`state/runner/sinks.json`,
+  `security_runner_sink_last_success_timestamp_seconds`, `security_runner_sink_failures_total`,
+  `security_runner_sink_consecutive_failures`; label `sink`); the local metrics file carries this tick's sink results;
+  `security_runner_tick_max_gap_seconds` (`runner.tick_stale_after`, default 1h); a config that cannot load is logged
+  (`cannot start`, rc 78) instead of a traceback; a publish error never crashes the tick.
+- **generators 0.3.0**: `SecurityRunnerStale` (the tick heartbeat is overdue: trigger, environment, host or sink
+  broken) and `SecurityMetricsSinkFailing`; runbook `runner-stale`.
+- Tests: `tests/test_offline.py` (a tick with every socket blocked and package managers booby-trapped; errors in the
+  log; the lock is exact and hashed; the environment is built once and used), sink retry/metrics.
+
 ## 2026-11-24 — continuous operation
 
 - **runner 0.1.0** (new): `tick` / `run` / `status` / `metrics` / `serve-metrics`; per-job cron schedule with

@@ -5,7 +5,7 @@
  "version": 1,
  "tags": [
   "security-platform",
-  "generator-0.2.0"
+  "generator-0.3.0"
  ],
  "time": {
   "from": "now-30d",

@@ -110,6 +110,24 @@ class Execute(Base):
         runner.main(["tick", "--instance", inst, "--data", self.data])
         self.assertEqual(json.load(open(os.path.join(self.data, "state", "runner", "host.json")))["runs_total"], 1)
 
+    def test_failing_sink_is_retried_counted_and_never_fails_the_tick(self):
+        blocker = os.path.join(self.d, "not-a-dir")
+        open(blocker, "w").close()                        # a path under a regular file: every write fails
+        good = os.path.join(self.d, "good.prom")
+        inst = self.instance({}, sinks=[{"type": "textfile", "path": os.path.join(blocker, "m.prom")},
+                                        {"type": "textfile", "path": good}], tick_stale_after="12h")
+        for n in (1, 2):
+            self.assertEqual(runner.main(["tick", "--instance", inst, "--data", self.data]), 0)
+            local = open(os.path.join(self.data, "metrics", "security-platform.prom")).read()
+            self.assertIn(f'security_runner_sink_consecutive_failures{{sink="0-textfile",site="hub"}} {n}', local)
+            self.assertIn('security_runner_sink_consecutive_failures{sink="1-textfile",site="hub"} 0', local)
+        self.assertIn('security_runner_tick_max_gap_seconds{site="hub"} 43200', open(good).read())
+        os.remove(blocker)                                 # the cause is fixed: the next tick delivers
+        runner.main(["tick", "--instance", inst, "--data", self.data])
+        st = json.load(open(os.path.join(self.data, "state", "runner", "sinks.json")))["0-textfile"]
+        self.assertEqual((st["consecutive_failures"], st["failures_total"]), (0, 2))
+        self.assertTrue(os.path.exists(os.path.join(blocker, "m.prom")))
+
     def test_failure_timeout_and_contract(self):
         inst = self.instance({"slow": self.cmd_job("import time; time.sleep(30)", timeout="1s"),
                               "bad": self.cmd_job("import os; open(os.path.join(os.environ['SP_RUN_DIR'],'host.findings.json'),'w').write('{\"schema_version\": \"9.0\"}')",
