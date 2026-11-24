@@ -14,7 +14,7 @@
 #   overlay-network  overlay network (VPN) control-plane audit events       labels: source; s.m.: event, actor
 # Severity: page (a human now) | ticket (same day) | info (recorded, no notification). Routing is the instance's
 # Alertmanager configuration; labels: severity, component=security-detection, detection=<id>.
-version: 0.2.0
+version: 0.2.1
 released: "2026-11-24"          # rule-content date: security_detection_ruleset_age_days counts from here
 upstream:
   falco_rules: "falco-rules 5.2.0"     # the upstream rules file the curated selection was reviewed against
@@ -22,13 +22,13 @@ upstream:
 
 params:
   runbook_base: docs/runbooks     # instances point it at their copy of the docs (a URL)
-  falco: '{container="falco"}'
+  falco: '{container="falco"} |= "output_fields"'    # event lines only (start-up messages are not JSON)
   audit: '{source="k8s-audit"}'
   auth: '{source="auth"}'
   codehost: '{source="codehost"}'
   overlay: '{source="overlay-network"}'
   # audit JSON fields used by the k8s-audit rules
-  audit_fields: '| json verb, user="user.username", resource="objectRef.resource", sub="objectRef.subresource", ns="objectRef.namespace", name="objectRef.name", code="responseStatus.code", uri="requestURI"'
+  audit_fields: '| json verb, user="user.username", resource="objectRef.resource", sub="objectRef.subresource", ns="objectRef.namespace", name="objectRef.name", code="responseStatus.code", uri="requestURI" | __error__=""'
   # subjects allowed to do things without an alert (regular expressions, RE2, anchored by LogQL)
   gitops_subjects: 'system:serviceaccount:argocd:.*'
   control_plane_subjects: 'k3s-.*|system:(apiserver|kube-controller-manager|kube-scheduler|k3s-.*|serviceaccount:kube-system:.*|node:.*)'
@@ -50,8 +50,8 @@ rules:
     pillar: device
     severity: ticket
     attack: [T1059, T1609]
-    query: 'sum by (cluster, rule, ns, pod) (count_over_time($falco | json rule, ns="output_fields[\"k8s.ns.name\"]", pod="output_fields[\"k8s.pod.name\"]" | rule="Terminal shell in container" [5m])) > 0'
-    summary: 'Interactive shell in {{ $labels.ns }}/{{ $labels.pod }} ({{ $labels.cluster }})'
+    query: 'sum by (cluster, rule, ns, k8s_pod) (count_over_time($falco | json rule, ns="output_fields[\"k8s.ns.name\"]", k8s_pod="output_fields[\"k8s.pod.name\"]" | __error__="" | rule="Terminal shell in container" [5m])) > 0'
+    summary: 'Interactive shell in {{ $labels.ns }}/{{ $labels.k8s_pod }} ({{ $labels.cluster }})'
     drill: true
   - id: falco-unexpected-outbound
     title: Unexpected outbound connection from a container
@@ -59,71 +59,71 @@ rules:
     pillar: network
     severity: ticket
     attack: [T1041, T1071]
-    query: 'sum by (cluster, ns, pod) (count_over_time($falco | json rule, ns="output_fields[\"k8s.ns.name\"]", pod="output_fields[\"k8s.pod.name\"]" | rule="SP Unexpected outbound connection from container" [5m])) > 0'
-    summary: 'Outbound connection outside the expected networks from {{ $labels.ns }}/{{ $labels.pod }} ({{ $labels.cluster }})'
+    query: 'sum by (cluster, ns, k8s_pod) (count_over_time($falco | json rule, ns="output_fields[\"k8s.ns.name\"]", k8s_pod="output_fields[\"k8s.pod.name\"]" | __error__="" | rule="SP Unexpected outbound connection from container" [5m])) > 0'
+    summary: 'Outbound connection outside the expected networks from {{ $labels.ns }}/{{ $labels.k8s_pod }} ({{ $labels.cluster }})'
   - id: falco-sensitive-file-read
     title: Sensitive file read or credential search
     source: falco
     pillar: device
     severity: ticket
     attack: [T1003.008, T1552.001]
-    query: 'sum by (cluster, rule, ns, pod) (count_over_time($falco | json rule, ns="output_fields[\"k8s.ns.name\"]", pod="output_fields[\"k8s.pod.name\"]" | rule=~"Read sensitive file untrusted|Search Private Keys or Passwords" [5m])) > 0'
-    summary: 'Sensitive file read / credential search ({{ $labels.rule }}) in {{ $labels.ns }}/{{ $labels.pod }} ({{ $labels.cluster }})'
+    query: 'sum by (cluster, rule, ns, k8s_pod) (count_over_time($falco | json rule, ns="output_fields[\"k8s.ns.name\"]", k8s_pod="output_fields[\"k8s.pod.name\"]" | __error__="" | rule=~"Read sensitive file untrusted|Search Private Keys or Passwords" [5m])) > 0'
+    summary: 'Sensitive file read / credential search ({{ $labels.rule }}) in {{ $labels.ns }}/{{ $labels.k8s_pod }} ({{ $labels.cluster }})'
   - id: falco-privilege-escalation
     title: Privilege escalation or container escape attempt
     source: falco
     pillar: device
     severity: page
     attack: [T1548, T1611, T1055.008, T1547.006]
-    query: 'sum by (cluster, rule, ns, pod) (count_over_time($falco | json rule, ns="output_fields[\"k8s.ns.name\"]", pod="output_fields[\"k8s.pod.name\"]" | rule=~"SP Privilege escalation tool in container|SP Setuid or setgid bit set|PTRACE attached to process|Linux Kernel Module Injection Detected|Detect release_agent File Container Escapes" [5m])) > 0'
-    summary: 'Privilege escalation / escape signal ({{ $labels.rule }}) in {{ $labels.ns }}/{{ $labels.pod }} ({{ $labels.cluster }})'
+    query: 'sum by (cluster, rule, ns, k8s_pod) (count_over_time($falco | json rule, ns="output_fields[\"k8s.ns.name\"]", k8s_pod="output_fields[\"k8s.pod.name\"]" | __error__="" | rule=~"SP Privilege escalation tool in container|SP Setuid or setgid bit set|PTRACE attached to process|Linux Kernel Module Injection Detected|Detect release_agent File Container Escapes" [5m])) > 0'
+    summary: 'Privilege escalation / escape signal ({{ $labels.rule }}) in {{ $labels.ns }}/{{ $labels.k8s_pod }} ({{ $labels.cluster }})'
   - id: falco-crypto-miner
     title: Crypto miner activity
     source: falco
     pillar: device
     severity: page
     attack: [T1496]
-    query: 'sum by (cluster, ns, pod) (count_over_time($falco | json rule, ns="output_fields[\"k8s.ns.name\"]", pod="output_fields[\"k8s.pod.name\"]" | rule="SP Crypto miner activity" [5m])) > 0'
-    summary: 'Crypto mining indicator in {{ $labels.ns }}/{{ $labels.pod }} ({{ $labels.cluster }})'
+    query: 'sum by (cluster, ns, k8s_pod) (count_over_time($falco | json rule, ns="output_fields[\"k8s.ns.name\"]", k8s_pod="output_fields[\"k8s.pod.name\"]" | __error__="" | rule="SP Crypto miner activity" [5m])) > 0'
+    summary: 'Crypto mining indicator in {{ $labels.ns }}/{{ $labels.k8s_pod }} ({{ $labels.cluster }})'
   - id: falco-write-below-etc
     title: Write below /etc in a running container
     source: falco
     pillar: device
     severity: ticket
     attack: [T1543, T1222]
-    query: 'sum by (cluster, ns, pod) (count_over_time($falco | json rule, ns="output_fields[\"k8s.ns.name\"]", pod="output_fields[\"k8s.pod.name\"]" | rule="SP Write below etc in container" [5m])) > 0'
-    summary: 'Run-time write below /etc in {{ $labels.ns }}/{{ $labels.pod }} ({{ $labels.cluster }})'
+    query: 'sum by (cluster, ns, k8s_pod) (count_over_time($falco | json rule, ns="output_fields[\"k8s.ns.name\"]", k8s_pod="output_fields[\"k8s.pod.name\"]" | __error__="" | rule="SP Write below etc in container" [5m])) > 0'
+    summary: 'Run-time write below /etc in {{ $labels.ns }}/{{ $labels.k8s_pod }} ({{ $labels.cluster }})'
   - id: falco-drop-and-execute
     title: New or fileless binary executed in a container
     source: falco
     pillar: device
     severity: page
     attack: [T1105, T1620]
-    query: 'sum by (cluster, rule, ns, pod) (count_over_time($falco | json rule, ns="output_fields[\"k8s.ns.name\"]", pod="output_fields[\"k8s.pod.name\"]" | rule=~"Drop and execute new binary in container|Fileless execution via memfd_create|Execution from /dev/shm" [5m])) > 0'
-    summary: '{{ $labels.rule }} in {{ $labels.ns }}/{{ $labels.pod }} ({{ $labels.cluster }})'
+    query: 'sum by (cluster, rule, ns, k8s_pod) (count_over_time($falco | json rule, ns="output_fields[\"k8s.ns.name\"]", k8s_pod="output_fields[\"k8s.pod.name\"]" | __error__="" | rule=~"Drop and execute new binary in container|Fileless execution via memfd_create|Execution from /dev/shm" [5m])) > 0'
+    summary: '{{ $labels.rule }} in {{ $labels.ns }}/{{ $labels.k8s_pod }} ({{ $labels.cluster }})'
   - id: falco-reverse-shell
     title: Reverse shell pattern
     source: falco
     pillar: network
     severity: page
     attack: [T1059.004, T1095]
-    query: 'sum by (cluster, rule, ns, pod) (count_over_time($falco | json rule, ns="output_fields[\"k8s.ns.name\"]", pod="output_fields[\"k8s.pod.name\"]" | rule=~"Redirect STDOUT/STDIN to Network Connection in Container|Netcat Remote Code Execution in Container" [5m])) > 0'
-    summary: 'Reverse shell pattern ({{ $labels.rule }}) in {{ $labels.ns }}/{{ $labels.pod }} ({{ $labels.cluster }})'
+    query: 'sum by (cluster, rule, ns, k8s_pod) (count_over_time($falco | json rule, ns="output_fields[\"k8s.ns.name\"]", k8s_pod="output_fields[\"k8s.pod.name\"]" | __error__="" | rule=~"Redirect STDOUT/STDIN to Network Connection in Container|Netcat Remote Code Execution in Container" [5m])) > 0'
+    summary: 'Reverse shell pattern ({{ $labels.rule }}) in {{ $labels.ns }}/{{ $labels.k8s_pod }} ({{ $labels.cluster }})'
   - id: falco-log-tampering
     title: Log files cleared
     source: falco
     pillar: device
     severity: ticket
     attack: [T1070.002]
-    query: 'sum by (cluster, ns, pod) (count_over_time($falco | json rule, ns="output_fields[\"k8s.ns.name\"]", pod="output_fields[\"k8s.pod.name\"]" | rule="Clear Log Activities" [5m])) > 0'
-    summary: 'Log files truncated/removed in {{ $labels.ns }}/{{ $labels.pod }} ({{ $labels.cluster }})'
+    query: 'sum by (cluster, ns, k8s_pod) (count_over_time($falco | json rule, ns="output_fields[\"k8s.ns.name\"]", k8s_pod="output_fields[\"k8s.pod.name\"]" | __error__="" | rule="Clear Log Activities" [5m])) > 0'
+    summary: 'Log files truncated/removed in {{ $labels.ns }}/{{ $labels.k8s_pod }} ({{ $labels.cluster }})'
   - id: falco-authorized-keys-modified
     title: SSH authorized keys or sshd configuration written (cluster node or container)
     source: falco
     pillar: device
     severity: page
     attack: [T1098.004]
-    query: 'sum by (cluster, hostname) (count_over_time($falco | json rule, hostname | rule="SP Authorized keys modified" [5m])) > 0'
+    query: 'sum by (cluster, hostname) (count_over_time($falco | json rule, hostname | __error__="" | rule="SP Authorized keys modified" [5m])) > 0'
     summary: 'authorized_keys / sshd configuration opened for writing on {{ $labels.hostname }} ({{ $labels.cluster }})'
 
   # ------------------------------------------------------------------ Kubernetes API audit (network + workload)
