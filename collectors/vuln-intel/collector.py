@@ -174,7 +174,7 @@ def main():
     repos = {}
     for path, rep, note in map(scan_repo, cfg.get("repos", [])):
         repos[path] = rep
-        (c.ok if rep is not None else (lambda a: c.gap(a, note)))(f"repo:{path}")
+        (c.ok if rep is not None else (lambda a: c.gap(a, note)))(f"repo:{os.path.basename(path.rstrip('/'))}")
     # ---- match + prioritize ------------------------------------------------------------------------------
     now = time.time()
     oldest_fixable_crit = 0

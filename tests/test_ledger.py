@@ -77,6 +77,30 @@ class Ledger(unittest.TestCase):
         prom = open(os.path.join(self.d, "metrics", "ledger.prom")).read()
         self.assertIn('security_sli_new_total{sli="ssh_password_auth_hosts"} 2', prom)
 
+    def test_out_of_scope_is_not_fixed(self):
+        f = json.load(open(FX))["findings"][0]
+        run(self.write_run("1", [f]), self.d)
+        doc = json.load(open(FX))
+        doc["findings"], doc["coverage"] = [], [{"asset": "host:another", "status": "ok"}]   # did not look at host-a
+        r = os.path.join(self.d, "runs", "2")
+        os.makedirs(r)
+        json.dump(doc, open(os.path.join(r, "host.findings.json"), "w"))
+        L = run(r, self.d)
+        self.assertEqual(L["entries"][f["id"]]["status"], "open")
+
+    def test_coverage_rules(self):
+        sys.path.insert(0, os.path.join(ROOT, "core"))
+        import ledger
+        oks = ["net-endpoint:h@10.0.0.1", "host:m", "k8s-cluster:c", "image:r/a:1"]
+        self.assertTrue(ledger.covered("net-endpoint:h@10.0.0.1:443", oks, []))
+        self.assertFalse(ledger.covered("net-endpoint:h@10.0.0.2:443", oks, []))
+        self.assertTrue(ledger.covered("secret-file:m:~/.ssh/id", oks, []))
+        self.assertFalse(ledger.covered("net-endpoint:m@10.0.0.9:22", oks, []))      # host:m is not an endpoint scan
+        self.assertTrue(ledger.covered("k8s-workload:c/ns/Deployment/x", oks, []))
+        self.assertTrue(ledger.covered("image:r/a:1", oks, []))
+        self.assertFalse(ledger.covered("image:r/b:1", oks, []))
+        self.assertFalse(ledger.covered("net-endpoint:h@10.0.0.1:443", oks, ["h"]))  # a gap always wins
+
     def test_accepted_finding_can_be_fixed(self):
         f = json.load(open(FX))["findings"][0]
         with open(os.path.join(self.d, "exceptions.yaml"), "w") as x:

@@ -33,6 +33,34 @@ def t(s):
         time.mktime(time.strptime(s[:10], "%Y-%m-%d")) - time.timezone
 
 
+# An "ok" coverage entry of these types also covers findings on sub-assets of other types with the same scope
+# (e.g. host:h covers secret-file:h:<path>; k8s-cluster:c covers k8s-workload:c/...). Everything else must match
+# exactly or as a prefix (net-endpoint:h@ip covers net-endpoint:h@ip:443).
+UMBRELLA = {"host": ("secret-file",), "k8s-cluster": ("k8s-workload", "k8s-namespace", "k8s-identity", "k8s-cluster", "cis")}
+
+
+def scope(asset):
+    typ, _, rest = asset.partition(":")
+    for i, ch in enumerate(rest):
+        if ch in "/:@":
+            return typ, rest[:i]
+    return typ, rest
+
+
+def covered(asset, oks, gap_names):
+    """A finding may be marked fixed only if this run COVERED its asset (design §1: no coverage = unknown)."""
+    if any(g and g in asset for g in gap_names):
+        return False
+    t, sc = scope(asset)
+    for c in oks:
+        if asset == c or any(asset.startswith(c + sep) for sep in ":/@"):
+            return True
+        ct, csc = scope(c)
+        if t in UMBRELLA.get(ct, ()) and sc == csc:
+            return True
+    return False
+
+
 def selected(e, sel):
     at = e.get("attributes") or {}
     return (("check_in" not in sel or e["check"] in sel["check_in"])
@@ -94,11 +122,12 @@ def main():
                 if disclosed:
                     e["disclosed_at"] = disclosed
                     e["time_to_know_hours"] = round(max(0, t(e["first_seen"]) - t(disclosed)) / 3600, 1)
+        oks = [g["asset"] for g in d["coverage"] if g["status"] == "ok"]
         for fid_, e in E.items():
             if e.get("collector") != col or fid_ in seen or e["status"] not in ("open", "accepted"):
                 continue
-            if any(g and g in e["asset"] for g in gap_names):
-                continue  # not covered this time: unknown, keep state
+            if not covered(e["asset"], oks, gap_names):
+                continue  # not covered this time (gap, offline, or simply out of this run's scope): keep state
             e.update(status="fixed", fixed_at=d["run"]["finished_at"],
                      time_to_fix_days=round((t(d["run"]["finished_at"]) - t(e["first_seen"])) / 86400, 2))
     # exceptions: human-approved only, with expiry

@@ -119,6 +119,7 @@ def main():
             c.gap(f"host:{d['name']}", "offline at scan time")
             continue
         targets.append(d["address"])
+        c.ok(f"host:{d['name']}")   # covers exactly this asset (discovery facts), not its endpoints
         if d["attrs"].get("key_expiry_disabled"):
             c.finding("identity", f"host:{d['name']}", "overlay.node_key_expiry_disabled",
                       "overlay-network node key never expires", "low", ev_dev,
