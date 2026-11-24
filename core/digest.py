@@ -70,8 +70,8 @@ def scorecard_section(sc):
     for did, d in sorted(sc["dimensions"].items(), key=lambda kv: kv[1]["score"]):
         L.append(f"| {d['title']} | {d['score']} | {d['status']} | {', '.join(d['failing'][:12]) or '-'} |")
     L += ["", "| pillar | score |", "|---|---|"] + [f"| {p} | {d['score']} |" for p, d in sc["pillars"].items()]
-    att = [c for c in sc["controls"] if c["check"] == "attested" and c["status"] in ("expired", "unattested")]
-    soon = [c for c in sc["controls"] if c["check"] == "attested" and c["status"] == "pass" and "within 14 days" in c["detail"]]
+    att = [c for c in sc["controls"] if c["status"] in ("expired", "unattested")]
+    soon = [c for c in sc["controls"] if c["status"] == "pass" and "within 14 days" in str(c["detail"])]
     if att or soon:
         L += ["", "Attestations for a human (scorecard.py attest):", ""]
         L += [f"- `{c['id']}` {c['status']}: {c['title']}" for c in att]

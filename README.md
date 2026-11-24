@@ -16,7 +16,7 @@ and every finding live in a **private** data directory (docs/design.md §6). Fin
 schema/      findings contract (v1, OCSF mapping)           core/        ledger, digest, validation, OCSF export, advisor
 sdk/         collector helper (spsdk)                       runner/      scheduler: jobs, sites, locking, retries, metrics
 adapters/    discovery, exec, feeds, sinks, spool (plugins) collectors/  exposure, host, k8s, vuln-intel, codehost-github,
-generators/  SLI catalog -> rules / dashboard / SLOs                     secrets-files, agent-claude-code
+generators/  SLI catalog -> rules / dashboard / SLOs                     secrets-files, agent-claude-code, identity
 deploy/      triggers (launchd, cron, systemd, termux,      docs/        design, runner (operations), runbooks
              Kubernetes manifests)                          tests/       contract, ledger, runner, outputs, intel tests
 dist/        generated rules / dashboard / SLO values (generic; instances regenerate with --instance)

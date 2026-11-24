@@ -106,7 +106,7 @@
 | **vantage**（外部视角）= 一个**角色** | 一个 exec 目标 + "它在被测网络之外"的声明 | 任意可 ssh 的外部主机（例：一台不在集群里的设备） | 云上小 VM、CI runner、第三方扫描服务 |
 | **k8s** | kubeconfig + context（任意发行版） | kubectl 只读 + trivy + kube-bench | 托管集群的云 API（EKS/GKE 审计） |
 | **codehost** | 列仓库、保护规则、CI 权限、告警计数、部署钥匙 | `github`（gh api） | GitLab、Bitbucket |
-| **identity** | 列身份/令牌/钥匙及其年龄、范围 | GitHub 令牌 scope、SSH 钥匙 | Okta、Google Workspace、Entra ID |
+| **identity**（人员支柱，`adapters/identity.py` + `collectors/identity`） | 账户/MFA/组织强制 2FA、访问授权（协作者、部署钥匙、fork PR 审批）、令牌与钥匙的类型/范围/年龄/到期（只取元数据） | GitHub（API 能答的用 API，答不了的用会过期的人工声明）、Tailscale（只读 API key，否则 CLI）、本机凭据库（gh keyring、kubeconfig、SSH、Docker、token 文件） | Okta、Google Workspace、Entra ID、GitLab（接口已写在模块文档里） |
 | **secrets store** | 列"密钥在哪 + 类型 + 年龄 + 权限"，**从不读值** | 文件系统 | Vault、AWS/GCP Secret Manager、1Password |
 | **cloud** | 云账号配置姿态 | — | Prowler（AWS/GCP/Azure）包成 collector |
 | **agent** | AI 代理的权限配置 | Claude Code 设置文件 | 其他代理（Cursor、Copilot 等） |

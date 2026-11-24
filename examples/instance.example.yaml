@@ -18,7 +18,20 @@ codehost:
 secrets_files:
   - {host: web-1, exec: {type: ssh, host: web-1}, roots: ["~", "/etc"], sudo: true}
 agents:
-  - {type: claude-code, settings: ["~/.claude/settings.json"]}
+  - {type: claude-code, settings: ["~/.claude/settings.json"], memory_dirs: ["~/.claude/projects"],
+     transcripts_dirs: ["~/.claude/projects"], min_transcript_retention_days: 30}
+identity:                              # the people pillar (collectors/identity; adapters/identity.py)
+  providers:
+    - {type: github, accounts: [{gh_user: example-admin}], orgs: [example-co], repos_owner: example-co,
+       expected_collaborators: [example-admin, example-dev]}
+    - {type: tailscale, api_key_file: ~/.config/security-platform/tailscale-api.key}   # READ-ONLY key, mode 0600
+    - {type: okta}                     # interface only: a coverage gap until implemented
+  credentials: {kubeconfigs: ["~/.kube/*.yaml"], ssh_dirs: ["~/.ssh"], docker_configs: ["~/.docker/config.json"],
+                token_files: ["~/.config/security-platform/*.token"]}
+  max_token_age_days: 90
+scorecard:                             # docs/scorecard.md: the weakest dimension decides
+  threshold: 75
+  vars: {hub_host: "host:sec-hub", self_repo: "repo:github/example-co/security-platform", self_image: "ghcr.io/example-co/security-platform"}
 intel:
   feeds: [{type: cisa-kev}, {type: epss}, {type: osv, ecosystems: [Go, PyPI]}]
   update_db: true                    # refresh Trivy's DB before matching

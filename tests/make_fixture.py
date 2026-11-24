@@ -17,6 +17,7 @@ SAMPLES = {
     "codehost-github": ("supply-chain", "repo:github/example/app", "repo.default_branch_unprotected", "compliance"),
     "secrets-files": ("data-secrets", "secret-file:host-a:~/.ssh/id_ed25519", "secret.ssh_key_no_passphrase", "compliance"),
     "agent-claude-code": ("ai-agents", "agent:claude-code:~/.claude/settings.json", "agent.reads_outside_workdir", "compliance"),
+    "identity": ("identity", "identity:github/example-user", "identity.mfa_disabled", "compliance"),
 }
 
 
@@ -35,6 +36,6 @@ def build(name):
 
 
 if __name__ == "__main__":
-    for n in SAMPLES:
+    for n in sys.argv[1:] or SAMPLES:
         json.dump(build(n), open(os.path.join(ROOT, "tests", "fixtures", f"{n}.findings.json"), "w"), indent=1, sort_keys=True)
         print("wrote", n)

@@ -74,7 +74,7 @@ class ProductCatalog(unittest.TestCase):
             self.assertIn(a, text)
 
 
-class Scoring(unittest.TestCase):
+class Base(unittest.TestCase):
     def setUp(self):
         self.d = tempfile.mkdtemp()
         self.data = os.path.join(self.d, "data")
@@ -111,6 +111,9 @@ class Scoring(unittest.TestCase):
     def by_id(self, r):
         return {c["id"]: c for c in r["controls"]}
 
+
+
+class Scoring(Base):
     def test_evaluators(self):
         write_catalog(self.cat, "people", [
             ctl("people.mfa", source={"type": "findings", "check_in": ["identity.mfa_disabled"], "require_collector": "identity"}),
@@ -223,6 +226,25 @@ class Scoring(unittest.TestCase):
         p2 = subprocess.run(run + ["attest", "people.auto", "--data", self.data, "--instance", inst, "--by", "alice"],
                             capture_output=True, text=True)
         self.assertNotEqual(p2.returncode, 0, "automated controls cannot be attested")
+
+
+class Fallback(Base):
+    def test_api_first_then_human(self):
+        att = {"validity": "90d", "question": "really?"}
+        write_catalog(self.cat, "people", [
+            ctl("people.valid", **att, source={"type": "first_known", "of": [
+                {"type": "findings", "check_in": ["x"], "require_coverage": "nowhere:"}, {"type": "attestation"}]}),
+            ctl("people.api", **att, source={"type": "first_known", "of": [
+                {"type": "findings", "check_in": ["identity.mfa_disabled"], "require_coverage": "identity-provider:"},
+                {"type": "attestation"}]}),
+            ctl("people.missing", **att, source={"type": "first_known", "of": [
+                {"type": "findings", "check_in": ["x"], "require_coverage": "nowhere:"}, {"type": "attestation"}]})])
+        r = sc.compute(self.data, self.inst(), NOW)
+        st = {c["id"]: c["status"] for c in r["controls"]}
+        self.assertEqual(st, {"people.valid": "pass", "people.api": "fail", "people.missing": "unattested"},
+                         "the API decides when it can tell (a human cannot override it); else the attestation")
+        self.assertEqual(r["attestations"]["missing"], 1)
+        self.assertEqual(sc.lint(*sc.load_catalog([self.cat])), [])
 
 
 class RunnerComputesOnPublish(unittest.TestCase):
