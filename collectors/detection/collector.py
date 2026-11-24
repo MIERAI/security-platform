@@ -18,7 +18,7 @@ Instance config:
     alertmanager: {url: http://127.0.0.1:9093, exec: {...}}      # where detection alerts go: is page routed?
     clusters: [{name, kubeconfig, sensors: [falco, node-logs]}]   # every `kubernetes:` cluster must be here
     expected: {k8s-audit: [<cluster>...], auth: [<host>...], codehost: [<account>...], overlay-network: [<name>...]}
-    windows: {k8s-audit: 30m, auth: 7d, codehost: 2d, overlay-network: 2d}   # defaults
+    windows: {k8s-audit: 30m, auth: 1d, codehost: 2d, overlay-network: 2d}   # defaults (sleeping hosts: 1d)
     verdicts: <data>/detections/verdicts.yaml       drills: <data>/detections/drills
     drill_max_age: 90d   ttd_target: 5m   ruleset_max_age: 90d   fp_window: 30d
 """
@@ -41,7 +41,7 @@ from adapters import exec as execad  # noqa: E402
 
 VERSION = open(os.path.join(HERE, "VERSION")).read().strip()
 UNITS = {"s": 1, "m": 60, "h": 3600, "d": 86400, "w": 7 * 86400}
-DEFAULT_WINDOWS = {"k8s-audit": "30m", "auth": "7d", "codehost": "2d", "overlay-network": "2d", "falco": "7d"}
+DEFAULT_WINDOWS = {"k8s-audit": "30m", "auth": "1d", "codehost": "2d", "overlay-network": "2d", "falco": "7d"}   # shippers send heartbeats
 LABEL = {"k8s-audit": "cluster", "auth": "host", "codehost": "host", "overlay-network": "host"}
 
 

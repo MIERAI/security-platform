@@ -310,6 +310,10 @@ class Push(Server):
         self.assertEqual(oct(os.stat(os.path.join(state, "n1.json")).st_mode & 0o777), "0o600")
         summ = json.load(open(os.path.join(self.tmp, "s.json")))
         self.assertEqual(summ["sources"]["n1"]["shipped"], 4)
+        # a heartbeat per successful run: the source is alive even when nothing happened (separate push)
+        hb = [v for _, b in Fake.pushes for st in b["streams"] for v in st["values"] if len(v) > 2 and v[2].get("event") == "heartbeat"]
+        self.assertEqual(len(hb), 1)
+        self.assertEqual(json.loads(hb[0][1]), {"heartbeat": "n1", "events": 4})
 
     def test_push_failure_keeps_cursor(self):
         cfg = self.write_cfg()
