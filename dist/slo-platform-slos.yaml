@@ -54,6 +54,19 @@ slos:
     metric: security_collector_last_good_run_timestamp_seconds
     matchers: collector="host"
     max: 50h
+- name: security-collector-identity-fresh
+  objective: 95
+  severities:
+    fastBurn: info
+    mediumBurn: info
+    slowBurn: info
+    longTermBurn: info
+    absent: ticket
+  description: The identity collector covered at least one asset within 50h (no findings != secure).
+  age:
+    metric: security_collector_last_good_run_timestamp_seconds
+    matchers: collector="identity"
+    max: 50h
 - name: security-collector-k8s-fresh
   objective: 95
   severities:

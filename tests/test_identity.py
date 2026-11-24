@@ -12,8 +12,14 @@ import time
 import unittest
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
-sys.path[:0] = [ROOT, os.path.join(ROOT, "sdk"), os.path.join(ROOT, "collectors", "identity")]
+sys.path[:0] = [ROOT, os.path.join(ROOT, "sdk")]
+import importlib.util  # noqa: E402
+
 from adapters import identity as idp  # noqa: E402
+
+_spec = importlib.util.spec_from_file_location("identity_collector", os.path.join(ROOT, "collectors", "identity", "collector.py"))
+collector = importlib.util.module_from_spec(_spec)     # by path: every collector module is called collector.py
+_spec.loader.exec_module(collector)
 
 NOW = time.time()
 
@@ -107,7 +113,6 @@ class GitHubAdapter(unittest.TestCase):
             self.assertNotIn("gho_", open(os.path.join(self.d, "cache", "alice", p)).read())
 
     def test_checks(self):
-        import collector
         s = self.collect()
         out = tempfile.mkdtemp()
         try:
@@ -125,7 +130,6 @@ class GitHubAdapter(unittest.TestCase):
 
 class Checks(unittest.TestCase):
     def run_checks(self, snap, cfg=None):
-        import collector
         import spsdk
         out = tempfile.mkdtemp()
         os.environ["SP_RUN_DIR"] = out
