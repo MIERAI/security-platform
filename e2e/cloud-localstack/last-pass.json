@@ -1,0 +1,15 @@
+{
+ "schema": "security-platform/e2e-result/v1",
+ "test": "e2e/cloud-localstack/run.sh",
+ "result": "pass",
+ "passed_at": "2026-11-24T14:34:10Z",
+ "installed": "v0.2.0-1-g8038941-dirty",
+ "total_seconds": 177,
+ "environment": {
+  "aws": "LocalStack community 4.14.0",
+  "oidc_issuer": "ghcr.io/navikt/mock-oauth2-server:6.1.5",
+  "gcp_azure": "cloudmock.py (token flows only)",
+  "prowler": "5.49.0",
+  "steampipe": "2.4.9"
+ }
+}

@@ -137,3 +137,12 @@ controls:
     validity: 180d
     question: "Are all off-host copies of the data directory (snapshots, backups, sync) encrypted?"
     weight: 1
+  - id: self.cloud-credential-read-only
+    title: The platform's cloud credentials are short-lived and read-only (self-verified before every scan)
+    csf: PR.AA
+    cis: ["5.4", "6.8"]
+    pillars: [people, software]
+    check: automated
+    weight: 2
+    applies_when: {instance: cloud.accounts}     # no cloud accounts: not applicable, never a penalty
+    source: {type: findings, check_in: [cloud.platform_credential_over_privileged], require_collector: cloud}

@@ -1,0 +1,286 @@
+{
+ "_comment": "ScoutSuite 5.14.0 results object. iam and s3: a real run against LocalStack (fictional account), trimmed; ec2: hand-built in the same shape (ScoutSuite could not enumerate EC2 regions on LocalStack: 0 items checked).",
+ "last_run": {
+  "version": "5.14.0"
+ },
+ "provider_code": "aws",
+ "account_id": "000000000000",
+ "services": {
+  "iam": {
+   "findings": {
+    "iam-password-policy-expiration-threshold": {
+     "checked_items": 1,
+     "flagged_items": 1,
+     "items": [
+      "iam.password_policy.MaxPasswordAge"
+     ],
+     "level": "danger",
+     "description": "Passwords Expire after 90 Days",
+     "compliance": [
+      {
+       "name": "CIS Amazon Web Services Foundations",
+       "reference": "1.11",
+       "version": "1.0.0"
+      },
+      {
+       "name": "CIS Amazon Web Services Foundations",
+       "reference": "1.11",
+       "version": "1.1.0"
+      },
+      {
+       "name": "CIS Amazon Web Services Foundations",
+       "reference": "1.11",
+       "version": "1.2.0"
+      }
+     ]
+    },
+    "iam-password-policy-minimum-length": {
+     "checked_items": 1,
+     "flagged_items": 1,
+     "items": [
+      "iam.password_policy.MinimumPasswordLength"
+     ],
+     "level": "danger",
+     "description": "Minimum Password Length Too Short",
+     "compliance": [
+      {
+       "name": "CIS Amazon Web Services Foundations",
+       "reference": "1.9",
+       "version": "1.0.0"
+      },
+      {
+       "name": "CIS Amazon Web Services Foundations",
+       "reference": "1.9",
+       "version": "1.1.0"
+      },
+      {
+       "name": "CIS Amazon Web Services Foundations",
+       "reference": "1.9",
+       "version": "1.2.0"
+      }
+     ]
+    },
+    "iam-password-policy-no-expiration": {
+     "checked_items": 1,
+     "flagged_items": 1,
+     "items": [
+      "iam.password_policy.ExpirePasswords"
+     ],
+     "level": "danger",
+     "description": "Password Expiration Disabled",
+     "compliance": null
+    },
+    "iam-password-policy-reuse-enabled": {
+     "checked_items": 1,
+     "flagged_items": 1,
+     "items": [
+      "iam.password_policy.PasswordReusePrevention"
+     ],
+     "level": "danger",
+     "description": "Password Policy Allows the Reuse of Passwords",
+     "compliance": [
+      {
+       "name": "CIS Amazon Web Services Foundations",
+       "reference": "1.10",
+       "version": "1.0.0"
+      },
+      {
+       "name": "CIS Amazon Web Services Foundations",
+       "reference": "1.10",
+       "version": "1.1.0"
+      },
+      {
+       "name": "CIS Amazon Web Services Foundations",
+       "reference": "1.10",
+       "version": "1.2.0"
+      }
+     ]
+    },
+    "iam-root-account-no-mfa": {
+     "checked_items": 1,
+     "flagged_items": 0,
+     "items": [],
+     "level": "danger",
+     "description": "Root Account without MFA",
+     "compliance": [
+      {
+       "name": "CIS Amazon Web Services Foundations",
+       "reference": "1.13",
+       "version": "1.1.0"
+      },
+      {
+       "name": "CIS Amazon Web Services Foundations",
+       "reference": "1.13",
+       "version": "1.2.0"
+      }
+     ]
+    },
+    "iam-user-without-mfa": {
+     "checked_items": 1,
+     "flagged_items": 1,
+     "items": [
+      "iam.users.qd49rf8m6ypf72j8klpp.mfa_enabled"
+     ],
+     "level": "danger",
+     "description": "User without MFA",
+     "compliance": [
+      {
+       "name": "CIS Amazon Web Services Foundations",
+       "reference": "1.2",
+       "version": "1.0.0"
+      },
+      {
+       "name": "CIS Amazon Web Services Foundations",
+       "reference": "1.2",
+       "version": "1.1.0"
+      },
+      {
+       "name": "CIS Amazon Web Services Foundations",
+       "reference": "1.2",
+       "version": "1.2.0"
+      }
+     ]
+    }
+   },
+   "users": {
+    "qd49rf8m6ypf72j8klpp": {
+     "id": "qd49rf8m6ypf72j8klpp",
+     "name": "legacy-deployer",
+     "arn": "arn:aws:iam::000000000000:user/legacy-deployer"
+    }
+   }
+  },
+  "s3": {
+   "findings": {
+    "s3-bucket-allowing-cleartext": {
+     "checked_items": 1,
+     "flagged_items": 1,
+     "items": [
+      "s3.buckets.scoutid-a787dc4be4279995da6712bcb2ce68a578a62a93.secure_transport_enabled"
+     ],
+     "level": "warning",
+     "description": "Bucket Allowing Clear Text (HTTP) Communication",
+     "compliance": null
+    },
+    "s3-bucket-no-default-encryption": {
+     "checked_items": 1,
+     "flagged_items": 0,
+     "items": [],
+     "level": "warning",
+     "description": "Bucket without Default Encryption Enabled",
+     "compliance": null
+    },
+    "s3-bucket-no-logging": {
+     "checked_items": 1,
+     "flagged_items": 1,
+     "items": [
+      "s3.buckets.scoutid-a787dc4be4279995da6712bcb2ce68a578a62a93.logging"
+     ],
+     "level": "warning",
+     "description": "Bucket Access Logging Disabled",
+     "compliance": [
+      {
+       "name": "CIS Amazon Web Services Foundations",
+       "reference": "2.6",
+       "version": "1.0.0"
+      },
+      {
+       "name": "CIS Amazon Web Services Foundations",
+       "reference": "2.6",
+       "version": "1.1.0"
+      },
+      {
+       "name": "CIS Amazon Web Services Foundations",
+       "reference": "2.6",
+       "version": "1.2.0"
+      }
+     ]
+    },
+    "s3-bucket-no-mfa-delete": {
+     "checked_items": 1,
+     "flagged_items": 1,
+     "items": [
+      "s3.buckets.scoutid-a787dc4be4279995da6712bcb2ce68a578a62a93.mfa_delete"
+     ],
+     "level": "warning",
+     "description": "Bucket without MFA Delete",
+     "compliance": null
+    },
+    "s3-bucket-no-versioning": {
+     "checked_items": 1,
+     "flagged_items": 1,
+     "items": [
+      "s3.buckets.scoutid-a787dc4be4279995da6712bcb2ce68a578a62a93.versioning"
+     ],
+     "level": "warning",
+     "description": "Bucket without Versioning",
+     "compliance": null
+    },
+    "s3-bucket-world-Get-policy": {
+     "checked_items": 1,
+     "flagged_items": 1,
+     "items": [
+      "s3.buckets.scoutid-a787dc4be4279995da6712bcb2ce68a578a62a93.policy.Statement.0"
+     ],
+     "level": "danger",
+     "description": "Get Actions Authorized to All Principals",
+     "compliance": null
+    }
+   },
+   "buckets": {
+    "scoutid-a787dc4be4279995da6712bcb2ce68a578a62a93": {
+     "id": "scoutid-a787dc4be4279995da6712bcb2ce68a578a62a93",
+     "name": "acme-public-assets",
+     "arn": "arn:aws:s3:::acme-public-assets/*",
+     "region": "us-east-1"
+    }
+   }
+  },
+  "ec2": {
+   "findings": {
+    "ec2-security-group-opens-SSH-port-to-all": {
+     "checked_items": 3,
+     "flagged_items": 1,
+     "level": "danger",
+     "description": "SSH Port Open to All",
+     "compliance": [
+      {
+       "name": "CIS Amazon Web Services Foundations",
+       "version": "1.2.0",
+       "reference": "4.1"
+      }
+     ],
+     "items": [
+      "ec2.regions.us-east-1.vpcs.vpc-1a2b3c.security_groups.sg-b56c0e193ea8cb744.rules.ingress.protocols.TCP.ports.22.cidrs.0.CIDR"
+     ]
+    }
+   },
+   "regions": {
+    "us-east-1": {
+     "vpcs": {
+      "vpc-1a2b3c": {
+       "security_groups": {
+        "sg-b56c0e193ea8cb744": {
+         "id": "sg-b56c0e193ea8cb744",
+         "name": "legacy-ssh",
+         "arn": "arn:aws:ec2:us-east-1:000000000000:security-group/sg-b56c0e193ea8cb744"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "cloudtrail": {
+   "findings": {
+    "cloudtrail-not-configured": {
+     "checked_items": 0,
+     "flagged_items": 0,
+     "items": [],
+     "level": "danger",
+     "description": "Service Not Configured"
+    }
+   }
+  }
+ }
+}

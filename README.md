@@ -15,18 +15,18 @@ and every finding live in a **private** data directory (docs/design.md §6). Fin
 ```
 schema/      findings contract (v1, OCSF mapping)           core/        ledger, digest, validation, OCSF export, advisor
 sdk/         collector helper (spsdk)                       runner/      scheduler: jobs, sites, locking, retries, metrics
-adapters/    discovery, exec, feeds, sinks, spool (plugins) collectors/  exposure, host, k8s, vuln-intel, codehost-github/-gitea,
-generators/  SLI catalog -> rules / dashboard / SLOs                     secrets-files, agent-claude-code, identity
+adapters/    discovery, exec, feeds, sinks, spool, cloud    collectors/  exposure, host, k8s, vuln-intel, codehost-github/-gitea,
+generators/  SLI catalog -> rules / dashboard / SLOs                     secrets-files, agent-claude-code, identity, cloud
 deploy/      triggers (launchd, cron, systemd, termux,      docs/        design, runner (operations), runbooks
              Kubernetes manifests)                          tests/       contract, ledger, runner, outputs, intel tests
 dist/        generated rules / dashboard / SLO values (generic; instances regenerate with --instance)
 scorecard/   control catalog (one file per dimension) -> score per dimension / pillar / NIST CSF function
 cli/         `sp`: init, doctor, run, status, findings, explain, digest, notify; plain-language check texts
-notifier/    daily summary adapters (telegram, webhook, exec, file)   e2e/   kind end-to-end test (second environment)
+notifier/    daily summary adapters (telegram, webhook, exec, file)   e2e/   kind (second environment), cloud-localstack
 ```
 
 **Scorecard** (docs/scorecard.md): every dimension of the programme (design, coverage, intel, operation, alerting,
-remediation, detection, platform self-security, generality, usability, people/identity) gets a 0-100 score from its
+remediation, detection, platform self-security, generality, usability, people/identity, cloud - not applicable without cloud) gets a 0-100 score from its
 controls (automated, evidence, or human attestations that expire); the overall status FAILS when any dimension is
 below 75 - security is decided by the weakest link. Bring your own catalog and weights.
 
@@ -52,11 +52,14 @@ sp findings --open --severity high && sp explain <id>         # what, why, how t
 | [faq.md](docs/faq.md) | common questions and problems |
 | [runner.md](docs/runner.md) | operations: schedules, multi-host topologies, in-cluster hub, metrics delivery |
 | [scorecard.md](docs/scorecard.md) | the programme scorecard: dimensions, pillars, controls, attestations |
+| [cloud.md](docs/cloud.md) | cloud posture (AWS, GCP, Azure): short-lived read-only access, engines, imports, what is validated where |
 | [design.md](docs/design.md) | why it works this way (Chinese); summaries in [日本語](docs/summary.ja.md) and [中文](docs/summary.zh.md) |
 
 Proof of generality: `e2e/kind/run.sh` installs a tagged release from this repository into a fictional company's
 environment (static CIDR discovery, plain ssh servers, Gitea, kind + kube-prometheus-stack) and checks collectors →
-ledger → remediation → scorecard → metrics → Prometheus → Grafana, then tears everything down.
+ledger → remediation → scorecard → metrics → Prometheus → Grafana, then tears everything down. Cloud:
+`e2e/cloud-localstack/run.sh` scans a deliberately misconfigured LocalStack account with two engines through OIDC
+federation, with local GCP/Azure token mocks, and tears it down ([cloud.md](docs/cloud.md#what-is-validated-where)).
 
 Lower-level commands (what `sp` and the scheduled runner call):
 

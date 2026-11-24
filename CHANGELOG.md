@@ -2,6 +2,39 @@
 
 Components are versioned independently (docs/design.md §5). Entries name the component and its new version.
 
+## 2026-11-25 — cloud security posture (AWS, GCP, Azure)
+
+- **collector cloud 0.1.0** (new): cloud accounts as assets; engine-agnostic (`collectors/cloud/engines.py`): Prowler
+  (json-ocsf), Steampipe (this product's own SQL query pack), ScoutSuite; native imports Security Hub (ASFF), Security
+  Command Center, Defender for Cloud. Every result maps onto a generic control (`controls.py`: pillar, layer, CIS
+  Foundations sections) and the same (resource, control) from several sources is ONE finding listing every source.
+  Self-verification before each scan: a write-capable platform identity is `cloud.platform_credential_over_privileged`
+  and the account is not scanned (`refuse_over_privileged`, default true). Failures (expired token, wrong audience,
+  denied/missing role, unreachable API, engine missing, a service the engine could not list) are coverage gaps.
+- **adapters/cloud.py 0.1.0** (new): short-lived credentials only - AWS `AssumeRoleWithWebIdentity` (+ `AssumeRole`
+  chain, stdlib SigV4) or an SSO/role profile; GCP workload identity federation + service-account impersonation;
+  Azure federated client assertion. In memory, refreshed 300 s before expiry; engines get no secret
+  (`credential_process` callback, external-account config, workload-identity variables); long-lived keys refused;
+  ambient cloud keys stripped from engine environments. Endpoints configurable (emulators, sovereign clouds).
+- **deploy 0.4.0**: `render.py tool-env --tool prowler|steampipe|scoutsuite` builds a pinned external tool under
+  `<install>/tools/<tool>/current` (`deploy/tools/prowler.lock` / `scoutsuite.lock` with hashes, `steampipe.json` with
+  release SHA-256 and pinned plugin); separate from the runner's environment; ticks never download.
+- **scorecard 0.3.0**: `applies_when` for dimensions and controls (`instance`, `coverage_prefix`, `any`): not
+  applicable = excluded from every score and listed under `not_applicable`, never a penalty. New dimension 12
+  `cloud` (CIS AWS v3.0 / GCP v2.0 / Azure v2.0 sections per control, `cis_benchmarks`), not applicable without cloud
+  accounts, imports or covered cloud assets; `self.cloud-credential-read-only` (applies with cloud accounts).
+  Existing instances without cloud: scores unchanged (verified on a live instance: every dimension, pillar and
+  function identical).
+- **core 0.6.2**: OCSF export lists `cis-<benchmark>:` references as compliance standards.
+- **cli 0.2.0**: plain-language explanations for every cloud control (+ a `cloud.` family text); `sp doctor` knows
+  the `cloud` job.
+- **attack map**: cloud controls -> ATT&CK techniques.
+- **e2e/cloud-localstack/run.sh** (new, local only): LocalStack community 4.14.0 + mock-oauth2-server + a GCP/Azure
+  token mock; Prowler, Steampipe and ScoutSuite through OIDC federation into one ledger; failure modes; lifecycle; scorecard N/A;
+  no credential on disk; tears down. What it does not prove: docs/cloud.md.
+- **docs**: cloud.md (setup per provider, minimal permissions, data handling, validated-where, licences),
+  instance-reference `cloud`, scorecard `applies_when`.
+
 ## 2026-11-24 — fix: release names with component tags
 
 - **bin/sp-install**: names a release after the product tag only (`git describe --match 'v[0-9]*'`); with component

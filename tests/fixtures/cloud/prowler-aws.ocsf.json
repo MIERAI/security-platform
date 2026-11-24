@@ -1,0 +1,746 @@
+[
+ {
+  "metadata": {
+   "event_code": "cloudtrail_multi_region_enabled",
+   "product": {
+    "name": "Prowler",
+    "uid": "prowler",
+    "vendor_name": "Prowler",
+    "version": "5.52.0"
+   },
+   "version": "1.5.0"
+  },
+  "class_uid": 2004,
+  "severity": "High",
+  "severity_id": 4,
+  "status": "New",
+  "status_code": "FAIL",
+  "status_detail": "No CloudTrail trails enabled with logging were found.",
+  "finding_info": {
+   "title": "Region has at least one CloudTrail trail logging",
+   "uid": "prowler-aws-cloudtrail_multi_region_enabled-000000000000-us-east-1-000000000000"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:cloudtrail:us-east-1:000000000000:trail",
+    "name": "000000000000",
+    "region": "us-east-1",
+    "group": {
+     "name": "cloudtrail"
+    },
+    "type": "AwsCloudTrailTrail"
+   }
+  ],
+  "cloud": {
+   "account": {
+    "uid": "000000000000",
+    "type": "AWS Account"
+   },
+   "provider": "aws",
+   "region": "us-east-1"
+  },
+  "remediation": {
+   "desc": "Use a **multi-region CloudTrail trail** or per-region trails so `logging` is active in every region, including unused ones.\n\nCentralize logs, enforce **least privilege** to log stores, and add **defen"
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "4.1"
+    ],
+    "CIS-1.4": [
+     "3.1"
+    ],
+    "CIS-1.5": [
+     "3.1"
+    ],
+    "CIS-2.0": [
+     "3.1"
+    ],
+    "CIS-5.0": [
+     "3.1"
+    ],
+    "CIS-3.0": [
+     "3.1"
+    ],
+    "CIS-6.0": [
+     "4.1"
+    ],
+    "CIS-4.0.1": [
+     "3.1"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "ec2_ebs_public_snapshot",
+   "product": {
+    "name": "Prowler",
+    "uid": "prowler",
+    "vendor_name": "Prowler",
+    "version": "5.52.0"
+   },
+   "version": "1.5.0"
+  },
+  "class_uid": 2004,
+  "severity": "Critical",
+  "severity_id": 5,
+  "status": "New",
+  "status_code": "PASS",
+  "status_detail": "EBS Snapshot snap-52ba098bdb16a4da9 is not Public.",
+  "finding_info": {
+   "title": "EBS snapshot is not public",
+   "uid": "prowler-aws-ec2_ebs_public_snapshot-000000000000-us-east-1-snap-52ba098bdb16a4da9"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:ec2:us-east-1:000000000000:snapshot/snap-52ba098bdb16a4da9",
+    "name": "snap-52ba098bdb16a4da9",
+    "region": "us-east-1",
+    "group": {
+     "name": "ec2"
+    },
+    "type": "AwsEc2Volume"
+   }
+  ],
+  "cloud": {
+   "account": {
+    "uid": "000000000000",
+    "type": "AWS Account"
+   },
+   "provider": "aws",
+   "region": "us-east-1"
+  },
+  "remediation": {
+   "desc": "Keep snapshots **private** and share only with specific accounts under **least privilege**. Enable `Block public access for Amazon EBS snapshots` regionally. Prefer **CMEK encryption** and avoid shari"
+  },
+  "unmapped": {
+   "compliance": {}
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_22",
+   "product": {
+    "name": "Prowler",
+    "uid": "prowler",
+    "vendor_name": "Prowler",
+    "version": "5.52.0"
+   },
+   "version": "1.5.0"
+  },
+  "class_uid": 2004,
+  "severity": "High",
+  "severity_id": 4,
+  "status": "New",
+  "status_code": "PASS",
+  "status_detail": "Security group default (sg-9c6bd115a41f31b8f) does not have SSH port 22 open to the Internet.",
+  "finding_info": {
+   "title": "Security group does not allow ingress from 0.0.0.0/0 or ::/0 to TCP port 22 (SSH)",
+   "uid": "prowler-aws-ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_22-000000000000-us-east-1-sg-9c6bd115a41f31b8f"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:ec2:us-east-1:000000000000:security-group/sg-9c6bd115a41f31b8f",
+    "name": "sg-9c6bd115a41f31b8f",
+    "region": "us-east-1",
+    "group": {
+     "name": "ec2"
+    },
+    "type": "AwsEc2SecurityGroup"
+   }
+  ],
+  "cloud": {
+   "account": {
+    "uid": "000000000000",
+    "type": "AWS Account"
+   },
+   "provider": "aws",
+   "region": "us-east-1"
+  },
+  "remediation": {
+   "desc": "Apply **least privilege** to SSH:\n- Disallow `0.0.0.0/0` and `::/0`; allow only trusted IPs or VPN ranges\n- Prefer **private access** via bastion hosts or AWS Systems Manager Session Manager\n- Enforce"
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "6.3",
+     "6.4"
+    ],
+    "CIS-1.4": [
+     "5.2"
+    ],
+    "CIS-1.5": [
+     "5.2",
+     "5.3"
+    ],
+    "MITRE-ATTACK": [
+     "T1199",
+     "T1048",
+     "T1499",
+     "T1498",
+     "T1046"
+    ],
+    "CIS-2.0": [
+     "5.2",
+     "5.3"
+    ],
+    "CIS-5.0": [
+     "5.3",
+     "5.4"
+    ],
+    "CIS-3.0": [
+     "5.2",
+     "5.3"
+    ],
+    "CIS-6.0": [
+     "6.3",
+     "6.4"
+    ],
+    "CIS-4.0.1": [
+     "5.3",
+     "5.4"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_22",
+   "product": {
+    "name": "Prowler",
+    "uid": "prowler",
+    "vendor_name": "Prowler",
+    "version": "5.52.0"
+   },
+   "version": "1.5.0"
+  },
+  "class_uid": 2004,
+  "severity": "High",
+  "severity_id": 4,
+  "status": "New",
+  "status_code": "FAIL",
+  "status_detail": "Security group legacy-ssh (sg-b56c0e193ea8cb744) has SSH port 22 open to the Internet.",
+  "finding_info": {
+   "title": "Security group does not allow ingress from 0.0.0.0/0 or ::/0 to TCP port 22 (SSH)",
+   "uid": "prowler-aws-ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_22-000000000000-us-east-1-sg-b56c0e193ea8cb744"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:ec2:us-east-1:000000000000:security-group/sg-b56c0e193ea8cb744",
+    "name": "sg-b56c0e193ea8cb744",
+    "region": "us-east-1",
+    "group": {
+     "name": "ec2"
+    },
+    "type": "AwsEc2SecurityGroup"
+   }
+  ],
+  "cloud": {
+   "account": {
+    "uid": "000000000000",
+    "type": "AWS Account"
+   },
+   "provider": "aws",
+   "region": "us-east-1"
+  },
+  "remediation": {
+   "desc": "Apply **least privilege** to SSH:\n- Disallow `0.0.0.0/0` and `::/0`; allow only trusted IPs or VPN ranges\n- Prefer **private access** via bastion hosts or AWS Systems Manager Session Manager\n- Enforce"
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "6.3",
+     "6.4"
+    ],
+    "CIS-1.4": [
+     "5.2"
+    ],
+    "CIS-1.5": [
+     "5.2",
+     "5.3"
+    ],
+    "MITRE-ATTACK": [
+     "T1199",
+     "T1048",
+     "T1499",
+     "T1498",
+     "T1046"
+    ],
+    "CIS-2.0": [
+     "5.2",
+     "5.3"
+    ],
+    "CIS-5.0": [
+     "5.3",
+     "5.4"
+    ],
+    "CIS-3.0": [
+     "5.2",
+     "5.3"
+    ],
+    "CIS-6.0": [
+     "6.3",
+     "6.4"
+    ],
+    "CIS-4.0.1": [
+     "5.3",
+     "5.4"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "iam_rotate_access_key_90_days",
+   "product": {
+    "name": "Prowler",
+    "uid": "prowler",
+    "vendor_name": "Prowler",
+    "version": "5.52.0"
+   },
+   "version": "1.5.0"
+  },
+  "class_uid": 2004,
+  "severity": "Medium",
+  "severity_id": 3,
+  "status": "New",
+  "status_code": "PASS",
+  "status_detail": "User legacy-deployer does not have access keys older than 90 days.",
+  "finding_info": {
+   "title": "IAM user does not have active access keys older than 90 days",
+   "uid": "prowler-aws-iam_rotate_access_key_90_days-000000000000-us-east-1-legacy-deployer"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:iam::000000000000:user/legacy-deployer",
+    "name": "legacy-deployer",
+    "region": "us-east-1",
+    "group": {
+     "name": "iam"
+    },
+    "type": "AwsIamUser"
+   }
+  ],
+  "cloud": {
+   "account": {
+    "uid": "000000000000",
+    "type": "AWS Account"
+   },
+   "provider": "aws",
+   "region": "us-east-1"
+  },
+  "remediation": {
+   "desc": "Apply **least privilege** and limit static credentials:\n- Rotate active access keys at or before `90 days`\n- Prefer **IAM roles** with short-lived tokens\n- Maintain only one active key during rotation"
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "2.12"
+    ],
+    "CIS-1.4": [
+     "1.14"
+    ],
+    "CIS-1.5": [
+     "1.14"
+    ],
+    "MITRE-ATTACK": [
+     "T1078",
+     "T1550",
+     "T1110"
+    ],
+    "CIS-2.0": [
+     "1.14"
+    ],
+    "CIS-5.0": [
+     "1.13"
+    ],
+    "CIS-3.0": [
+     "1.14"
+    ],
+    "CIS-6.0": [
+     "2.13"
+    ],
+    "CIS-4.0.1": [
+     "1.14"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "iam_user_accesskey_unused",
+   "product": {
+    "name": "Prowler",
+    "uid": "prowler",
+    "vendor_name": "Prowler",
+    "version": "5.52.0"
+   },
+   "version": "1.5.0"
+  },
+  "class_uid": 2004,
+  "severity": "Medium",
+  "severity_id": 3,
+  "status": "New",
+  "status_code": "PASS",
+  "status_detail": "User legacy-deployer does not have unused access keys for 45 days.",
+  "finding_info": {
+   "title": "IAM user does not have unused access keys older than 45 days",
+   "uid": "prowler-aws-iam_user_accesskey_unused-000000000000-us-east-1-legacy-deployer"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:iam::000000000000:user/legacy-deployer",
+    "name": "legacy-deployer",
+    "region": "us-east-1",
+    "group": {
+     "name": "iam"
+    },
+    "type": "AwsIamUser"
+   }
+  ],
+  "cloud": {
+   "account": {
+    "uid": "000000000000",
+    "type": "AWS Account"
+   },
+   "provider": "aws",
+   "region": "us-east-1"
+  },
+  "remediation": {
+   "desc": "Disable or delete **unused access keys** promptly and prefer **IAM roles** with temporary credentials. Enforce **least privilege**, rotation, and time-bounded access. Monitor `last-used` metadata and "
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "2.11"
+    ],
+    "CIS-1.4": [
+     "1.12"
+    ],
+    "CIS-1.5": [
+     "1.12"
+    ],
+    "MITRE-ATTACK": [
+     "T1078",
+     "T1550",
+     "T1110"
+    ],
+    "CIS-2.0": [
+     "1.12"
+    ],
+    "CIS-5.0": [
+     "1.11"
+    ],
+    "CIS-3.0": [
+     "1.12"
+    ],
+    "CIS-6.0": [
+     "2.11"
+    ],
+    "CIS-4.0.1": [
+     "1.12"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "iam_user_mfa_enabled_console_access",
+   "product": {
+    "name": "Prowler",
+    "uid": "prowler",
+    "vendor_name": "Prowler",
+    "version": "5.52.0"
+   },
+   "version": "1.5.0"
+  },
+  "class_uid": 2004,
+  "severity": "High",
+  "severity_id": 4,
+  "status": "New",
+  "status_code": "FAIL",
+  "status_detail": "User legacy-deployer has Console Password enabled but MFA disabled.",
+  "finding_info": {
+   "title": "IAM user has MFA enabled for console access or no console password is set",
+   "uid": "prowler-aws-iam_user_mfa_enabled_console_access-000000000000-us-east-1-legacy-deployer"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:iam::000000000000:user/legacy-deployer",
+    "name": "legacy-deployer",
+    "region": "us-east-1",
+    "group": {
+     "name": "iam"
+    },
+    "type": "AwsIamUser"
+   }
+  ],
+  "cloud": {
+   "account": {
+    "uid": "000000000000",
+    "type": "AWS Account"
+   },
+   "provider": "aws",
+   "region": "us-east-1"
+  },
+  "remediation": {
+   "desc": "Enforce **MFA** for all console-capable IAM users; prefer **phishing-resistant** authenticators (FIDO2/security keys) and register backups. Remove console passwords for users that don't need them and "
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "2.10"
+    ],
+    "CIS-1.4": [
+     "1.10"
+    ],
+    "CIS-1.5": [
+     "1.10"
+    ],
+    "MITRE-ATTACK": [
+     "T1078",
+     "T1098",
+     "T1556",
+     "T1550",
+     "T1110",
+     "T1040",
+     "T1538"
+    ],
+    "CIS-2.0": [
+     "1.10"
+    ],
+    "CIS-5.0": [
+     "1.9"
+    ],
+    "CIS-3.0": [
+     "1.10"
+    ],
+    "CIS-6.0": [
+     "2.9"
+    ],
+    "CIS-4.0.1": [
+     "1.10"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "s3_bucket_default_encryption",
+   "product": {
+    "name": "Prowler",
+    "uid": "prowler",
+    "vendor_name": "Prowler",
+    "version": "5.52.0"
+   },
+   "version": "1.5.0"
+  },
+  "class_uid": 2004,
+  "severity": "Medium",
+  "severity_id": 3,
+  "status": "New",
+  "status_code": "PASS",
+  "status_detail": "S3 Bucket acme-public-assets has Server Side Encryption with AES256.",
+  "finding_info": {
+   "title": "[DEPRECATED] S3 bucket has default server-side encryption (SSE) enabled",
+   "uid": "prowler-aws-s3_bucket_default_encryption-000000000000-us-east-1-acme-public-assets"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:s3:::acme-public-assets",
+    "name": "acme-public-assets",
+    "region": "us-east-1",
+    "group": {
+     "name": "s3"
+    },
+    "type": "AwsS3Bucket"
+   }
+  ],
+  "cloud": {
+   "account": {
+    "uid": "000000000000",
+    "type": "AWS Account"
+   },
+   "provider": "aws",
+   "region": "us-east-1"
+  },
+  "remediation": {
+   "desc": "Enable default encryption on all buckets, preferring `SSE-KMS` for sensitive data to retain key control and auditing. Enforce encryption with restrictive bucket policies, apply **least privilege** to "
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-1.4": [
+     "2.1.1"
+    ],
+    "CIS-1.5": [
+     "2.1.1"
+    ],
+    "MITRE-ATTACK": [
+     "T1119",
+     "T1530"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "s3_bucket_default_encryption",
+   "product": {
+    "name": "Prowler",
+    "uid": "prowler",
+    "vendor_name": "Prowler",
+    "version": "5.52.0"
+   },
+   "version": "1.5.0"
+  },
+  "class_uid": 2004,
+  "severity": "Medium",
+  "severity_id": 3,
+  "status": "New",
+  "status_code": "FAIL",
+  "status_detail": "S3 Bucket acme-unencrypted-logs does not have Server Side Encryption enabled.",
+  "finding_info": {
+   "title": "[DEPRECATED] S3 bucket has default server-side encryption (SSE) enabled",
+   "uid": "prowler-aws-s3_bucket_default_encryption-000000000000-us-east-1-acme-unencrypted-logs"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:s3:::acme-unencrypted-logs",
+    "name": "acme-unencrypted-logs",
+    "region": "us-east-1",
+    "group": {
+     "name": "s3"
+    },
+    "type": "AwsS3Bucket"
+   }
+  ],
+  "cloud": {
+   "account": {
+    "uid": "000000000000",
+    "type": "AWS Account"
+   },
+   "provider": "aws",
+   "region": "us-east-1"
+  },
+  "remediation": {
+   "desc": "Enable default encryption on all buckets, preferring `SSE-KMS` for sensitive data to retain key control and auditing. Enforce encryption with restrictive bucket policies, apply **least privilege** to "
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-1.4": [
+     "2.1.1"
+    ],
+    "CIS-1.5": [
+     "2.1.1"
+    ],
+    "MITRE-ATTACK": [
+     "T1119",
+     "T1530"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "s3_bucket_public_access",
+   "product": {
+    "name": "Prowler",
+    "uid": "prowler",
+    "vendor_name": "Prowler",
+    "version": "5.52.0"
+   },
+   "version": "1.5.0"
+  },
+  "class_uid": 2004,
+  "severity": "Critical",
+  "severity_id": 5,
+  "status": "New",
+  "status_code": "FAIL",
+  "status_detail": "S3 Bucket acme-public-assets has public access due to bucket policy.",
+  "finding_info": {
+   "title": "S3 bucket is not publicly accessible to Everyone or Authenticated Users",
+   "uid": "prowler-aws-s3_bucket_public_access-000000000000-us-east-1-acme-public-assets"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:s3:::acme-public-assets",
+    "name": "acme-public-assets",
+    "region": "us-east-1",
+    "group": {
+     "name": "s3"
+    },
+    "type": "AwsS3Bucket"
+   }
+  ],
+  "cloud": {
+   "account": {
+    "uid": "000000000000",
+    "type": "AWS Account"
+   },
+   "provider": "aws",
+   "region": "us-east-1"
+  },
+  "remediation": {
+   "desc": "Enforce defense in depth: enable **S3 Block Public Access** at org/account and bucket levels (`BlockPublicAcls`, `IgnorePublicAcls`, `BlockPublicPolicy`, `RestrictPublicBuckets`). Apply **least privil"
+  },
+  "unmapped": {
+   "compliance": {
+    "MITRE-ATTACK": [
+     "T1530"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "s3_bucket_public_access",
+   "product": {
+    "name": "Prowler",
+    "uid": "prowler",
+    "vendor_name": "Prowler",
+    "version": "5.52.0"
+   },
+   "version": "1.5.0"
+  },
+  "class_uid": 2004,
+  "severity": "Critical",
+  "severity_id": 5,
+  "status": "New",
+  "status_code": "PASS",
+  "status_detail": "S3 Bucket acme-unencrypted-logs is not public.",
+  "finding_info": {
+   "title": "S3 bucket is not publicly accessible to Everyone or Authenticated Users",
+   "uid": "prowler-aws-s3_bucket_public_access-000000000000-us-east-1-acme-unencrypted-logs"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:s3:::acme-unencrypted-logs",
+    "name": "acme-unencrypted-logs",
+    "region": "us-east-1",
+    "group": {
+     "name": "s3"
+    },
+    "type": "AwsS3Bucket"
+   }
+  ],
+  "cloud": {
+   "account": {
+    "uid": "000000000000",
+    "type": "AWS Account"
+   },
+   "provider": "aws",
+   "region": "us-east-1"
+  },
+  "remediation": {
+   "desc": "Enforce defense in depth: enable **S3 Block Public Access** at org/account and bucket levels (`BlockPublicAcls`, `IgnorePublicAcls`, `BlockPublicPolicy`, `RestrictPublicBuckets`). Apply **least privil"
+  },
+  "unmapped": {
+   "compliance": {
+    "MITRE-ATTACK": [
+     "T1530"
+    ]
+   }
+  }
+ }
+]

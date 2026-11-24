@@ -51,6 +51,23 @@ map:
   repo.push_protection_off: [T1552.001]
   repo.secret_scanning_alerts_open: [T1552.001]
   repo.deploy_key_write: [T1098.004, T1195.002]
+  # cloud (collectors/cloud: generic controls; engine checks without a control fall back to `cloud.`)
+  cloud.firewall_: [T1190, T1133, T1021]
+  cloud.public_endpoint: [T1190, T1046]
+  cloud.volume_unencrypted: [T1530, T1537]
+  cloud.snapshot_public: [T1530, T1537]
+  cloud.instance_: [T1190, T1068, T1552.005]
+  cloud.user_without_mfa: [T1078.004, T1110]
+  cloud.root_: [T1078.004]
+  cloud.access_key_old: [T1078.004, T1552.001]
+  cloud.credential_unused: [T1078.004]
+  cloud.service_account_key_user_managed: [T1078.004, T1552.001]
+  cloud.admin_privileges_broad: [T1078.004, T1098]
+  cloud.password_policy_weak: [T1110]
+  cloud.platform_credential_over_privileged: [T1078.004, T1098]
+  cloud.storage_: [T1530]
+  cloud.audit_log_disabled: [T1562.008]
+  cloud.: [T1078.004, T1530]
   # Kubernetes
   k8s.pod.: [T1611, T1610]                   # escape to host / deploy container
   k8s.rbac.: [T1078.001, T1098]

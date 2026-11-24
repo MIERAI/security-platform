@@ -1,0 +1,7 @@
+{"interactiveLogin": false,
+ "tokenCallbacks": [
+  {"issuerId": "workload", "tokenExpiry": 3600,
+   "requestMappings": [{"requestParam": "client_id", "match": "*", "claims": {"sub": "system:serviceaccount:security:scanner", "aud": ["${scope}"]}}]},
+  {"issuerId": "shortlived", "tokenExpiry": 1,
+   "requestMappings": [{"requestParam": "client_id", "match": "*", "claims": {"sub": "system:serviceaccount:security:scanner", "aud": ["${scope}"]}}]}
+ ]}

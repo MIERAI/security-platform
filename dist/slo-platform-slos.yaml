@@ -15,6 +15,19 @@ slos:
     metric: security_collector_last_good_run_timestamp_seconds
     matchers: collector="agent-claude-code"
     max: 50h
+- name: security-collector-cloud-fresh
+  objective: 95
+  severities:
+    fastBurn: info
+    mediumBurn: info
+    slowBurn: info
+    longTermBurn: info
+    absent: ticket
+  description: The cloud collector covered at least one asset within 50h (no findings != secure).
+  age:
+    metric: security_collector_last_good_run_timestamp_seconds
+    matchers: collector="cloud"
+    max: 50h
 - name: security-collector-codehost-gitea-fresh
   objective: 95
   severities:

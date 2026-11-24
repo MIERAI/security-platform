@@ -82,6 +82,7 @@ def lint(dims, controls):
         for k in ("id", "title", "order"):
             if k not in d:
                 errs.append(f"dimension {d.get('id')}: {k} missing")
+        lint_applies(f"dimension {d.get('id')}", d.get("applies_when"), errs)
     for c in controls:
         cid = c.get("id", "?")
         if cid in seen:
@@ -96,6 +97,7 @@ def lint(dims, controls):
                 errs.append(f"{cid}: {k} missing")
         if c.get("check") not in CHECKS:
             errs.append(f"{cid}: check must be one of {CHECKS}")
+        lint_applies(cid, c.get("applies_when"), errs)
         if c.get("function") not in FUNCTIONS:
             errs.append(f"{cid}: csf {c.get('csf')!r} must start with one of {sorted(FUNCTIONS)}")
         if not c.get("pillars") or set(c["pillars"]) - set(PILLARS):
@@ -116,6 +118,47 @@ def lint(dims, controls):
             if not c.get("question"):
                 errs.append(f"{cid}: attested controls need the question a human answers")
     return errs
+
+
+APPLIES_KEYS = ("instance", "coverage_prefix", "any")
+
+
+def lint_applies(where, spec, errs):
+    if spec is None:
+        return
+    if not isinstance(spec, dict) or len(spec) != 1 or next(iter(spec)) not in APPLIES_KEYS:
+        errs.append(f"{where}: applies_when must be one of {{instance: <dotted key>}}, {{coverage_prefix: <asset prefix>}}, "
+                    "{any: [..]}")
+    elif "any" in spec:
+        for i, x in enumerate(spec["any"] or []):
+            lint_applies(f"{where}.any[{i}]", x, errs)
+
+
+def applicable(spec, inst, ctx):
+    """A dimension/control that only exists for some environments (e.g. cloud accounts): (True, "") when it applies,
+    else (False, reason). Deterministic from the instance config or from what collectors covered - never a guess:
+      {instance: cloud.accounts}       the instance config has a non-empty value at this dotted key
+      {coverage_prefix: "cloud:"}      a collector's newest document covered (ok or gap) an asset with this prefix
+      {any: [..]}                      one of them"""
+    if not spec:
+        return True, ""
+    if "any" in spec:
+        reasons = []
+        for x in spec["any"] or []:
+            ok, why = applicable(x, inst, ctx)
+            if ok:
+                return True, ""
+            reasons.append(why)
+        return False, " and ".join(reasons)
+    if "instance" in spec:
+        v = inst or {}
+        for k in str(spec["instance"]).split("."):
+            v = v.get(k) if isinstance(v, dict) else None
+        return (True, "") if v else (False, f"instance has no {spec['instance']}")
+    if "coverage_prefix" in spec:
+        hit = any(a.startswith(spec["coverage_prefix"]) for _, a, _ in ctx.coverage)
+        return (True, "") if hit else (False, f"no {spec['coverage_prefix']}* asset in scope")
+    return True, ""
 
 
 def attestable(c):
@@ -223,10 +266,19 @@ def compute(data, inst=None, now=None, extra_dirs=None):
     ctx = Ctx(data, now, controls, sc.get("pillars", PILLARS), list(FUNCTIONS))
     ctx.attestations = att
     deferred = []
+    dim_na = {}
+    for did, d in dims.items():
+        ok, why = applicable(d.get("applies_when"), inst, ctx)
+        if not ok:
+            dim_na[did] = why
     for c in controls:
         a = att.get(c["id"])
         na = not_applicable(a, now)
         c["_expires"] = None
+        ok, why = applicable(c.get("applies_when"), inst, ctx)
+        if c["dimension"] in dim_na or not ok:
+            c["_status"], c["_detail"] = "na", f"not applicable: {dim_na.get(c['dimension']) or why}"
+            continue
         if na:
             c["_status"], c["_detail"] = "na", f"not applicable (approved by {a['attested_by']}): {na}"
             continue
@@ -250,9 +302,12 @@ def compute(data, inst=None, now=None, extra_dirs=None):
     def group(pred):
         return [c for c in controls if pred(c)]
 
-    out_dims = {}
+    out_dims, out_na = {}, {}
     for did, d in sorted(dims.items(), key=lambda kv: kv[1].get("order", 99)):
         items = group(lambda c, did=did: c["dimension"] == did)
+        if did in dim_na:        # e.g. no cloud accounts: excluded from the score, never a penalty
+            out_na[did] = {"title": d["title"], "order": d.get("order"), "reason": dim_na[did], "controls": len(items)}
+            continue
         s, w, p = score_of(items)
         th = float(d.get("threshold", threshold))
         out_dims[did] = {"title": d["title"], "order": d.get("order"), "owner": d.get("owner"), "threshold": th,
@@ -297,7 +352,7 @@ def compute(data, inst=None, now=None, extra_dirs=None):
         "threshold": threshold, "status": "PASS" if out_dims and all(d["status"] == "PASS" for d in out_dims.values()) else "FAIL",
         "overall": min(scores) if scores else 0.0, "mean": round(sum(scores) / len(scores), 1) if scores else 0.0,
         "weakest": min(out_dims, key=lambda k: out_dims[k]["score"]) if out_dims else None,
-        "dimensions": out_dims, "pillars": pillars, "functions": functions, "dimension_pillar": cross,
+        "dimensions": out_dims, "not_applicable": out_na, "pillars": pillars, "functions": functions, "dimension_pillar": cross,
         "attestations": att_counts,
         "controls": [{"id": c["id"], "dimension": c["dimension"], "title": c["title"], "pillars": c["pillars"],
                       "csf": c.get("csf"), "function": c["function"], "cis": c.get("cis", []), "check": c["check"],
@@ -372,6 +427,8 @@ def markdown(r):
     for did, d in r["dimensions"].items():
         L.append(f"| {d['order']} | {d['title']} (`{did}`) | {d['score']} | {d['status']} | {', '.join(d['pillars'])} | "
                  f"{', '.join(d['functions'])} | {', '.join(d['failing']) or '-'} |")
+    for did, d in (r.get("not_applicable") or {}).items():
+        L.append(f"| {d['order']} | {d['title']} (`{did}`) | n/a | NOT APPLICABLE | - | - | {d['reason']} |")
     L += ["", "## Pillars", "", "| pillar | score | controls |", "|---|---|---|"]
     L += [f"| {p} | {d['score']} | {d['controls']} |" for p, d in r["pillars"].items()]
     L += ["", "## NIST CSF 2.0 functions", "", "| function | score | controls |", "|---|---|---|"]

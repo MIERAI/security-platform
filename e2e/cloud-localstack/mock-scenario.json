@@ -1,0 +1,39 @@
+{
+ "_comment": "Scenario for cloudmock.py (fictional identifiers). Two GCP projects / Azure subscriptions each: one where the platform's identity holds only the read-only roles, one where it was given a write role (must be refused).",
+ "gcp": {
+  "providers": {
+   "//iam.googleapis.com/projects/100000000001/locations/global/workloadIdentityPools/security-platform/providers/local-oidc": {
+    "issuer": "http://127.0.0.1:18080/workload",
+    "allowed_audiences": ["https://iam.googleapis.com/projects/100000000001/locations/global/workloadIdentityPools/security-platform/providers/local-oidc"]
+   }
+  },
+  "service_accounts": {
+   "auditor@acme-readonly.iam.gserviceaccount.com": {"subjects": ["system:serviceaccount:security:scanner"]},
+   "auditor@acme-overprivileged.iam.gserviceaccount.com": {"subjects": ["system:serviceaccount:security:scanner"]},
+   "someone-else@acme-readonly.iam.gserviceaccount.com": {"subjects": ["system:serviceaccount:other:app"]}
+  },
+  "projects": {
+   "acme-readonly": {"bindings": [
+     {"role": "roles/iam.securityReviewer", "members": ["serviceAccount:auditor@acme-readonly.iam.gserviceaccount.com"]},
+     {"role": "roles/viewer", "members": ["serviceAccount:auditor@acme-readonly.iam.gserviceaccount.com"]},
+     {"role": "roles/owner", "members": ["user:owner@acme.example"]}]},
+   "acme-overprivileged": {"bindings": [
+     {"role": "roles/iam.securityReviewer", "members": ["serviceAccount:auditor@acme-overprivileged.iam.gserviceaccount.com"]},
+     {"role": "roles/editor", "members": ["serviceAccount:auditor@acme-overprivileged.iam.gserviceaccount.com"]}]}
+  }
+ },
+ "azure": {
+  "tenants": {
+   "00000000-0000-4000-8000-00000000aaaa": {
+    "11111111-1111-4111-8111-111111111111": {"issuer": "http://127.0.0.1:18080/workload", "audience": "api://AzureADTokenExchange",
+                                             "subject": "system:serviceaccount:security:scanner", "oid": "22222222-2222-4222-8222-222222222222"}
+   }
+  },
+  "subscriptions": {
+   "33333333-3333-4333-8333-333333333333": {"assignments": {"22222222-2222-4222-8222-222222222222": [
+     "acdd72a7-3385-48ef-bd42-f606fba81ae7", "39bc4728-0917-49c7-9d2c-d95423bc2eb4"]}},
+   "44444444-4444-4444-8444-444444444444": {"assignments": {"22222222-2222-4222-8222-222222222222": [
+     "acdd72a7-3385-48ef-bd42-f606fba81ae7", "b24988ac-6180-42a0-ab88-20f7382dd24c"]}}
+  }
+ }
+}

@@ -58,10 +58,10 @@ class ProductCatalog(unittest.TestCase):
             doc = yaml.safe_load(open(p))
             self.assertRegex(os.path.basename(p), rf"^\d\d-{doc['dimension']['id']}\.yaml$")
 
-    def test_all_eleven_dimensions_and_four_pillars_and_six_functions(self):
+    def test_all_twelve_dimensions_and_four_pillars_and_six_functions(self):
         dims, controls = sc.load_catalog([os.path.join(ROOT, "scorecard", "catalog")])
         self.assertEqual(set(dims), {"design", "coverage", "intel", "operation", "alerting", "remediation", "detection",
-                                     "self", "generality", "usability", "people"})
+                                     "self", "generality", "usability", "people", "cloud"})
         self.assertEqual({p for c in controls for p in c["pillars"]}, set(sc.PILLARS))
         self.assertEqual({c["function"] for c in controls}, set(sc.FUNCTIONS))
         for d in dims:

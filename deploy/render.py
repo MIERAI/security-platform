@@ -8,6 +8,7 @@ The schedule lives in the instance config; a trigger only has to call `tick` eve
   termux-job  Android/Termux: the command that registers a JobScheduler job (no cron daemon needed; >= 15 min)
   wrapper     the shell wrapper every target calls (PATH, TZ, nice, log rotation, offline, errors to the log)
   env         NOT a rendering: BUILDS the runtime environment once, at deploy time (see below)
+  tool-env    NOT a rendering: BUILDS a pinned external tool (cloud check engines: prowler, steampipe, scoutsuite)
 Kubernetes: see deploy/kubernetes/ (a CronJob per site, the in-cluster hub, and the metrics exporter).
 
 Offline by design: a tick never resolves or downloads dependencies. `render.py env --install DIR` builds a virtual
@@ -20,9 +21,17 @@ environment at all (--python python3). A --python that resolves packages per run
 usage: render.py <target> --install DIR --instance FILE --data DIR [--label L] [--interval 900] [--python CMD]
                  [--path PATH] [--tz Area/City] [--nice 10] [--log FILE] [--shell /bin/sh] [--job-id N]
        render.py env --install DIR [--python python3] [--lock FILE] [--find-links DIR] [--installer auto|uv|pip]
+       render.py tool-env --install DIR --tool prowler|steampipe|scoutsuite [--tool-python 3.12]
+
+Tools (`tool-env`): each external engine lives in DIR/tools/<tool>/<hash>/ (DIR/tools/<tool>/current points at it),
+built from deploy/tools/<tool>.lock (a Python tool: exact versions + hashes, its own interpreter version) or
+deploy/tools/<tool>.json (a release binary: pinned version + SHA-256 per platform, pinned plugins). They are separate
+from the runner's environment on purpose: a tool's dependencies never reach the runner, and AGPL/GPL tools stay
+external processes. The instance points the cloud collector at DIR/tools/<tool>/current (docs/cloud.md).
 """
 import argparse
 import hashlib
+import json
 import os
 import re
 import shlex
@@ -113,6 +122,87 @@ def build_env(a):
     return f"{os.path.join(link, 'bin', 'python3')}  (envs/{key}, {installer}, {len(reqs)} pinned)\n"
 
 
+def _swap_link(link, target):
+    tmp = f"{link}.tmp{os.getpid()}"
+    os.symlink(target, tmp)
+    os.replace(tmp, link)
+
+
+def build_tool(a):
+    """Build (once) a pinned external tool under <install>/tools/<tool>/<key> and point .../current at it."""
+    import platform
+    import urllib.request
+    base = os.path.join(os.path.abspath(a.install), "tools", a.tool)
+    lock = os.path.join(HERE, "tools", f"{a.tool}.lock")
+    manifest = os.path.join(HERE, "tools", f"{a.tool}.json")
+    if os.path.exists(lock):                                   # a Python tool, hash-locked, its own interpreter
+        py = a.tool_python or "3.12"
+        key = hashlib.sha256(open(lock, "rb").read() + py.encode()).hexdigest()[:12]
+        dest = os.path.join(base, key)
+        if not os.path.exists(os.path.join(dest, ".complete")):
+            shutil.rmtree(dest, ignore_errors=True)
+            os.makedirs(base, exist_ok=True)
+            if shutil.which("uv"):
+                subprocess.run(["uv", "venv", "-q", "--python", py, dest], check=True)
+                subprocess.run(["uv", "pip", "install", "-q", "--python", os.path.join(dest, "bin", "python3"),
+                                "--require-hashes", "-r", lock], check=True)
+            else:
+                subprocess.run([shutil.which(f"python{py}") or f"python{py}", "-m", "venv", dest], check=True)
+                subprocess.run([os.path.join(dest, "bin", "python3"), "-m", "pip", "install", "-q", "--no-input",
+                                "--disable-pip-version-check", "--require-hashes", "-r", lock], check=True)
+            open(os.path.join(dest, ".complete"), "w").write(f"{lock}\n{py}\n")
+    elif os.path.exists(manifest):                             # a release binary, checksum-pinned
+        m = json.load(open(manifest))
+        system, machine = platform.system().lower(), platform.machine().lower()
+        machine = {"amd64": "x86_64", "aarch64": "arm64" if system == "darwin" else "aarch64",
+                   "arm64": "arm64" if system == "darwin" else "aarch64"}.get(machine, machine)
+        plat = f"{system}-{machine}"
+        asset = m["assets"].get(plat)
+        if not asset:
+            sys.exit(f"render.py tool-env: {a.tool} {m['version']} has no pinned asset for {plat}")
+        key = hashlib.sha256(json.dumps(m, sort_keys=True).encode() + plat.encode()).hexdigest()[:12]
+        dest = os.path.join(base, key)
+        if not os.path.exists(os.path.join(dest, ".complete")):
+            shutil.rmtree(dest, ignore_errors=True)
+            os.makedirs(os.path.join(dest, "bin"), exist_ok=True)
+            arc = os.path.join(dest, asset["file"])
+            urllib.request.urlretrieve(m["url"].format(version=m["version"], file=asset["file"]), arc)
+            got = hashlib.sha256(open(arc, "rb").read()).hexdigest()
+            if got != asset["sha256"]:
+                shutil.rmtree(dest, ignore_errors=True)
+                sys.exit(f"render.py tool-env: {asset['file']} checksum mismatch ({got})")
+            if arc.endswith(".zip"):
+                import zipfile
+                zipfile.ZipFile(arc).extractall(os.path.join(dest, "bin"))
+            else:
+                import tarfile
+                with tarfile.open(arc) as t:
+                    t.extractall(os.path.join(dest, "bin"), filter="data")
+            os.remove(arc)
+            exe = os.path.join(dest, "bin", a.tool)
+            os.chmod(exe, 0o755)
+            import tempfile
+            short_tmp = tempfile.mkdtemp(prefix="sp-tool-", dir="/tmp" if os.path.isdir("/tmp") else None)
+            env = dict(os.environ, STEAMPIPE_INSTALL_DIR=os.path.join(dest, "home"), STEAMPIPE_UPDATE_CHECK="false",
+                       STEAMPIPE_TELEMETRY="none", TMPDIR=short_tmp)   # plugin sockets: a long TMPDIR breaks them
+            for plugin in m.get("plugins") or []:
+                subprocess.run([exe, "plugin", "install", plugin], env=env, check=True, stdout=subprocess.DEVNULL)
+                # the installer adds a default connection using the ambient credential chain: the platform writes its
+                # own connection per run (collectors/cloud/engines.py), so the default one is removed
+                try:
+                    os.remove(os.path.join(dest, "home", "config", plugin.split("@")[0] + ".spc"))
+                except OSError:
+                    pass
+            # first query installs the embedded database now, so a tick never downloads it
+            subprocess.run([exe, "query", "select 1"], env=env, check=True, stdout=subprocess.DEVNULL)
+            shutil.rmtree(short_tmp, ignore_errors=True)
+            open(os.path.join(dest, ".complete"), "w").write(json.dumps(m, sort_keys=True) + "\n")
+    else:
+        sys.exit(f"render.py tool-env: no deploy/tools/{a.tool}.lock or .json")
+    _swap_link(os.path.join(base, "current"), key)
+    return f"{os.path.join(base, 'current')}  ({a.tool}, tools/{a.tool}/{key})\n"
+
+
 def launchd(a):
     script = os.path.join(a.install, "tick.sh")
     return f"""<?xml version="1.0" encoding="UTF-8"?>
@@ -167,7 +257,7 @@ def termux_job(a):
 
 def main(argv=None):
     ap = argparse.ArgumentParser()
-    ap.add_argument("target", choices=["wrapper", "launchd", "cron", "systemd", "termux-job", "env"])
+    ap.add_argument("target", choices=["wrapper", "launchd", "cron", "systemd", "termux-job", "env", "tool-env"])
     ap.add_argument("--install", required=True, help="install root (holds current/ and tick.sh)")
     ap.add_argument("--instance")
     ap.add_argument("--data")
@@ -178,6 +268,8 @@ def main(argv=None):
     ap.add_argument("--lock", help="env: hash lock (default deploy/requirements.lock)")
     ap.add_argument("--find-links", help="env: install from this local wheel directory only (air-gapped hosts)")
     ap.add_argument("--installer", choices=["auto", "uv", "pip"], default="auto")
+    ap.add_argument("--tool", help="tool-env: prowler | steampipe | scoutsuite (deploy/tools/<tool>.lock or .json)")
+    ap.add_argument("--tool-python", help="tool-env: interpreter version for a Python tool (default 3.12)")
     ap.add_argument("--path")
     ap.add_argument("--tz")
     ap.add_argument("--nice", type=int, default=10)
@@ -187,6 +279,11 @@ def main(argv=None):
     a = ap.parse_args(argv)
     if a.target == "env":
         sys.stdout.write(build_env(a))
+        return
+    if a.target == "tool-env":
+        if not a.tool:
+            ap.error("tool-env needs --tool")
+        sys.stdout.write(build_tool(a))
         return
     if not (a.instance and a.data):
         ap.error("--instance and --data are required")

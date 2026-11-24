@@ -1,0 +1,61 @@
+[
+ {
+  "finding": {
+   "name": "organizations/1/sources/2/findings/f1",
+   "category": "OPEN_SSH_PORT",
+   "state": "ACTIVE",
+   "severity": "HIGH",
+   "resourceName": "//compute.googleapis.com/projects/acme-readonly/global/firewalls/allow-ssh-anywhere",
+   "compliances": [
+    {
+     "standard": "cis",
+     "version": "2.0",
+     "ids": [
+      "3.6"
+     ]
+    }
+   ],
+   "nextSteps": "Restrict the firewall rule's source ranges."
+  },
+  "resource": {
+   "name": "//compute.googleapis.com/projects/acme-readonly/global/firewalls/allow-ssh-anywhere",
+   "projectDisplayName": "acme-readonly",
+   "type": "google.compute.Firewall"
+  }
+ },
+ {
+  "finding": {
+   "name": "organizations/1/sources/2/findings/f2",
+   "category": "PUBLIC_BUCKET_ACL",
+   "state": "ACTIVE",
+   "severity": "HIGH",
+   "resourceName": "//storage.googleapis.com/acme-public-data",
+   "compliances": [
+    {
+     "standard": "cis",
+     "version": "2.0",
+     "ids": [
+      "5.1"
+     ]
+    }
+   ]
+  },
+  "resource": {
+   "name": "//storage.googleapis.com/acme-public-data",
+   "projectDisplayName": "acme-readonly",
+   "type": "google.cloud.storage.Bucket"
+  }
+ },
+ {
+  "finding": {
+   "name": "organizations/1/sources/2/findings/f3",
+   "category": "MFA_NOT_ENFORCED",
+   "state": "INACTIVE",
+   "severity": "HIGH",
+   "resourceName": "//cloudresourcemanager.googleapis.com/organizations/1"
+  },
+  "resource": {
+   "projectDisplayName": "acme-readonly"
+  }
+ }
+]

@@ -1,0 +1,50 @@
+{
+ "collector": {
+  "name": "cloud",
+  "tools": {},
+  "version": "0.1.0"
+ },
+ "coverage": [
+  {
+   "asset": "cloud:example",
+   "status": "ok"
+  },
+  {
+   "asset": "host:example-offline",
+   "reason": "offline at scan time",
+   "status": "gap"
+  }
+ ],
+ "findings": [
+  {
+   "asset": "cloud:aws/123456789012/ec2/eu-west-1/security-group/sg-0example",
+   "check": "cloud.firewall_admin_port_open",
+   "evidence": "raw/cloud/example.json#x",
+   "id": "e06651768f4b",
+   "kind": "compliance",
+   "layer": "network",
+   "needs_human": false,
+   "observed_at": "2026-11-24T14:13:51Z",
+   "owner": "platform",
+   "remediation": "fix it",
+   "severity": "high",
+   "title": "synthetic example"
+  }
+ ],
+ "metrics": [
+  {
+   "help": "example",
+   "labels": {
+    "kind": "x"
+   },
+   "name": "security_example_metric",
+   "value": 1.0
+  }
+ ],
+ "run": {
+  "finished_at": "2026-11-24T14:13:51Z",
+  "instance": "",
+  "started_at": "2026-11-24T14:13:51Z"
+ },
+ "schema_version": "1.0"
+}
