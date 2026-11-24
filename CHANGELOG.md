@@ -2,6 +2,25 @@
 
 Components are versioned independently (docs/design.md §5). Entries name the component and its new version.
 
+## 2026-11-24 — scorecard (weakest link)
+
+- **scorecard 0.1.0** (new component): `scorecard/scorecard.py` (`compute`, `attest`, `lint`, `list`) and
+  `scorecard/evaluators.py` (findings with `require_collector`/`require_coverage`, sli, metric, collector_fresh, job,
+  file, all/any, builtin, none). Catalog `scorecard/catalog/<NN>-<dimension>.yaml`, one file per dimension (11
+  dimensions, 99 seeded controls), each control mapped to pillars (network/device/people/software), a NIST CSF 2.0
+  category and CIS Controls v8 safeguards; check types automated / evidence / attested (human, expires). Dimension
+  score = weighted pass ratio; overall = the weakest dimension; FAIL when any dimension < 75. Outputs
+  `reports/scorecard.{json,md}` (contract `security-platform/scorecard/v1`), `metrics/scorecard.prom`
+  (`security_score{dimension|pillar|function}`, `security_score_regressions_total`, `security_attestations{state}`),
+  regression state. Instance block `scorecard:` (threshold, catalog_dirs, replace_catalog, overrides, vars). docs/scorecard.md.
+- **runner 0.5.0**: computes the scorecard on every publish and publishes `scorecard.prom`; control kind `attestations`
+  (`push` / `accept_control`); snapshot default paths include `attestations.yaml`.
+- **generators 0.5.0**: `SecurityScoreRegression` (ticket, regression-only), `SecurityAttestationExpired`,
+  `SecurityScorecardStale`; dashboard row "Security scorecard" (overall, by dimension / pillar / CSF function,
+  history, failing controls, attestations). Runbooks `score-regression`, `attestation-expired`.
+- **core 0.4.0**: the weekly digest opens with the scorecard (weakest first, failing controls, attestations due).
+- Image: `scorecard/` is copied into the runner image.
+
 ## 2026-11-24 — fixes
 
 - **runner 0.4.1**: a job with `as:` runs `collectors/<collector>/` and reports under the `as` name (it looked for

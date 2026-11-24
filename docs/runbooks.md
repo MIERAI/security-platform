@@ -100,3 +100,26 @@ Actions (each with owner + due date): fix, preventive control, detection, check 
 Re-plan inputs: threat model changes, SLO target changes, checks to add/retire
 AI involvement: advisor proposals used (decision-log ids); human decisions
 ```
+
+## score-regression
+
+`SecurityScoreRegression`: a scorecard dimension dropped below its threshold (docs/scorecard.md). Security is decided by
+the weakest link, so this is a ticket even when every other dimension is green. `SecurityScorecardStale`: the hub has
+not computed the scorecard for two days (the runner computes it on every publish).
+1. Open `<data>/reports/scorecard.md` (private): the dimension's failing controls and their detail line.
+2. `unknown` = no data (a collector or adapter did not cover what the control needs): treat like
+   [collector-stale](#collector-stale). `not_implemented` = a planned control: it belongs on the roadmap, not here.
+   `expired`/`unattested` = a human attestation is due: see [attestation-expired](#attestation-expired).
+3. `fail` = the control's evidence says no: fix it through the normal change process, then let the next run confirm.
+4. Never lower a weight or a threshold to make an alert go away; changing the catalog is a Re-plan decision, recorded
+   in the catalog file's history.
+
+## attestation-expired
+
+`SecurityAttestationExpired`: a control that only a human can answer (MFA on an identity provider, password manager,
+offline recovery codes, an access review) passed its validity, so it fails again.
+1. Do the check the control's `question` asks (`scorecard.py list --dimension <d>` shows it), for real.
+2. Record it: `scorecard/scorecard.py attest --data <data> <control> --by <you> --note "<what you checked>"`
+   (`--false` if it does not hold; that keeps the control failing and visible). An in-cluster hub receives the file
+   through a site's `push` job (`files: {attestations: attestations.yaml}`) and `accept_control: [attestations]`.
+3. Agents never attest for a human.

@@ -1,0 +1,131 @@
+# Dimension 8: platform self-security. The platform holds attacker intelligence and broad read credentials, so it is
+# itself a high-value target (docs/threat-model.md). Instance variables used here (scorecard.vars):
+#   hub_host    the host asset name of the hub (host collector)          e.g. host:<name>
+#   self_repo   the product repository asset (codehost collector)        e.g. repo:github/<owner>/<repo>
+#   self_image  a substring of the platform image reference (vuln-intel) e.g. ghcr.io/<owner>/<image>
+schema: security-platform/scorecard-catalog/v1
+dimension:
+  id: self
+  order: 8
+  title: Platform self-security
+  description: The platform that knows every weakness is protected at least as well as what it watches.
+  pillars: [device, people, software]
+controls:
+  - id: self.threat-model
+    title: The platform's own threat model is written and reviewed within 180 days
+    csf: GV.RM
+    cis: ["16.10"]
+    pillars: [software]
+    check: evidence
+    weight: 3
+    source: {type: file, path: docs/threat-model.md, max_age: 180d, contains: "^## Threats"}
+  - id: self.secret-handling-review
+    title: Secret handling is reviewed (where credentials live, who reads them, never values in outputs)
+    csf: PR.DS
+    cis: ["3.11"]
+    pillars: [software]
+    check: evidence
+    weight: 1
+    source: {type: file, path: docs/threat-model.md, contains: "^## Secret handling"}
+  - id: self.data-encrypted-at-rest
+    title: The hub's disk holding the private data is encrypted at rest
+    csf: PR.DS
+    cis: ["3.6", "3.11"]
+    pillars: [device]
+    check: automated
+    weight: 3
+    source: {type: findings, check_in: [macos.disk_filevault_off, win.disk_unencrypted, disk.unencrypted],
+             asset_contains: "${hub_host}", require_collector: host, max_age: 3d}
+    remediation: turn on full-disk encryption (FileVault / BitLocker / LUKS) on every host that holds the data directory
+  - id: self.data-dir-private
+    title: The private data directory is readable by its owner only (0700)
+    csf: PR.AA
+    cis: ["3.3"]
+    pillars: [device]
+    check: automated
+    weight: 2
+    source: {type: file, path: "${data}", mode_max: "0700"}
+  - id: self.ledger-private
+    title: The ledger file is readable by its owner only (0600)
+    csf: PR.AA
+    cis: ["3.3"]
+    pillars: [device]
+    check: automated
+    weight: 1
+    source: {type: file, path: "${data}/ledger.json", mode_max: "0600"}
+  - id: self.ci-secret-scan
+    title: CI scans the full history of the product for secrets
+    csf: PR.PS
+    cis: ["16.1"]
+    pillars: [software]
+    check: evidence
+    weight: 2
+    source: {type: file, path: .github/workflows/ci.yml, contains: "gitleaks"}
+  - id: self.ci-residue-enforced
+    title: CI enforces the no-instance-values check (the residue job does not skip)
+    csf: PR.PS
+    cis: ["3.3"]
+    pillars: [software]
+    check: attested
+    validity: 90d
+    question: "Is the residue patterns secret available to CI so the residue job runs instead of skipping?"
+    weight: 1
+  - id: self.image-signed
+    title: The platform image is built in CI and signed
+    csf: PR.PS
+    cis: ["16.1"]
+    pillars: [software]
+    check: evidence
+    weight: 2
+    source: {type: file, path: .github/workflows/image.yml, contains: "cosign"}
+  - id: self.image-no-high-vulns
+    title: The platform's own image has no open critical/high vulnerability (SBOM x intel)
+    csf: ID.RA
+    cis: ["7.5", "16.4"]
+    pillars: [software]
+    check: automated
+    weight: 2
+    source: {type: findings, kind: vulnerability, severity_in: [critical, high], asset_contains: "${self_image}",
+             require_collector: vuln-intel, max_age: 3d}
+  - id: self.dependencies-pinned
+    title: Runtime dependencies are pinned by hash
+    csf: GV.SC
+    cis: ["16.4"]
+    pillars: [software]
+    check: evidence
+    weight: 1
+    source: {type: file, path: deploy/requirements.lock, contains: "--hash=sha256:"}
+  - id: self.repo-protected
+    title: The product repository's default branch is protected
+    csf: PR.PS
+    cis: ["16.1"]
+    pillars: [software]
+    check: automated
+    weight: 2
+    source: {type: findings, check_in: [repo.default_branch_unprotected], asset_contains: "${self_repo}",
+             require_collector: codehost-github}
+  - id: self.least-privilege-identity
+    title: The in-cluster hub runs with a least-privilege identity (no Secrets read, namespaced writes)
+    csf: PR.AA
+    cis: ["5.4", "6.8"]
+    pillars: [people, software]
+    check: evidence
+    weight: 2
+    source: {type: file, path: deploy/kubernetes/hub/rbac.yaml}
+  - id: self.metrics-aggregate-only
+    title: Metrics never carry assets, addresses, CVEs or finding ids (contract-tested)
+    csf: PR.DS
+    cis: ["3.3"]
+    pillars: [software]
+    check: evidence
+    weight: 1
+    source: {type: file, path: tests/test_outputs.py, contains: "ALLOWED_LABELS"}
+  - id: self.offsite-backup-encrypted
+    title: Off-host copies of the private data are encrypted (snapshots, backups)
+    csf: PR.DS
+    cis: ["11.3"]
+    pillars: [software]
+    check: attested
+    validity: 180d
+    question: "Are all off-host copies of the data directory (snapshots, backups, sync) encrypted?"
+    weight: 1

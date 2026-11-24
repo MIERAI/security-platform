@@ -48,6 +48,11 @@ def rules(cat):
             f'sum by (namespace) (increase(security_sli_new_total{{sli="{s["name"]}"}}[{al.get("window", "3h")}])) > 0',
             al.get("severity", "ticket"), al.get("summary", f"New findings in {s['name']}"), "regression",
             description=s["description"] + ". Details only in the private ledger / digest.", extra={"sli": s["name"]}))
+    reg.append(alert("SecurityScoreRegression",
+                     "sum by (namespace, dimension) (increase(security_score_regressions_total[3h])) > 0", "ticket",
+                     "Security scorecard: dimension {{ $labels.dimension }} dropped below its threshold (the weakest link decides)",
+                     "score-regression",
+                     description="Failing controls are listed in the private scorecard report (reports/scorecard.md) and the digest."))
     reg.append(alert("SecurityFindingRegression",
                      "sum by (namespace) (increase(security_findings_reopened_total[3h])) > 0", "ticket",
                      "A fixed security finding came back (regression): write a postmortem", "regression"))
@@ -75,6 +80,12 @@ def rules(cat):
               "A collector emitted a findings document that fails the schema (it was ignored)", "contract-violation"),
         alert("SecurityIntelFeedStale", "max by (namespace, feed) (security_intel_feed_age_seconds) > 3 * 86400", "ticket",
               "Threat-intel feed {{ $labels.feed }} older than 3 days", "intel-feed-stale", for_="1h"),
+        alert("SecurityAttestationExpired", 'max by (namespace) (security_attestations{state="expired"}) > 0', "ticket",
+              "{{ $value }} human attestation(s) expired: the control fails again until a human re-attests", "attestation-expired",
+              for_="1h"),
+        alert("SecurityScorecardStale",
+              "time() - max by (namespace) (security_scorecard_last_compute_timestamp_seconds) > 2 * 86400", "ticket",
+              "The security scorecard has not been computed for 2 days", "score-regression", for_="1h"),
         alert("SecurityExceptionExpired", "max by (namespace) (security_exceptions_expired) > 0", "ticket",
               "A risk acceptance expired; the finding is open again: renew (human) or fix", "exception-expired"),
     ]
@@ -115,6 +126,25 @@ def dashboard(cat):
         pid += 1
         ps.append(panel(pid, *a, **k))
 
+    row("Security scorecard: the weakest dimension decides (red = below threshold)")
+    score_th = {"mode": "absolute", "steps": [{"color": "red", "value": None}, {"color": "green", "value": 75}]}
+    add("Overall (weakest dimension)", f"min(security_score_overall{{{ns}}})", x=0, y=y, w=4, h=8, unit="none",
+        thresholds=score_th, desc="min over dimensions; the scorecard FAILS when any dimension is below its threshold")
+    add("Score by dimension", f'min by (dimension) (security_score{{{ns}, dimension!="", pillar=""}})', "bargauge", 4, y, 10, 8,
+        "{{dimension}}", thresholds=score_th)
+    add("Score by pillar", f'min by (pillar) (security_score{{{ns}, pillar!="", dimension=""}})', "bargauge", 14, y, 5, 8,
+        "{{pillar}}", thresholds=score_th)
+    add("Score by CSF function", f'min by (function) (security_score{{{ns}, function!=""}})', "bargauge", 19, y, 5, 8,
+        "{{function}}", thresholds=score_th)
+    y += 8
+    add("Score history by dimension", f'min by (dimension) (security_score{{{ns}, dimension!="", pillar=""}})', "timeseries",
+        0, y, 12, 7, "{{dimension}}")
+    ps[-1]["fieldConfig"]["defaults"]["custom"] = {"stacking": {"mode": "none"}, "fillOpacity": 0}
+    add("Failing controls by dimension", f'sum by (dimension) (security_score_controls{{{ns}, status="fail"}})', "bargauge",
+        12, y, 6, 7, "{{dimension}}")
+    add("Attestations by state", f"max by (state) (security_attestations{{{ns}}})", "bargauge", 18, y, 6, 7, "{{state}}",
+        thresholds={"mode": "absolute", "steps": [{"color": "green", "value": None}]})
+    y += 7
     row("Security SLIs (value; red = above objective)")
     for i, s in enumerate(cat["slis"]):
         t = s["objective"]["target"]

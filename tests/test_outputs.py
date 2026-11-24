@@ -21,7 +21,7 @@ from adapters import sinks  # noqa: E402
 # Labels allowed on security_* metrics: aggregates and scopes only. Never an asset, address, port, CVE or finding id
 # (those are attacker intelligence and stay in the private ledger).
 ALLOWED_LABELS = {"collector", "layer", "severity", "status", "sli", "feed", "job", "site", "quantile", "version",
-                  "cluster", "result", "kind", "store", "host", "owner", "sink"}
+                  "cluster", "result", "kind", "store", "host", "owner", "sink", "dimension", "pillar", "function", "state"}
 IPV4 = re.compile(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b")
 CAT = yaml.safe_load(open(os.path.join(ROOT, "generators", "sli-catalog.yaml")))
 

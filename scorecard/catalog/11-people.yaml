@@ -1,0 +1,218 @@
+# Dimension 11: people and identity security (the people pillar). Accounts, MFA, access reviews, token lifecycle,
+# recovery, and AI agents treated as personnel. Automated controls read the `identity` and `agent-*` collectors;
+# what no API can tell (passkeys, password manager, offline recovery codes) is a human attestation that expires.
+schema: security-platform/scorecard-catalog/v1
+dimension:
+  id: people
+  order: 11
+  title: People and identity security
+  description: Who can act as us - humans, tokens, keys and AI agents - is known, strongly authenticated and reviewed.
+  pillars: [people]
+controls:
+  # ---- accounts and MFA -------------------------------------------------------------------------------------------
+  - id: people.codehost-mfa
+    title: Every code-host account has two-factor authentication on (checked through the API)
+    csf: PR.AA
+    cis: ["6.3", "6.5"]
+    check: automated
+    weight: 3
+    source: {type: findings, check_in: [identity.mfa_disabled], require_collector: identity, require_coverage: "identity:"}
+  - id: people.org-mfa-required
+    title: Every organisation enforces two-factor authentication for its members
+    csf: PR.AA
+    cis: ["6.3"]
+    check: automated
+    weight: 1
+    source: {type: findings, check_in: [identity.org_mfa_not_required], require_collector: identity}
+  - id: people.idp-mfa
+    title: Every identity provider account (Google, Apple, Microsoft, the overlay network's login) has MFA
+    csf: PR.AA
+    cis: ["6.3", "6.4", "6.5"]
+    check: attested
+    validity: 90d
+    question: "Do all identity-provider accounts (Google, Apple, Microsoft, the overlay network login) have MFA on?"
+    weight: 3
+  - id: people.phishing-resistant-mfa
+    title: Admin identities use phishing-resistant MFA (passkey or security key), not SMS
+    csf: PR.AA
+    cis: ["6.5"]
+    check: attested
+    validity: 180d
+    question: "Do the code-host and identity-provider admin accounts use a passkey/security key, with SMS removed?"
+    weight: 2
+  - id: people.password-manager
+    title: A password manager holds unique passwords for every account
+    csf: PR.AA
+    cis: ["5.2"]
+    check: attested
+    validity: 90d
+    question: "Is every account's password unique and stored in a password manager (no reuse, no notes files)?"
+    weight: 2
+  - id: people.recovery-offline
+    title: Recovery codes / recovery keys are stored offline and were checked this quarter
+    csf: RC.RP
+    cis: ["11.1"]
+    check: attested
+    validity: 90d
+    question: "Are recovery codes for the code host, identity providers and disk encryption stored offline, and still valid?"
+    weight: 2
+  # ---- access review -------------------------------------------------------------------------------------------------
+  - id: people.collaborators-known
+    title: Every repository collaborator is a known, expected person
+    csf: PR.AA
+    cis: ["5.1", "6.1"]
+    check: automated
+    weight: 2
+    source: {type: findings, check_in: [identity.collaborator_unexpected], require_collector: identity}
+  - id: people.deploy-keys
+    title: Deploy keys are read-only and in use
+    csf: PR.AA
+    cis: ["5.3", "6.2"]
+    check: automated
+    weight: 1
+    source: {type: findings, check_in: [repo.deploy_key_write, identity.deploy_key_unused], require_collector: identity}
+  - id: people.fork-pr-approval
+    title: Workflows from outside contributors need approval on public repositories
+    csf: PR.PS
+    cis: ["16.1"]
+    pillars: [people, software]
+    check: automated
+    weight: 1
+    source: {type: findings, check_in: [identity.fork_pr_approval_weak], require_collector: identity}
+  - id: people.access-review
+    title: "Quarterly access review: collaborators, deploy keys, GitHub Apps and OAuth authorizations, CI secrets, overlay network users and devices"
+    csf: PR.AA
+    cis: ["5.1", "5.3", "6.1", "6.2"]
+    check: attested
+    validity: 90d
+    question: "Did you review (and prune) collaborators, deploy keys, installed apps, OAuth authorizations, CI secrets and overlay users/devices this quarter?"
+    weight: 3
+  - id: people.sharing-review
+    title: Shared documents and artifacts (drives, gists, published pages) expose nothing sensitive
+    csf: PR.DS
+    cis: ["3.3"]
+    pillars: [people, software]
+    check: attested
+    validity: 90d
+    question: "Did you review what is shared (drives, gists, published artifacts) and unshare anything sensitive?"
+    weight: 1
+  - id: people.dormant-removed
+    title: Dormant accounts and old devices are removed (overlay network, code host, identity providers)
+    csf: PR.AA
+    cis: ["5.3"]
+    pillars: [people, device]
+    check: attested
+    validity: 180d
+    question: "Did you remove accounts and devices no longer in use?"
+    weight: 1
+  - id: people.overlay-acl
+    title: The overlay network has an ACL narrower than allow-all (checked through its API)
+    csf: PR.AA
+    cis: ["6.1", "12.2"]
+    pillars: [people, network]
+    check: automated
+    weight: 2
+    source: {type: findings, check_in: [identity.overlay_acl_allow_all], require_collector: identity,
+             require_coverage: "identity-provider:tailscale"}
+  - id: people.overlay-key-expiry
+    title: Overlay network device keys expire (key expiry not disabled)
+    csf: PR.AA
+    cis: ["6.2"]
+    pillars: [people, network, device]
+    check: automated
+    weight: 1
+    source: {type: findings, check_in: [overlay.node_key_expiry_disabled, identity.overlay_key_expiry_disabled]}
+  # ---- token and key lifecycle -----------------------------------------------------------------------------------------
+  - id: people.token-age
+    title: No token or key is older than 90 days without rotation
+    csf: PR.AA
+    cis: ["5.2"]
+    pillars: [people, software]
+    check: automated
+    weight: 2
+    source: {type: findings, check_in: [identity.token_age_over_90d, secret.age_over_90d], require_collector: identity}
+  - id: people.token-scope
+    title: No broad classic token where a fine-grained or scoped one would do
+    csf: PR.AA
+    cis: ["5.4", "6.8"]
+    pillars: [people, software]
+    check: automated
+    weight: 2
+    source: {type: findings, check_in: [github.token_broad_scopes, identity.token_classic_full_repo], require_collector: identity}
+  - id: people.token-expiry
+    title: No credential expires within 14 days unnoticed, and no long-lived credential lacks an expiry
+    csf: PR.AA
+    cis: ["5.2"]
+    pillars: [people, software]
+    check: automated
+    weight: 1
+    source: {type: findings, check_in: [identity.token_expiring_soon, identity.credential_expired], require_collector: identity}
+  - id: people.ssh-keys
+    title: SSH keys have passphrases and are rotated yearly
+    csf: PR.AA
+    cis: ["5.2"]
+    pillars: [people, device]
+    check: automated
+    weight: 1
+    source: {type: findings, check_in: [secret.ssh_key_no_passphrase, identity.ssh_key_age_over_365d], require_collector: identity}
+  # ---- people practices --------------------------------------------------------------------------------------------------
+  - id: people.awareness
+    title: Security awareness refresh (phishing, MFA fatigue, social engineering, prompt injection) within a year
+    csf: PR.AT
+    cis: ["14.1", "14.2", "14.3"]
+    check: attested
+    validity: 365d
+    question: "Did you refresh security awareness (phishing, MFA fatigue, social engineering, AI prompt injection) this year?"
+    weight: 1
+  # ---- AI agents as personnel --------------------------------------------------------------------------------------------
+  - id: people.agent-no-bypass
+    title: AI agents do not run in permission-bypass mode by default
+    csf: PR.AA
+    cis: ["5.4"]
+    pillars: [people, software]
+    check: automated
+    weight: 2
+    source: {type: findings, check_in: [agent.bypass_permissions_default], require_collector: agent-claude-code}
+  - id: people.agent-narrow-allow
+    title: AI agents have no allow rule granting arbitrary execution, egress, infrastructure or file access outside the project
+    csf: PR.AA
+    cis: ["5.4", "6.8"]
+    pillars: [people, software]
+    check: automated
+    weight: 1
+    source: {type: findings, check_prefix: [agent.broad_allow.], require_collector: agent-claude-code}
+  - id: people.agent-deviations-recorded
+    title: Deliberate deviations in AI agent permissions are recorded with a reason and re-decided quarterly
+    csf: GV.RR
+    cis: []
+    pillars: [people, software]
+    check: attested
+    validity: 90d
+    question: "Is every deliberate agent permission deviation (e.g. reads outside the working directory allowed) recorded with a reason, and still wanted?"
+    weight: 1
+  - id: people.agent-memory-clean
+    title: No credential in AI agent memory or notes
+    csf: PR.DS
+    cis: ["3.11"]
+    pillars: [people, software]
+    check: automated
+    weight: 2
+    source: {type: findings, check_in: [agent.memory_secret_suspect, secret.credential_in_notes], require_collector: agent-claude-code}
+  - id: people.agent-audit-trail
+    title: AI agent actions leave an audit trail (session transcripts kept for a known retention)
+    csf: DE.CM
+    cis: ["8.2", "8.10"]
+    pillars: [people, software]
+    check: automated
+    weight: 1
+    source: {type: findings, check_in: [agent.audit_trail_missing], require_collector: agent-claude-code,
+             require_coverage: "agent-audit:"}
+  - id: people.agent-guard-hooks
+    title: AI agents have pre-action guard hooks or deny rules for credential paths
+    csf: PR.AA
+    cis: ["3.3"]
+    pillars: [people, software]
+    check: automated
+    weight: 1
+    source: {type: findings, check_in: [agent.no_credential_deny_rules], require_collector: agent-claude-code,
+             require_coverage: "agent-guard:"}

@@ -1,0 +1,57 @@
+# Dimension 3: threat intelligence. Owner of this file: the coverage + intel work stream.
+schema: security-platform/scorecard-catalog/v1
+dimension:
+  id: intel
+  order: 3
+  title: Threat intelligence
+  description: The outside world's changes (KEV, EPSS, advisories) reach the loop quickly and are matched to our assets.
+  pillars: [network, device, software]
+controls:
+  - id: intel.feeds-fresh
+    title: Every threat-intel feed is younger than 2 days
+    csf: ID.RA
+    cis: ["7.1"]
+    pillars: [software]
+    check: automated
+    weight: 3
+    source: {type: metric, name: security_intel_feed_age_seconds, agg: max, op: "<=", value: 172800}
+  - id: intel.no-alertable-vulns
+    title: No vulnerability that is known-exploited (KEV) or critical on an exposed asset is open
+    csf: ID.RA
+    cis: ["7.2", "7.7"]
+    pillars: [network, device, software]
+    check: automated
+    weight: 3
+    source: {type: sli, sli: vuln_alertable}
+  - id: intel.no-kev
+    title: No open finding matches CISA KEV
+    csf: ID.RA
+    cis: ["7.7"]
+    pillars: [software]
+    check: automated
+    weight: 2
+    source: {type: sli, sli: kev_affecting_assets}
+  - id: intel.critical-cve-age
+    title: The oldest fixable critical CVE is within its objective
+    csf: ID.RA
+    cis: ["7.4"]
+    pillars: [software]
+    check: automated
+    weight: 2
+    source: {type: sli, sli: oldest_fixable_critical_cve_days}
+  - id: intel.vendor-advisories
+    title: Unstructured vendor advisories (routers, phones, appliances) are extracted and matched
+    csf: ID.RA
+    cis: ["7.1"]
+    pillars: [device, software]
+    check: automated
+    weight: 1
+    source: {type: none, reason: "vendor advisory extraction (AI extract + human validation) not built"}
+  - id: intel.attack-mapping
+    title: Checks and detections are mapped to MITRE ATT&CK techniques
+    csf: ID.RA
+    cis: []
+    pillars: [network, device, people, software]
+    check: automated
+    weight: 1
+    source: {type: none, reason: "no ATT&CK mapping yet"}

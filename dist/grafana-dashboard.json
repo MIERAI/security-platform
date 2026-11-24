@@ -5,7 +5,7 @@
  "version": 1,
  "tags": [
   "security-platform",
-  "generator-0.4.0"
+  "generator-0.5.0"
  ],
  "time": {
   "from": "now-30d",
@@ -45,7 +45,7 @@
   {
    "id": 2,
    "type": "row",
-   "title": "Security SLIs (value; red = above objective)",
+   "title": "Security scorecard: the weakest dimension decides (red = below threshold)",
    "gridPos": {
     "x": 0,
     "y": 0,
@@ -56,10 +56,311 @@
   {
    "id": 3,
    "type": "stat",
-   "title": "unauth_network_services",
+   "title": "Overall (weakest dimension)",
    "gridPos": {
     "x": 0,
     "y": 1,
+    "w": 4,
+    "h": 8
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "min(security_score_overall{namespace=~\"$namespace\"})"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "none",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "green",
+        "value": 75
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {},
+   "description": "min over dimensions; the scorecard FAILS when any dimension is below its threshold"
+  },
+  {
+   "id": 4,
+   "type": "bargauge",
+   "title": "Score by dimension",
+   "gridPos": {
+    "x": 4,
+    "y": 1,
+    "w": 10,
+    "h": 8
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "min by (dimension) (security_score{namespace=~\"$namespace\", dimension!=\"\", pillar=\"\"})",
+     "legendFormat": "{{dimension}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "green",
+        "value": 75
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "id": 5,
+   "type": "bargauge",
+   "title": "Score by pillar",
+   "gridPos": {
+    "x": 14,
+    "y": 1,
+    "w": 5,
+    "h": 8
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "min by (pillar) (security_score{namespace=~\"$namespace\", pillar!=\"\", dimension=\"\"})",
+     "legendFormat": "{{pillar}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "green",
+        "value": 75
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "id": 6,
+   "type": "bargauge",
+   "title": "Score by CSF function",
+   "gridPos": {
+    "x": 19,
+    "y": 1,
+    "w": 5,
+    "h": 8
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "min by (function) (security_score{namespace=~\"$namespace\", function!=\"\"})",
+     "legendFormat": "{{function}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "green",
+        "value": 75
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "id": 7,
+   "type": "timeseries",
+   "title": "Score history by dimension",
+   "gridPos": {
+    "x": 0,
+    "y": 9,
+    "w": 12,
+    "h": 7
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "min by (dimension) (security_score{namespace=~\"$namespace\", dimension!=\"\", pillar=\"\"})",
+     "legendFormat": "{{dimension}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 1
+       }
+      ]
+     },
+     "custom": {
+      "stacking": {
+       "mode": "none"
+      },
+      "fillOpacity": 0
+     }
+    },
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "id": 8,
+   "type": "bargauge",
+   "title": "Failing controls by dimension",
+   "gridPos": {
+    "x": 12,
+    "y": 9,
+    "w": 6,
+    "h": 7
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum by (dimension) (security_score_controls{namespace=~\"$namespace\", status=\"fail\"})",
+     "legendFormat": "{{dimension}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "id": 9,
+   "type": "bargauge",
+   "title": "Attestations by state",
+   "gridPos": {
+    "x": 18,
+    "y": 9,
+    "w": 6,
+    "h": 7
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "max by (state) (security_attestations{namespace=~\"$namespace\"})",
+     "legendFormat": "{{state}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "id": 10,
+   "type": "row",
+   "title": "Security SLIs (value; red = above objective)",
+   "gridPos": {
+    "x": 0,
+    "y": 16,
+    "w": 24,
+    "h": 1
+   }
+  },
+  {
+   "id": 11,
+   "type": "stat",
+   "title": "unauth_network_services",
+   "gridPos": {
+    "x": 0,
+    "y": 17,
     "w": 4,
     "h": 4
    },
@@ -95,12 +396,12 @@
    "description": "Sensitive services that answer without authentication from the external vantage point (objective <= 0)"
   },
   {
-   "id": 4,
+   "id": 12,
    "type": "stat",
    "title": "ssh_password_auth_hosts",
    "gridPos": {
     "x": 4,
-    "y": 1,
+    "y": 17,
     "w": 4,
     "h": 4
    },
@@ -136,12 +437,12 @@
    "description": "Hosts whose SSH server accepts passwords (objective <= 0)"
   },
   {
-   "id": 5,
+   "id": 13,
    "type": "stat",
    "title": "oldest_fixable_critical_cve_days",
    "gridPos": {
     "x": 8,
-    "y": 1,
+    "y": 17,
     "w": 4,
     "h": 4
    },
@@ -177,12 +478,12 @@
    "description": "Days since publication of the oldest CRITICAL CVE that has a fix, in running images / repos (objective <= 30)"
   },
   {
-   "id": 6,
+   "id": 14,
    "type": "stat",
    "title": "vuln_alertable",
    "gridPos": {
     "x": 12,
-    "y": 1,
+    "y": 17,
     "w": 4,
     "h": 4
    },
@@ -218,12 +519,12 @@
    "description": "Vulnerabilities that affect our assets AND (are in CISA KEV OR are critical on an exposed asset) - the only vulnerability class that pages (objective <= 0)"
   },
   {
-   "id": 7,
+   "id": 15,
    "type": "stat",
    "title": "kev_affecting_assets",
    "gridPos": {
     "x": 16,
-    "y": 1,
+    "y": 17,
     "w": 4,
     "h": 4
    },
@@ -259,12 +560,12 @@
    "description": "Open findings whose CVE is in CISA KEV (known exploited) (objective <= 0)"
   },
   {
-   "id": 8,
+   "id": 16,
    "type": "stat",
    "title": "kev_or_critical_exposed",
    "gridPos": {
     "x": 20,
-    "y": 1,
+    "y": 17,
     "w": 4,
     "h": 4
    },
@@ -300,12 +601,12 @@
    "description": "Vulnerability findings prioritized critical (KEV or CRITICAL, weighted by exposure and EPSS) (objective <= 0)"
   },
   {
-   "id": 9,
+   "id": 17,
    "type": "stat",
    "title": "secrets_older_than_90d",
    "gridPos": {
     "x": 0,
-    "y": 5,
+    "y": 21,
     "w": 4,
     "h": 4
    },
@@ -341,12 +642,12 @@
    "description": "Secrets (files, cluster Secrets, CI secrets) not changed for more than 90 days (objective <= 0)"
   },
   {
-   "id": 10,
+   "id": 18,
    "type": "stat",
    "title": "public_repos_without_protection",
    "gridPos": {
     "x": 4,
-    "y": 5,
+    "y": 21,
     "w": 4,
     "h": 4
    },
@@ -382,12 +683,12 @@
    "description": "Public repositories whose default branch has no protection / ruleset (objective <= 0)"
   },
   {
-   "id": 11,
+   "id": 19,
    "type": "stat",
    "title": "critical_open_findings",
    "gridPos": {
     "x": 8,
-    "y": 5,
+    "y": 21,
     "w": 4,
     "h": 4
    },
@@ -423,12 +724,12 @@
    "description": "Open findings of severity critical (any layer) (objective <= 0)"
   },
   {
-   "id": 12,
+   "id": 20,
    "type": "stat",
    "title": "critical_config_findings",
    "gridPos": {
     "x": 12,
-    "y": 5,
+    "y": 21,
     "w": 4,
     "h": 4
    },
@@ -464,12 +765,12 @@
    "description": "Open critical findings that are not vulnerabilities (configuration, exposure, identity, secrets, agents) (objective <= 0)"
   },
   {
-   "id": 13,
+   "id": 21,
    "type": "stat",
    "title": "collector_coverage_gaps",
    "gridPos": {
     "x": 16,
-    "y": 5,
+    "y": 21,
     "w": 4,
     "h": 4
    },
@@ -505,12 +806,12 @@
    "description": "Assets in scope that a collector could not cover (platform health, inner loop) (objective <= 0)"
   },
   {
-   "id": 14,
+   "id": 22,
    "type": "stat",
    "title": "check_catalog_age_days",
    "gridPos": {
     "x": 20,
-    "y": 5,
+    "y": 21,
     "w": 4,
     "h": 4
    },
@@ -546,23 +847,23 @@
    "description": "Days since the check catalog / benchmarks were last reviewed against upstream (CIS, ATT&CK, Sigma/Falco) (objective <= 90)"
   },
   {
-   "id": 15,
+   "id": 23,
    "type": "row",
    "title": "Findings (aggregates only; details stay in the private ledger)",
    "gridPos": {
     "x": 0,
-    "y": 9,
+    "y": 25,
     "w": 24,
     "h": 1
    }
   },
   {
-   "id": 16,
+   "id": 24,
    "type": "timeseries",
    "title": "Open findings by layer",
    "gridPos": {
     "x": 0,
-    "y": 10,
+    "y": 26,
     "w": 12,
     "h": 8
    },
@@ -604,12 +905,12 @@
    "options": {}
   },
   {
-   "id": 17,
+   "id": 25,
    "type": "timeseries",
    "title": "Open findings by severity",
    "gridPos": {
     "x": 12,
-    "y": 10,
+    "y": 26,
     "w": 12,
     "h": 8
    },
@@ -651,12 +952,12 @@
    "options": {}
   },
   {
-   "id": 18,
+   "id": 26,
    "type": "bargauge",
    "title": "New findings entering an SLI (24h)",
    "gridPos": {
     "x": 0,
-    "y": 18,
+    "y": 34,
     "w": 12,
     "h": 6
    },
@@ -692,12 +993,12 @@
    "options": {}
   },
   {
-   "id": 19,
+   "id": 27,
    "type": "stat",
    "title": "Regressions (reopened, total)",
    "gridPos": {
     "x": 12,
-    "y": 18,
+    "y": 34,
     "w": 4,
     "h": 6
    },
@@ -732,12 +1033,12 @@
    "options": {}
   },
   {
-   "id": 20,
+   "id": 28,
    "type": "stat",
    "title": "Time to fix p50 (days)",
    "gridPos": {
     "x": 16,
-    "y": 18,
+    "y": 34,
     "w": 4,
     "h": 6
    },
@@ -772,12 +1073,12 @@
    "options": {}
   },
   {
-   "id": 21,
+   "id": 29,
    "type": "stat",
    "title": "Exceptions active / expired",
    "gridPos": {
     "x": 20,
-    "y": 18,
+    "y": 34,
     "w": 4,
     "h": 3
    },
@@ -808,12 +1109,12 @@
    "options": {}
   },
   {
-   "id": 22,
+   "id": 30,
    "type": "stat",
    "title": "Expired exceptions",
    "gridPos": {
     "x": 20,
-    "y": 21,
+    "y": 37,
     "w": 4,
     "h": 3
    },
@@ -848,23 +1149,23 @@
    "options": {}
   },
   {
-   "id": 23,
+   "id": 31,
    "type": "row",
    "title": "Platform health (inner loop): no findings != secure",
    "gridPos": {
     "x": 0,
-    "y": 24,
+    "y": 40,
     "w": 24,
     "h": 1
    }
   },
   {
-   "id": 24,
+   "id": 32,
    "type": "bargauge",
    "title": "Collector: hours since last good run",
    "gridPos": {
     "x": 0,
-    "y": 25,
+    "y": 41,
     "w": 12,
     "h": 8
    },
@@ -904,12 +1205,12 @@
    "options": {}
   },
   {
-   "id": 25,
+   "id": 33,
    "type": "bargauge",
    "title": "Coverage gaps by collector",
    "gridPos": {
     "x": 12,
-    "y": 25,
+    "y": 41,
     "w": 12,
     "h": 8
    },
@@ -945,12 +1246,12 @@
    "options": {}
   },
   {
-   "id": 26,
+   "id": 34,
    "type": "bargauge",
    "title": "Runner jobs: hours since last success",
    "gridPos": {
     "x": 0,
-    "y": 33,
+    "y": 49,
     "w": 12,
     "h": 8
    },
@@ -990,12 +1291,12 @@
    "options": {}
   },
   {
-   "id": 27,
+   "id": 35,
    "type": "bargauge",
    "title": "Runner job failures (24h)",
    "gridPos": {
     "x": 12,
-    "y": 33,
+    "y": 49,
     "w": 12,
     "h": 8
    },
@@ -1031,12 +1332,12 @@
    "options": {}
   },
   {
-   "id": 28,
+   "id": 36,
    "type": "bargauge",
    "title": "Remediation: overdue by severity",
    "gridPos": {
     "x": 0,
-    "y": 41,
+    "y": 57,
     "w": 12,
     "h": 6
    },
@@ -1072,12 +1373,12 @@
    "options": {}
   },
   {
-   "id": 29,
+   "id": 37,
    "type": "bargauge",
    "title": "Time to remediate p50 (days) by severity",
    "gridPos": {
     "x": 12,
-    "y": 41,
+    "y": 57,
     "w": 12,
     "h": 6
    },
@@ -1113,12 +1414,12 @@
    "options": {}
   },
   {
-   "id": 30,
+   "id": 38,
    "type": "bargauge",
    "title": "Intel feed age (hours)",
    "gridPos": {
     "x": 0,
-    "y": 47,
+    "y": 63,
     "w": 12,
     "h": 6
    },
@@ -1154,12 +1455,12 @@
    "options": {}
   },
   {
-   "id": 31,
+   "id": 39,
    "type": "stat",
    "title": "Hours since the hub published",
    "gridPos": {
     "x": 12,
-    "y": 47,
+    "y": 63,
     "w": 6,
     "h": 6
    },
@@ -1198,12 +1499,12 @@
    "options": {}
   },
   {
-   "id": 32,
+   "id": 40,
    "type": "stat",
    "title": "Invalid findings documents",
    "gridPos": {
     "x": 18,
-    "y": 47,
+    "y": 63,
     "w": 6,
     "h": 6
    },

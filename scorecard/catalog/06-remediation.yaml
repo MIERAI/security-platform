@@ -1,0 +1,66 @@
+# Dimension 6: remediation loop. Owner of this file: the remediation work stream.
+schema: security-platform/scorecard-catalog/v1
+dimension:
+  id: remediation
+  order: 6
+  title: Remediation loop
+  description: Findings get an owner and a due date, are fixed within SLO, and the fix is confirmed by the next run.
+  pillars: [network, device, people, software]
+controls:
+  - id: remediation.tracker-synced
+    title: The remediation tracker was synced within 2 days
+    csf: RS.MI
+    cis: ["7.2"]
+    pillars: [software]
+    check: automated
+    weight: 2
+    source: {type: metric, name: security_remediation_last_update_timestamp_seconds, agg: max, age: true, op: "<=", value: 2d}
+  - id: remediation.no-overdue-critical-high
+    title: No critical or high finding is past its remediation SLO
+    csf: RS.MI
+    cis: ["7.2", "7.3", "7.4"]
+    pillars: [network, device, people, software]
+    check: automated
+    weight: 3
+    source: {type: metric, name: security_remediation_overdue, match: {severity: "critical|high"}, agg: sum, op: "<=", value: 0}
+  - id: remediation.owners-assigned
+    title: Every open item has an owner
+    csf: GV.RR
+    cis: []
+    pillars: [people]
+    check: automated
+    weight: 1
+    source: {type: metric, name: security_remediation_unassigned, agg: max, op: "<=", value: 0}
+  - id: remediation.no-critical-open
+    title: No critical finding is open
+    csf: RS.MI
+    cis: ["7.2"]
+    pillars: [network, device, people, software]
+    check: automated
+    weight: 2
+    source: {type: sli, sli: critical_open_findings}
+  - id: remediation.exceptions-current
+    title: No risk acceptance has expired without renewal or fix
+    csf: GV.RM
+    cis: []
+    pillars: [network, device, people, software]
+    check: automated
+    weight: 1
+    source: {type: metric, name: security_exceptions_expired, agg: max, op: "<=", value: 0}
+  - id: remediation.time-to-fix
+    title: Median time to fix is at most 7 days
+    csf: RS.MI
+    cis: ["7.2"]
+    pillars: [network, device, people, software]
+    check: automated
+    weight: 1
+    source: {type: metric, name: security_time_to_fix_days, match: {quantile: "0.5"}, agg: max, op: "<=", value: 7}
+  - id: remediation.postmortems
+    title: Every regression of the last 90 days has a postmortem with a preventive control
+    csf: RS.AN
+    cis: ["17.8"]
+    pillars: [network, device, people, software]
+    check: attested
+    validity: 90d
+    question: "Does every regression (reopened finding) of the last 90 days have a postmortem with a preventive control?"
+    weight: 1
