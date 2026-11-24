@@ -2,6 +2,35 @@
 
 Components are versioned independently (docs/design.md §5). Entries name the component and its new version.
 
+## v0.2.0 — 2026-11-24
+
+The first tagged product release: everything below this heading, tested together. Unit, contract and output tests,
+`bin/check-residue --history`, and the second-environment test (`e2e/kind/run.sh --ref main`: PASSED, clone to first
+findings 119 s, `e2e/kind/last-pass.json`). Each component is also tagged `<component>/vX.Y.Z`.
+
+| component | version |
+|---|---|
+| `cli` | 0.1.0 |
+| `collectors/agent-claude-code` | 0.2.0 |
+| `collectors/codehost-gitea` | 0.1.0 |
+| `collectors/codehost-github` | 0.1.1 |
+| `collectors/detection` | 0.1.1 |
+| `collectors/exposure` | 0.4.1 |
+| `collectors/host-sbom` | 0.1.1 |
+| `collectors/host` | 0.2.0 |
+| `collectors/identity` | 0.1.0 |
+| `collectors/k8s` | 0.2.0 |
+| `collectors/secrets-files` | 0.2.1 |
+| `collectors/vuln-intel` | 0.4.0 |
+| `core` | 0.6.1 |
+| `deploy` | 0.3.1 |
+| `detections` | 0.2.1 |
+| `events` | 0.1.1 |
+| `generators` | 0.6.0 |
+| `runner` | 0.7.1 |
+| `scorecard` | 0.2.1 |
+| `sdk` | 0.3.0 |
+
 ## 2026-11-24 — scorecard: generality and usability controls
 
 - **scorecard catalog** (dimensions 9 and 10, data only): generality now needs evidence that a second, different
