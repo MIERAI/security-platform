@@ -20,6 +20,7 @@ COPY core core
 COPY sdk sdk
 COPY adapters adapters
 COPY collectors collectors
+COPY events events
 COPY generators generators
 COPY scorecard scorecard
 COPY schema schema
