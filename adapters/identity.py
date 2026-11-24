@@ -37,7 +37,7 @@ import subprocess
 import time
 import urllib.request
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 
 
 def iso(t):
@@ -203,8 +203,9 @@ def keychain_meta(service, account):
 
 # ---- Tailscale -------------------------------------------------------------------------------------------------------
 class Tailscale:
-    """cfg: {type: tailscale, api_key_file?, tailnet: "-", dormant_days: 60}. With a READ-ONLY API key file (mode 0600):
-    devices, users, ACL. Without one: the local CLI's view (devices, key expiry); the ACL is a gap."""
+    """cfg: {type: tailscale, tailnet: "-", oauth_client_id + oauth_client_secret_file (preferred: an OAuth client with
+    read-only scopes devices:core:read, users:read, policy_file:read) | api_key_file}. Secret files must be mode 0600.
+    With credentials: users, devices, ACL. Without: the local CLI's view (devices, key expiry); the ACL is a gap."""
 
     API = "https://api.tailscale.com/api/v2"
 
@@ -217,16 +218,31 @@ class Tailscale:
         with urllib.request.urlopen(req, timeout=30) as r:
             return json.loads(r.read())
 
+    def _oauth_token(self, client_id, secret):
+        """OAuth client credentials -> a short-lived access token with only the client's scopes (read-only:
+        devices:core:read, users:read, policy_file:read). Preferred over an API key, which carries the user's rights."""
+        import urllib.parse
+        body = urllib.parse.urlencode({"client_id": client_id, "client_secret": secret}).encode()
+        req = urllib.request.Request(f"{self.API}/oauth/token", data=body,
+                                     headers={"Content-Type": "application/x-www-form-urlencoded"})
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return json.loads(r.read())["access_token"]
+
     def collect(self):
         s = snapshot()
-        kf = self.cfg.get("api_key_file")
+        kf = self.cfg.get("oauth_client_secret_file") or self.cfg.get("api_key_file")
         key = None
         if kf:
             p = os.path.expanduser(kf)
             if not os.path.exists(p):
-                s["gaps"].append(("identity-provider:tailscale", f"api_key_file {kf} missing"))
+                s["gaps"].append(("identity-provider:tailscale", f"{os.path.basename(kf)} missing"))
             elif os.stat(p).st_mode & 0o077:
-                s["gaps"].append(("identity-provider:tailscale", "api_key_file must be mode 0600 (refused)"))
+                s["gaps"].append(("identity-provider:tailscale", f"{os.path.basename(kf)} must be mode 0600 (refused)"))
+            elif self.cfg.get("oauth_client_secret_file"):
+                try:
+                    key = self._oauth_token(self.cfg["oauth_client_id"], open(p).read().strip())
+                except Exception as e:  # noqa: BLE001 - revoked client / offline: a gap
+                    s["gaps"].append(("identity-provider:tailscale", f"OAuth token exchange: {type(e).__name__}"))
             else:
                 key = open(p).read().strip()
         if key:
