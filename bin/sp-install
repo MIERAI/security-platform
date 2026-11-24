@@ -9,7 +9,7 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 SSH=
 [[ ${1:-} == --ssh ]] && { SSH=$2; shift 2; }
 DEST=${1:?usage: sp-install [--ssh host] <root>}
-REL=$(git -C "$ROOT" describe --tags --always --dirty)
+REL=$(git -C "$ROOT" describe --tags --match 'v[0-9]*' --always --dirty)
 [[ $REL == *-dirty ]] && echo "note: uncommitted changes are NOT installed (HEAD is)" >&2
 REL=${REL%-dirty}
 SCRIPT="set -e; umask 022; mkdir -p $DEST/releases/$REL; tar -x -C $DEST/releases/$REL; ln -sfn releases/$REL $DEST/current; echo installed $REL in $DEST"

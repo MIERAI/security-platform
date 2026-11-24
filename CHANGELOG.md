@@ -2,6 +2,12 @@
 
 Components are versioned independently (docs/design.md §5). Entries name the component and its new version.
 
+## 2026-11-24 — fix: release names with component tags
+
+- **bin/sp-install**: names a release after the product tag only (`git describe --match 'v[0-9]*'`); with component
+  tags (`runner/v0.7.1`, ...) on the same commit, the release directory would have been named after one of them.
+  The e2e record uses the same rule.
+
 ## v0.2.0 — 2026-11-24
 
 The first tagged product release: everything below this heading, tested together. Unit, contract and output tests,
