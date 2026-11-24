@@ -122,6 +122,43 @@ CHECKS = {
         what="The platform could not list the software installed on this machine.",
         why="Without the list, new vulnerabilities in that software cannot be matched to this machine.",
         fix="Check that the host profile matches the OS and that its package manager is installed.", verify=NEXT_SCAN),
+    # --- detection (would an attack be noticed?) -----------------------------------------------------------------
+    "detection.cluster_not_covered": dict(
+        what="A cluster is not watched for attacks (a detection piece is missing there).",
+        why="An intruder in that cluster would not trigger any alert.",
+        fix="Deploy the missing detection parts (sensor, audit log shipping, rules) to the cluster.", verify=NEXT_SCAN),
+    "detection.sensor_missing": dict(
+        what="The runtime detection sensor is not running on every node.",
+        why="Attacks on the nodes without it go unseen.",
+        fix="Check the sensor's DaemonSet: pods that do not start, nodes it does not tolerate.", verify=NEXT_SCAN),
+    "detection.source_silent": dict(
+        what="A log source that detections rely on has gone quiet.",
+        why="Detections built on it are blind until it sends again; silence looks like safety.",
+        fix="Check the log shipper and the source (audit logging on, agent running, credentials valid).", verify=NEXT_SCAN),
+    "detection.ruler_incomplete": dict(
+        what="Some detection rules are not loaded or fail to evaluate.",
+        why="Those attacks would not be detected.",
+        fix="Reload the rules into the log store's ruler and fix the failing queries.", verify=NEXT_SCAN),
+    "detection.ruleset_stale": dict(
+        what="The detection rules have not been reviewed for a long time.",
+        why="New attack techniques appear constantly; old rules miss them.",
+        fix="Compare the rules with their upstream sources, update them, and record the review date.", verify=NEXT_SCAN),
+    "detection.page_route_missing": dict(
+        what="Urgent detection alerts are recorded but sent to nobody.",
+        why="An attack would be detected and still nobody would act.",
+        fix="Route severity=page alerts to a receiver that notifies a person (phone, chat, pager).", verify=NEXT_SCAN),
+    "detection.backstop_missing": dict(
+        what="The cluster has no detection rules of its own; it relies entirely on the central log store.",
+        why="If the log store is down, attacks in the cluster go unseen.",
+        fix="Deploy the in-cluster backstop rules.", verify=NEXT_SCAN),
+    "detection.drill_overdue": dict(
+        what="Nobody has tested whether detection works (no drill recorded).",
+        why="Untested detection often turns out not to work when it matters.",
+        fix="Run a harmless drill in a lab and record how long detection took.", verify=NEXT_SCAN),
+    "detection.drill_failed": dict(
+        what="The last detection drill was not detected in time.",
+        why="A real attack would likely be missed or noticed too late.",
+        fix="Find the slow or silent stage of the pipeline, fix it, and repeat the drill.", verify=NEXT_SCAN),
     # --- network exposure ---------------------------------------------------------------------------------------
     "http.unauth_root": dict(
         what="A web service answers without asking who you are, and the platform cannot tell what it is.",
