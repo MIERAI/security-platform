@@ -2,6 +2,12 @@
 
 Components are versioned independently (docs/design.md §5). Entries name the component and its new version.
 
+## 2026-11-24 — fix: default owner
+
+- **core 0.6.1**: `remediation.default_owner` applies to findings whose owner is only the SDK's role hint (`platform`
+  or `human`); before, every real finding carried one of them, so the default owner was never used (found by the
+  second-environment test).
+
 ## 2026-11-24 — a second kind of environment
 
 - **adapters/discovery 0.3.0**: `static` takes CIDR ranges (`cidrs:`, `exclude:`, `max_hosts` default 1024 so a typo
