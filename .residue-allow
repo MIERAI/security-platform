@@ -1,0 +1,3 @@
+# The product's own public locations (bin/check-residue): repository and image, as the install guide prints them.
+github\.com/MIERAI/security-platform(\.git)?([^A-Za-z0-9_.-]|\.git|$)
+ghcr\.io/mierai/security-platform([^A-Za-z0-9_.-]|$)
