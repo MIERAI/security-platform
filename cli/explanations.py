@@ -49,6 +49,79 @@ CHECKS = {
         fix="Create a fine-grained token limited to the repositories and permissions a job needs, with an expiry; "
             "keep the broad one for interactive use only, or remove it.",
         verify=NEXT_SCAN),
+    # --- identity (people, tokens, keys) -------------------------------------------------------------------------
+    "identity.mfa_disabled": dict(
+        what="An account can log in with only a password: two-factor authentication is off.",
+        why="Passwords leak through phishing and reuse; with two-factor on, a stolen password alone is not enough.",
+        fix="Turn on two-factor authentication for the account, preferably a passkey or security key; store the "
+            "recovery codes offline.", verify=NEXT_SCAN),
+    "identity.org_mfa_not_required": dict(
+        what="The organisation does not require two-factor authentication from its members.",
+        why="One member without it is the weakest door into every repository they can reach.",
+        fix="Check who lacks it first (they are removed when you switch it on), then require it in the "
+            "organisation's security settings.", verify=NEXT_SCAN),
+    "identity.collaborator_unexpected": dict(
+        what="Someone has access to a repository who is not on the expected list.",
+        why="Forgotten or unknown collaborators can change code or read private work.",
+        fix="Confirm with the repository owner; remove the access or add the person to the expected list in the "
+            "instance config.", verify=NEXT_SCAN),
+    "identity.credential_expired": dict(
+        what="An expired credential is still configured somewhere.", why="It is clutter that hides which credentials matter.",
+        fix="Remove it, or replace it with a new one if something still needs it.", verify=NEXT_SCAN),
+    "identity.credential_file_readable": dict(
+        what="A file holding a credential can be read by other users of the machine.",
+        why="Any other account or process can copy it and act as you.",
+        fix="`chmod 600 <file>`; rotate the credential if others may have read it.", verify=NEXT_SCAN),
+    "identity.deploy_key_unused": dict(
+        what="A repository deploy key has not been used for months (or never).",
+        why="Unused keys are forgotten keys: nobody notices when one leaks.",
+        fix="Delete it; create a new one when a pipeline needs it again.", verify=NEXT_SCAN),
+    "identity.fork_pr_approval_weak": dict(
+        what="CI runs code from some outside contributors without anyone approving it first.",
+        why="A pull request from a stranger can run code in your CI, sometimes with access to secrets.",
+        fix="Require approval before workflows run for all outside contributors (repository Actions settings).",
+        verify=NEXT_SCAN),
+    "identity.overlay_acl_allow_all": dict(
+        what="The private overlay network lets every device reach every other device.",
+        why="One compromised laptop or phone can reach every server.",
+        fix="Replace the default allow-all rule with rules per group or tag (who needs to reach what).", verify=NEXT_SCAN),
+    "identity.overlay_device_dormant": dict(
+        what="A device on the private overlay network has not been seen for a long time.",
+        why="Lost or retired devices keep their access until removed.",
+        fix="Remove the device from the overlay network (add it back if it returns).", verify=NEXT_SCAN),
+    "identity.ssh_key_age_over_365d": dict(
+        what="An SSH key is more than a year old.", why="Old keys have been copied to more places and outlived their owners' devices.",
+        fix="Create a new key, add it where the old one is trusted (servers, code host), then delete the old one.",
+        verify=NEXT_SCAN),
+    "identity.token_age_over_90d": dict(
+        what="An access token is older than the rotation period.",
+        why="The longer a token lives, the more places it has been copied to.",
+        fix="Issue a new token (with an expiry), switch its users over, revoke the old one.", verify=NEXT_SCAN),
+    "identity.token_classic_full_repo": dict(
+        what="A token can read and write every private repository of its owner.",
+        why="Whatever uses the token (a script, a CI job) can change any repository if the token leaks.",
+        fix="Replace it with a fine-grained token limited to the repositories and permissions it needs, with an expiry.",
+        verify=NEXT_SCAN),
+    "identity.token_expiring_soon": dict(
+        what="An access token expires soon.", why="When it expires, whatever uses it stops working (an outage).",
+        fix="Rotate it now and note where it is used.", verify=NEXT_SCAN),
+    "agent.audit_trail_missing": dict(
+        what="The AI coding assistant left no session records recently.",
+        why="Without them you cannot tell afterwards what the assistant read or ran.",
+        fix="Keep session transcripts on (do not disable or shorten their retention).", verify=NEXT_SCAN),
+    "agent.memory_secret_suspect": dict(
+        what="An AI assistant's memory file contains something that looks like a password or token.",
+        why="Memory files are read into every session and may be synced or shared.",
+        fix="Remove the value (note where the secret lives, not what it is); rotate it if it was real.", verify=NEXT_SCAN),
+    "agent.no_credential_deny_rules": dict(
+        what="Nothing stops the AI assistant from reading credential files (SSH keys, kubeconfigs, tokens).",
+        why="A prompt injected through a file or web page could make it read and leak them.",
+        fix="Add deny rules for credential paths (e.g. Read(~/.ssh/**), Read(~/.kube/**)) in the assistant's settings.",
+        verify=NEXT_SCAN),
+    "sbom.no_packages": dict(
+        what="The platform could not list the software installed on this machine.",
+        why="Without the list, new vulnerabilities in that software cannot be matched to this machine.",
+        fix="Check that the host profile matches the OS and that its package manager is installed.", verify=NEXT_SCAN),
     # --- network exposure ---------------------------------------------------------------------------------------
     "http.unauth_root": dict(
         what="A web service answers without asking who you are, and the platform cannot tell what it is.",
@@ -368,6 +441,20 @@ FAMILIES = [
         what="An AI coding assistant is allowed to run a broad class of commands without asking.",
         why="Broad rules (any shell, any network tool) let an injected prompt do real damage.",
         fix="Replace the broad rule with specific, read-only commands.")),
+    ("advisory.vendor.", dict(
+        what="A vendor published a security advisory that may concern a product you run; a person has to check it.",
+        why="Vendor advisories are often not in machine-readable databases; the platform only knows it mentions you.",
+        fix="Read the advisory, decide whether you are affected, update if so, and record the decision.")),
+    ("platform.android_bulletin.", dict(
+        what="A phone or tablet is missing a monthly Android security update.",
+        why="The missing update fixes known flaws, some of them exploited in the wild.",
+        fix="Install the system update; plan to replace devices that no longer receive updates.")),
+    ("platform.apple_release.", dict(
+        what="An Apple device is missing a security update.", why="It fixes known flaws, some of them exploited in the wild.",
+        fix="Install the update (Settings > General > Software Update) and restart.")),
+    ("platform.windows_update.", dict(
+        what="A Windows machine is missing a monthly security update.", why="It fixes known flaws, some exploited in the wild.",
+        fix="Run Windows Update and restart.")),
     ("listen.db_wildcard.", dict(
         what="A database listens on every network interface of this machine.",
         why="It can be reached from the network, not only from the apps on this machine.",

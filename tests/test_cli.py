@@ -64,6 +64,11 @@ def data_dir():
     json.dump({"items": {"ccccccccccc3": {"id": "ccccccccccc3", "owner": "platform", "overdue": True,
                                           "due_at": iso(now - 86400), "status": "open"}}},
               open(os.path.join(d, "tracker", "items.json"), "w"))
+    os.makedirs(os.path.join(d, "reports"))
+    json.dump({"overall": 40.0, "status": "FAIL", "threshold": 75,
+               "dimensions": {"usability": {"score": 40.0}, "coverage": {"score": 90.0}},
+               "pillars": {"network": {"score": 80.0}, "people": {"score": 40.0}}},
+              open(os.path.join(d, "reports", "scorecard.json"), "w"))
     json.dump({"name": "acme", "runner": {"jobs": {"host": {"schedule": "0 1 * * *"}}},
                "notify": [{"type": "file", "path": os.path.join(d, "out.txt")}]},
               open(os.path.join(d, "instance.json"), "w"))
@@ -99,6 +104,8 @@ class Commands(unittest.TestCase):
         rc, out = run("status", "--data", self.d)
         self.assertIn("Overdue fixes: 1", out)
         self.assertIn("Fixed in the last 7 days: 1", out)
+        self.assertIn("Scorecard: 40.0/100   weakest: usability 40.0", out)
+        self.assertIn("pillars: network 80.0, people 40.0", out)
 
     def test_digest_has_no_asset_details(self):
         rc, out = run("digest", "--data", self.d, "--daily")

@@ -34,7 +34,8 @@ from spsdk import load_config  # noqa: E402
 VERSION = open(os.path.join(HERE, "VERSION")).read().strip()
 SEV = ["critical", "high", "medium", "low", "info"]
 COLLECTOR_TOOLS = {"exposure": ["nmap"], "host": [], "k8s": ["kubectl"], "codehost-github": ["gh"],
-                   "vuln-intel": ["trivy"], "secrets-files": [], "agent-claude-code": [], "codehost-gitea": []}
+                   "vuln-intel": ["trivy"], "secrets-files": [], "agent-claude-code": [], "codehost-gitea": [],
+                   "identity": [], "host-sbom": []}
 NON_COLLECTOR = ("remediation", "digest", "snapshot", "push", "pull-snapshot", "notify")
 TTY = sys.stdout.isatty() and not os.environ.get("NO_COLOR")
 
@@ -333,7 +334,10 @@ def cmd_status(a):
     print(f"Fixed in the last 7 days: {len(fixed7)}" + (f"   Came back (regressions): {len(reopened)}" if reopened else ""))
     sc = ctx.scorecard()
     if sc:
-        print("\nScorecard: " + scorecard_line(sc))
+        print("\nScorecard: " + scorecard_line(sc) + f"  ({sc.get('status', '?')}, threshold {sc.get('threshold', 75)})")
+        pil = sc.get("pillars") or {}
+        if pil:
+            print("  pillars: " + ", ".join(f"{k} {v.get('score') if isinstance(v, dict) else v}" for k, v in pil.items()))
     sli = L.get("sli") or {}
     bad = [k for k, v in sli.items() if not v.get("ok")]
     if sli:
@@ -371,8 +375,9 @@ def cmd_status(a):
 
 
 def scorecard_line(sc):
-    """Accepts the scorecard document (docs/scorecard.md): an overall score and per-dimension scores."""
-    total = sc.get("score", sc.get("total"))
+    """The scorecard document (docs/scorecard.md, reports/scorecard.json): the overall (weakest) score and the
+    dimensions' scores."""
+    total = sc.get("overall", sc.get("score"))
     dims = sc.get("dimensions") or {}
     if isinstance(dims, list):
         dims = {d.get("id", d.get("name")): d for d in dims}
