@@ -2,6 +2,25 @@
 
 Components are versioned independently (docs/design.md §5). Entries name the component and its new version.
 
+## 2026-11-24 — usability: the `sp` command line and notifiers
+
+- **cli 0.1.0** (new): `bin/sp` (symlink it into PATH): `init` (a private data directory with a starter config whose
+  first entry is the local machine, so the first run already shows findings), `doctor` (config, tools per configured
+  collector, 0600 secret files), `run` (every job now, collectors first, then metrics), `status` (one screen: open by
+  severity, overdue, fixed this week, SLIs, jobs, what could not be checked, top risks), `findings` (`--open
+  --severity high --layer --check --overdue --json --ids`), `explain <id>` (what it means / why it matters / how to fix
+  / how to verify, plus a ready-to-edit exception entry), `digest` and `notify`. `cli/explanations.py`: plain-language
+  text for every check the collectors emit (a test fails when a new check has none).
+- **notifier 0.1.0** (new): `notifier/notifiers.py`: `stdout`, `file`, `webhook` (slack / json / text: Slack,
+  Mattermost, Teams workflows, ntfy-like), `telegram`, `exec` (pipe into a command, locally or through an exec
+  adapter). The summary is aggregates only (it leaves the private boundary); secrets from 0600 files; errors carry
+  a status code, never the URL or token.
+- **runner 0.7.0**: job type `notify` (the daily summary to the instance's `notify:` adapters).
+- **image**: also ships `cli/` and `notifier/` (an in-cluster hub can run the `notify` job).
+- Tests: `tests/test_cli.py`, `tests/test_notifier.py`.
+
+## 2026-11-24 — fix
+
 ## 2026-11-24 — detection and response (dimension 7)
 
 - **detections 0.2.0**: every Falco detection also alerts in-cluster on Falco's per-rule counters
