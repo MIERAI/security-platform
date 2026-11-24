@@ -555,6 +555,11 @@ def main(argv=None):
             src = SOURCES[sc["type"]](sc, state, now)
             evs, new = src.collect()
             streams = [to_streams(src.label_source, src.host, evs)] if evs else []
+            if sc.get("heartbeat", cfg.get("heartbeat", True)):
+                # one line per successful run: proves the source is collected even when nothing happened (a quiet
+                # host is not a broken pipeline); no detection rule matches event=heartbeat
+                hb = {"ts": now, "line": json.dumps({"heartbeat": name, "events": len(evs)}), "event": "heartbeat"}
+                streams.append(to_streams(src.label_source, src.host, [hb]))
             if a.dry_run:
                 print(json.dumps({"streams": streams}, indent=1))
             else:

@@ -2,6 +2,11 @@
 
 Components are versioned independently (docs/design.md §5). Entries name the component and its new version.
 
+## 2026-11-24 — events heartbeat
+
+- **events 0.1.1**: one `event=heartbeat` line per source and successful run, so a quiet host (no logins) is
+  distinguishable from a broken shipper; no detection rule matches it.
+- **collector detection 0.1.1**: auth sources must deliver (heartbeats included) within 1 day (was 7 days).
 ## 2026-11-25 — per-asset scope
 
 - **sdk 0.3.0** `asset_scope` / `in_scope`; **discovery 0.4.0** `apply_scope`: instance `scope: [{names, scope:
