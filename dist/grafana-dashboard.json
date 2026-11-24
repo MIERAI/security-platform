@@ -848,22 +848,63 @@
   },
   {
    "id": 23,
+   "type": "stat",
+   "title": "time_to_know_hours",
+   "gridPos": {
+    "x": 0,
+    "y": 25,
+    "w": 4,
+    "h": 4
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "max(security_sli{namespace=~\"$namespace\", sli=\"time_to_know_hours\"})"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 24.001
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {},
+   "description": "Longest time-to-know (last 30 days) for KEV / critical / high detections on already-covered assets - advisory or KEV publication (date granularity: an upper bound) to the first finding; images, repos, hosts and firmware (objective <= 24)"
+  },
+  {
+   "id": 24,
    "type": "row",
    "title": "Findings (aggregates only; details stay in the private ledger)",
    "gridPos": {
     "x": 0,
-    "y": 25,
+    "y": 29,
     "w": 24,
     "h": 1
    }
   },
   {
-   "id": 24,
+   "id": 25,
    "type": "timeseries",
    "title": "Open findings by layer",
    "gridPos": {
     "x": 0,
-    "y": 26,
+    "y": 30,
     "w": 12,
     "h": 8
    },
@@ -905,12 +946,12 @@
    "options": {}
   },
   {
-   "id": 25,
+   "id": 26,
    "type": "timeseries",
    "title": "Open findings by severity",
    "gridPos": {
     "x": 12,
-    "y": 26,
+    "y": 30,
     "w": 12,
     "h": 8
    },
@@ -952,12 +993,12 @@
    "options": {}
   },
   {
-   "id": 26,
+   "id": 27,
    "type": "bargauge",
    "title": "New findings entering an SLI (24h)",
    "gridPos": {
     "x": 0,
-    "y": 34,
+    "y": 38,
     "w": 12,
     "h": 6
    },
@@ -993,12 +1034,12 @@
    "options": {}
   },
   {
-   "id": 27,
+   "id": 28,
    "type": "stat",
    "title": "Regressions (reopened, total)",
    "gridPos": {
     "x": 12,
-    "y": 34,
+    "y": 38,
     "w": 4,
     "h": 6
    },
@@ -1033,12 +1074,12 @@
    "options": {}
   },
   {
-   "id": 28,
+   "id": 29,
    "type": "stat",
    "title": "Time to fix p50 (days)",
    "gridPos": {
     "x": 16,
-    "y": 34,
+    "y": 38,
     "w": 4,
     "h": 6
    },
@@ -1073,12 +1114,12 @@
    "options": {}
   },
   {
-   "id": 29,
+   "id": 30,
    "type": "stat",
    "title": "Exceptions active / expired",
    "gridPos": {
     "x": 20,
-    "y": 34,
+    "y": 38,
     "w": 4,
     "h": 3
    },
@@ -1109,12 +1150,12 @@
    "options": {}
   },
   {
-   "id": 30,
+   "id": 31,
    "type": "stat",
    "title": "Expired exceptions",
    "gridPos": {
     "x": 20,
-    "y": 37,
+    "y": 41,
     "w": 4,
     "h": 3
    },
@@ -1149,23 +1190,23 @@
    "options": {}
   },
   {
-   "id": 31,
+   "id": 32,
    "type": "row",
    "title": "Platform health (inner loop): no findings != secure",
    "gridPos": {
     "x": 0,
-    "y": 40,
+    "y": 44,
     "w": 24,
     "h": 1
    }
   },
   {
-   "id": 32,
+   "id": 33,
    "type": "bargauge",
    "title": "Collector: hours since last good run",
    "gridPos": {
     "x": 0,
-    "y": 41,
+    "y": 45,
     "w": 12,
     "h": 8
    },
@@ -1205,12 +1246,12 @@
    "options": {}
   },
   {
-   "id": 33,
+   "id": 34,
    "type": "bargauge",
    "title": "Coverage gaps by collector",
    "gridPos": {
     "x": 12,
-    "y": 41,
+    "y": 45,
     "w": 12,
     "h": 8
    },
@@ -1246,12 +1287,12 @@
    "options": {}
   },
   {
-   "id": 34,
+   "id": 35,
    "type": "bargauge",
    "title": "Runner jobs: hours since last success",
    "gridPos": {
     "x": 0,
-    "y": 49,
+    "y": 53,
     "w": 12,
     "h": 8
    },
@@ -1291,12 +1332,12 @@
    "options": {}
   },
   {
-   "id": 35,
+   "id": 36,
    "type": "bargauge",
    "title": "Runner job failures (24h)",
    "gridPos": {
     "x": 12,
-    "y": 49,
+    "y": 53,
     "w": 12,
     "h": 8
    },
@@ -1332,12 +1373,12 @@
    "options": {}
   },
   {
-   "id": 36,
+   "id": 37,
    "type": "bargauge",
    "title": "Remediation: overdue by severity",
    "gridPos": {
     "x": 0,
-    "y": 57,
+    "y": 61,
     "w": 12,
     "h": 6
    },
@@ -1373,12 +1414,12 @@
    "options": {}
   },
   {
-   "id": 37,
+   "id": 38,
    "type": "bargauge",
    "title": "Time to remediate p50 (days) by severity",
    "gridPos": {
     "x": 12,
-    "y": 57,
+    "y": 61,
     "w": 12,
     "h": 6
    },
@@ -1414,12 +1455,12 @@
    "options": {}
   },
   {
-   "id": 38,
+   "id": 39,
    "type": "bargauge",
    "title": "Intel feed age (hours)",
    "gridPos": {
     "x": 0,
-    "y": 63,
+    "y": 67,
     "w": 12,
     "h": 6
    },
@@ -1455,12 +1496,12 @@
    "options": {}
   },
   {
-   "id": 39,
+   "id": 40,
    "type": "stat",
    "title": "Hours since the hub published",
    "gridPos": {
     "x": 12,
-    "y": 63,
+    "y": 67,
     "w": 6,
     "h": 6
    },
@@ -1499,12 +1540,12 @@
    "options": {}
   },
   {
-   "id": 40,
+   "id": 41,
    "type": "stat",
    "title": "Invalid findings documents",
    "gridPos": {
     "x": 18,
-    "y": 63,
+    "y": 67,
     "w": 6,
     "h": 6
    },

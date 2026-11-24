@@ -61,6 +61,17 @@ def covered(asset, oks, gap_names):
     return False
 
 
+def urgent(e):
+    """The time-to-know objective's class: KEV, or critical/high (base or prioritized)."""
+    at = e.get("attributes") or {}
+    return bool(at.get("kev")) or e["severity"] in ("critical", "high") or at.get("base_severity") == "critical"
+
+
+def asset_class(asset):
+    typ = asset.split(":", 1)[0]
+    return typ if typ in ("image", "repo", "host") else "other"
+
+
 def selected(e, sel):
     at = e.get("attributes") or {}
     return (("check_in" not in sel or e["check"] in sel["check_in"])
@@ -99,16 +110,21 @@ def main():
             continue
         docs.append(d)
     gaps_total = 0
+    cov_seen = ledger.setdefault("coverage_seen", {})   # collector -> assets it has covered before (time-to-know baseline)
     for d in docs:
         col = d["collector"]["name"]
         gap_names = [g["asset"].split(":", 1)[-1] for g in d["coverage"] if g["status"] == "gap"]
         gaps_total += len(gap_names)
         seen = set()
+        prev_ok = cov_seen.get(col, [])
         for f in d["findings"]:
             seen.add(f["id"])
             e = E.get(f["id"])
             if e is None:
-                e = E[f["id"]] = dict(first_seen=f["observed_at"], status="open", fixed_at=None, reopened_count=0)
+                # time-to-know counts only what appears on an asset this collector had ALREADY covered: the first
+                # inventory of a new asset (or the first run of a new check source) is a baseline, not a detection delay
+                e = E[f["id"]] = dict(first_seen=f["observed_at"], status="open", fixed_at=None, reopened_count=0,
+                                      ttk_counted=bool(prev_ok) and covered(f["asset"], prev_ok, []))
             elif e["status"] == "fixed":
                 e.update(status="open", fixed_at=None, reopened_count=e.get("reopened_count", 0) + 1,
                          time_to_fix_days=None)
@@ -117,12 +133,13 @@ def main():
                      refs=f.get("refs", []), attributes=f.get("attributes", {}), collector=col,
                      collector_version=d["collector"]["version"], last_seen=f["observed_at"])
             at = e["attributes"]
-            if e["kind"] == "vulnerability" and at.get("cve"):
+            if e["kind"] == "vulnerability" and (at.get("cve") or at.get("advisory")):
                 disclosed = max([x for x in (at.get("published_at"), at.get("kev_added")) if x] or [None])
                 if disclosed:
                     e["disclosed_at"] = disclosed
                     e["time_to_know_hours"] = round(max(0, t(e["first_seen"]) - t(disclosed)) / 3600, 1)
         oks = [g["asset"] for g in d["coverage"] if g["status"] == "ok"]
+        cov_seen[col] = sorted(set(prev_ok) | set(oks))
         for fid_, e in E.items():
             if e.get("collector") != col or fid_ in seen or e["status"] not in ("open", "accepted"):
                 continue
@@ -166,6 +183,8 @@ def main():
         if any(g["status"] == "ok" for g in d["coverage"]):
             c["last_good_run"] = d["run"]["finished_at"]
     openE = [e for e in E.values() if e["status"] == "open"]
+    ttk_recent = [e for e in E.values() if e.get("ttk_counted") and e.get("time_to_know_hours") is not None
+                  and time.time() - t(e["first_seen"]) < 30 * 86400]
     review = load_yaml(os.path.join(a.data, "catalog-review.yaml"), {})
     last_review = review.get("last_reviewed")
     computed = {
@@ -174,6 +193,7 @@ def main():
                                                  and e["attributes"].get("fixed") and e["attributes"].get("published_at")] or [0]),
         "coverage_gaps": gaps_total,
         "check_catalog_age_days": (time.time() - t(str(last_review))) / 86400 if last_review else -1,
+        "time_to_know_hours_max_30d": max([e["time_to_know_hours"] for e in ttk_recent if urgent(e)] or [0]),
     }
     sli = {}
     for s in catalog["slis"]:
@@ -221,6 +241,15 @@ def main():
                ("security_time_to_fix_days", {"quantile": "1"}, max(fixed) if fixed else 0, "Time to fix"),
                ("security_contract_invalid_documents", {}, len(invalid), "Findings documents rejected by schema validation"),
                ("security_ledger_last_update_timestamp_seconds", {}, int(time.time()), "Ledger heartbeat")]
+    by_cls = {}
+    for e in ttk_recent:
+        by_cls.setdefault((asset_class(e["asset"]), "urgent" if urgent(e) else "other"), []).append(e["time_to_know_hours"])
+    for (cls, pr), v in sorted(by_cls.items()):
+        series += [("security_time_to_know_hours", {"asset_class": cls, "priority": pr, "quantile": q}, val,
+                    "Advisory/KEV publication -> first detection on an already-covered asset (last 30 days)")
+                   for q, val in (("0.5", statistics.median(v)), ("1", max(v)))]
+        series.append(("security_time_to_know_detections", {"asset_class": cls, "priority": pr}, len(v),
+                       "Detections counted for time-to-know (last 30 days)"))
     with open(os.path.join(a.run, "sli.prom"), "w") as f:
         f.write(render(series))
     os.makedirs(os.path.join(a.data, "metrics"), exist_ok=True)

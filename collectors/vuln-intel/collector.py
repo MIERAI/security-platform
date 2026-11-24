@@ -14,12 +14,29 @@ Alerting attribute: `alertable` = affects our assets AND (in KEV OR (critical AN
 rules page only on those, everything else goes to the weekly digest.
 OSV (feed type osv): SBOM components are also matched directly against the OSV export (second, independent matcher,
 with the advisory's publication date for time-to-know); findings only for KEV aliases or critical advisories.
+
+Hosts (inventory host-package / host-platform, e.g. from the host-sbom collector):
+  * distro packages (deb/apk/rpm) -> CycloneDX -> Trivy's DB (Ubuntu USN / Debian security tracker / Alpine secdb):
+    same priority rules as images; the kernel is matched separately (only the RUNNING kernel counts; packages of
+    other installed kernels are clean-up, not exposure) and aggregated into one finding per host;
+  * language packages / Go binaries under `sbom_paths` (fs SBOM) -> Trivy + OSV;
+  * platform advisories, one finding per missed release (so time-to-know is measured per advisory):
+    Android Security Bulletins (patch level), Apple security releases (same major line), MSRC monthly updates
+    (OS build), plus KEV entries of the firmware vendor added after the firmware build;
+  * unstructured vendor advisories (feed vendor-advisories): new headlines become CANDIDATES (needs_human) for the
+    hosts whose `firmware.vendor` matches the source's `vendors`; a human records the verdict in
+    <data>/advisory-reviews.yaml ({id: {verdict: affected|not-affected|not-applicable, by, at}}). Neither this
+    collector nor any advisor ever concludes "not affected"; the advisor (intel.advisor) may only add extracted
+    candidates to the evidence, logged in decisions/.
+  * ecosystems without a structured advisory source (termux, brew formulae, opkg, windows-program) are inventoried
+    and counted (security_sbom_unmatched_packages), never reported as "no vulnerabilities".
 """
 import concurrent.futures as cf
 import glob
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -27,6 +44,7 @@ import time
 HERE = os.path.dirname(__file__)
 ROOT = os.path.join(HERE, "..", "..")
 sys.path[:0] = [HERE, os.path.join(ROOT, "sdk"), ROOT]
+import hostmatch  # noqa: E402
 import osvmatch  # noqa: E402
 import spsdk  # noqa: E402
 from adapters import feeds  # noqa: E402
@@ -114,6 +132,55 @@ def score(v):
     return None
 
 
+def _date(s):
+    for fmt in ("%Y-%m-%d", "%B %d, %Y", "%b %d, %Y", "%b. %d, %Y"):
+        try:
+            return time.strftime("%Y-%m-%d", time.strptime(s, fmt))
+        except (TypeError, ValueError):
+            pass
+    return None
+
+
+def vendor_state(feed, fcfg, c):
+    """First sighting of each headline, kept in <data>/state/vendor-advisories.json. The first read of a source is a
+    baseline (old headlines are not "new"), except headlines dated within `recent_days` (default 180). Optional
+    advisor: may only EXTRACT candidates (package / version range) from a new headline into the evidence."""
+    p = os.path.join(DATA, "state", "vendor-advisories.json")
+    st = json.load(open(p)) if os.path.exists(p) else {}
+    now = spsdk.now_iso()
+    recent = time.strftime("%Y-%m-%d", time.gmtime(time.time() - float(fcfg.get("recent_days", 180)) * 86400))
+    new = {}
+    for src, items in feed["index"].items():
+        first_read = src not in st
+        seen = st.setdefault(src, {})
+        for it in items:
+            if it["id"] not in seen:
+                d = _date(it.get("date"))
+                seen[it["id"]] = {"first_seen": now, "baseline": first_read and not (d and d >= recent), "text": it["text"][:200]}
+            rec = seen[it["id"]]
+            if not rec["baseline"]:
+                new.setdefault(src, []).append(dict(it, first_seen=rec["first_seen"]))
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    with open(p + ".tmp", "w") as f:
+        json.dump(st, f, indent=1, ensure_ascii=False)
+    os.replace(p + ".tmp", p)
+    feed["new"], feed["sources_cfg"] = new, fcfg.get("sources") or []
+    for src, why in (feed.get("errors") or {}).items():
+        c.metric("security_intel_source_unreadable", 1, "Vendor advisory source that cannot be read deterministically", feed=src)
+    adv_cfg = fcfg.get("advisor")
+    if adv_cfg and new:
+        sys.path.insert(0, os.path.join(ROOT, "core"))
+        import advisor as adv  # noqa: E402
+        a = adv.advisor(adv_cfg)
+        for src, items in new.items():
+            for it in items:
+                ctx = {"headline": it["text"], "url": it["url"]}
+                prop = a.advise("extract-advisory-candidates", ctx)
+                adv.log_decision(DATA, "extract-advisory-candidates", ctx, prop, getattr(a, "model", "?"))
+                if prop:
+                    it["advisor_candidates"] = prop   # evidence only; never changes severity or status
+
+
 def main():
     global SBOM_MAX_AGE_D
     inst = spsdk.load_instance()
@@ -139,6 +206,8 @@ def main():
                      "Age of the cached intel feed", feed=f["type"])
         except Exception as e:  # noqa: BLE001
             c.gap(f"feed:{f['type']}", f"{type(e).__name__}: {e}")
+    if "vendor-advisories" in intel:
+        vendor_state(intel["vendor-advisories"], next(f for f in cfg["feeds"] if f["type"] == "vendor-advisories"), c)
     kev = intel.get("cisa-kev", {}).get("index", {})
     epss = intel.get("epss", {}).get("index", {})
     rc, out, _ = trivy(["version", "--format", "json"])
@@ -237,15 +306,222 @@ def main():
     for path, rep in repos.items():
         if rep:
             handle(f"repo:{os.path.basename(path.rstrip('/'))}", {"exposed": False, "prod": True, "clusters": []}, rep)
+
+    # ---- hosts: distro packages, fs SBOMs, platform advisories --------------------------------------------
+    inv_kinds = {}
+    for p in glob.glob(os.path.join(os.environ.get("SP_INPUT_DIR") or c.out, "inventory.*.json")):
+        d = json.load(open(p))
+        if d.get("schema") == "security-platform/inventory/v1":
+            inv_kinds.setdefault(d.get("kind"), []).extend(d.get("items") or [])
+    plats = {p["host"]: p for p in inv_kinds.get("host-platform", [])}
+    hpkgs = {}
+    for x in inv_kinds.get("host-package", []):
+        hpkgs.setdefault(x["host"], []).append(x)
+    unmatched = {}
+    host_sboms = []          # (asset, sbom relpath, meta) for the OSV matcher
+    android_idx = (intel.get("android-bulletins") or {}).get("index")
+    apple_idx = (intel.get("apple-security-releases") or {}).get("index")
+    msrc_idx = (intel.get("msrc-cvrf") or {}).get("index")
+    vend = intel.get("vendor-advisories") or {}
+    hcov = {}
+
+    def hgap(asset, part, reason):
+        hcov[asset][part] = "gap: " + reason[:200]
+
+    for host, plat in sorted(plats.items()):
+        A = f"host:{host}"
+        hcov[A] = {}
+        meta = {"exposed": plat.get("exposed", False), "prod": plat.get("prod", True), "clusters": []}
+        pk = hpkgs.get(host, [])
+        for x in pk:
+            if x["ecosystem"] not in ("deb", "apk", "rpm") or not hostmatch.DISTROS.get((plat.get("os_family") or "").lower()):
+                unmatched[x["ecosystem"]] = unmatched.get(x["ecosystem"], 0) + 1
+        cdx = hostmatch.os_sbom(plat, pk)
+        if cdx:
+            sp = os.path.join(DATA, "sbom", f"host-{host}-os.cdx.json")
+            os.makedirs(os.path.dirname(sp), exist_ok=True)
+            with open(sp, "w") as f:
+                json.dump(cdx, f)
+            rc, out, err = trivy(["sbom", "--format", "json", "--skip-db-update", "--scanners", "vuln", sp])
+            if rc != 0:
+                hgap(A, f"os-packages", f"match rc={rc}: {err.strip()[-160:]}")
+            else:
+                hcov[A]["os-packages"] = "ok"
+                rep = json.loads(out)
+                kern, rest = [], []
+                src_of = {x["name"]: x.get("source_name") for x in pk}
+                for r in rep.get("Results") or []:
+                    keep = []
+                    for v in r.get("Vulnerabilities") or []:
+                        (kern if hostmatch.is_kernel_pkg(v.get("PkgName"), src_of.get(v.get("PkgName"))) else keep).append(v)
+                    r["Vulnerabilities"] = keep
+                    rest.append(r)
+                handle(A, meta, {"Results": rest})
+                running = [v for v in kern if hostmatch.kernel_running_pkg(v["PkgName"], plat.get("kernel_running"))]
+                stale_pk = sorted({v["PkgName"] for v in kern} - {v["PkgName"] for v in running})
+                fixable = {v["VulnerabilityID"]: v for v in running if v.get("FixedVersion")}
+                if fixable:
+                    kev_k = sorted(x for x in fixable if x in kev)
+                    crit = sum(1 for v in fixable.values() if v.get("Severity") == "CRITICAL")
+                    fixed_to = max((v["FixedVersion"] for v in fixable.values()), key=hostmatch.vtuple)
+                    sev = "critical" if kev_k and meta["exposed"] else "high" if kev_k or crit else "medium"
+                    ev_key = f"{A}|kernel"
+                    evidence[ev_key] = dict(running=plat.get("kernel_running"), cves=len(fixable), critical=crit, kev=kev_k,
+                                            fixed_in=fixed_to, other_installed_kernel_packages=stale_pk[:20])
+                    c.finding("supply-chain", A, "vuln.kernel_fixes_available",
+                              f"running kernel {plat.get('kernel_running')}: {len(fixable)} CVEs fixed in {fixed_to} "
+                              f"({crit} critical{', KEV ' + ' '.join(kev_k) if kev_k else ''})", sev,
+                              f"raw/vuln-intel/matches.json#{ev_key}",
+                              "install the fixed kernel and reboot into it (planned maintenance)", kind="vulnerability",
+                              refs=kev_k[:10], cve=(kev_k or [None])[0], kev=bool(kev_k), alertable=bool(kev_k),
+                              exposed=meta["exposed"], prod=meta["prod"], base_severity="critical" if crit else "high",
+                              published_at=min((v.get("PublishedDate") or "9999")[:10] for v in fixable.values()),
+                              kev_added=max([kev[x]["date_added"] for x in kev_k] or [None]) if kev_k else None,
+                              matcher="trivy")
+                c.metric("security_host_kernel_cves_fixable", len(fixable), "CVEs of the running kernel fixed in a newer kernel", host=host)
+        if plat.get("fs_sbom") and os.path.exists(os.path.join(DATA, plat["fs_sbom"])):
+            rc, out, err = trivy(["sbom", "--format", "json", "--skip-db-update", "--scanners", "vuln", os.path.join(DATA, plat["fs_sbom"])])
+            if rc == 0:
+                hcov[A]["fs-packages"] = "ok"
+                handle(A, meta, json.loads(out))
+                host_sboms.append((A, plat["fs_sbom"], meta))
+            else:
+                hgap(A, f"fs-packages", f"match rc={rc}: {err.strip()[-160:]}")
+        fam = (plat.get("os_family") or "").lower()
+        if fam == "android":
+            if android_idx is None:
+                hgap(A, f"platform", "feed android-bulletins not configured or unavailable")
+            else:
+                missed = hostmatch.android_missed(plat, android_idx)
+                if missed is None:
+                    hgap(A, f"platform", "security patch level unknown")
+                else:
+                    hcov[A]["platform"] = "ok"
+                    for b in missed:
+                        es = b["entries"]
+                        cves = sorted({a for e in es for a in e["aliases"] if a.startswith("CVE-")})
+                        kev_c = [x for x in cves if x in kev]
+                        crit = sum(1 for e in es if e["severity"] == "critical")
+                        sev = "high" if kev_c or crit else "medium"
+                        if kev_c and meta["exposed"]:
+                            sev = "critical"
+                        ev_key = f"{A}|asb-{b['spl']}"
+                        evidence[ev_key] = dict(patch_level=plat.get("patch_level"), bulletin_spl=b["spl"], issues=len(es),
+                                                critical=crit, kev=kev_c, cves=cves[:200])
+                        c.finding("host", A, f"platform.android_bulletin.{b['spl']}",
+                                  f"Android security patch level {plat.get('patch_level')} lacks bulletin {b['spl']}: {len(es)} issues "
+                                  f"({crit} critical{', KEV ' + ' '.join(kev_c) if kev_c else ''})", sev,
+                                  f"raw/vuln-intel/matches.json#{ev_key}",
+                                  "install the vendor OTA with this patch level (if the vendor stopped updates: retire/isolate the device)",
+                                  needs_human=True, kind="vulnerability", refs=kev_c[:10], advisory=f"android-bulletin-{b['spl']}",
+                                  cve=(kev_c or [None])[0], kev=bool(kev_c), alertable=bool(kev_c), exposed=meta["exposed"],
+                                  published_at=b["spl"], kev_added=max([kev[x]["date_added"] for x in kev_c] or [None]) if kev_c else None,
+                                  base_severity="critical" if crit else "high", matcher="android-bulletins")
+        elif fam == "macos":
+            if apple_idx is None:
+                hgap(A, f"platform", "feed apple-security-releases not configured or unavailable")
+            else:
+                hcov[A]["platform"] = "ok"
+                for r in hostmatch.apple_missed(plat, apple_idx) or []:
+                    try:
+                        cves = feeds.apple_release_cves(r["url"], os.path.join(CACHE, "feeds")) if r.get("url") else []
+                    except Exception as e:  # noqa: BLE001
+                        cves = []
+                        hgap(A, f"platform-cves", f"apple release page: {type(e).__name__}")
+                    kev_c = [x for x in cves if x in kev]
+                    sev = ("critical" if meta["exposed"] else "high") if kev_c else "medium"
+                    ev_key = f"{A}|{r['name']}"
+                    evidence[ev_key] = dict(installed=plat.get("os_version"), release=r, cves=cves, kev=kev_c)
+                    c.finding("host", A, f"platform.apple_release.{r['version']}",
+                              f"{r['name']} ({r['date']}) not installed (host {plat.get('os_version')}): {len(cves)} CVEs"
+                              + (f", KEV {' '.join(kev_c)}" if kev_c else ""), sev, f"raw/vuln-intel/matches.json#{ev_key}",
+                              f"install {r['name']}", needs_human=True, kind="vulnerability", refs=kev_c[:10] + [r.get("url") or ""],
+                              advisory=r["name"], cve=(kev_c or [None])[0], kev=bool(kev_c), alertable=bool(kev_c),
+                              exposed=meta["exposed"], published_at=r["date"],
+                              kev_added=max([kev[x]["date_added"] for x in kev_c] or [None]) if kev_c else None,
+                              base_severity="high", matcher="apple-security-releases")
+        elif fam == "windows":
+            missed, prod = hostmatch.windows_missed(plat, msrc_idx) if msrc_idx is not None else (None, None)
+            if msrc_idx is None:
+                hgap(A, f"platform", "feed msrc-cvrf not configured or unavailable")
+            elif missed is None:
+                hgap(A, f"platform", f"product {prod!r} not found in the MSRC documents")
+            else:
+                hcov[A]["platform"] = "ok"
+                for m in missed:
+                    cves = sorted({i["cve"] for i in m["items"] if i.get("cve")})
+                    kev_c = sorted({x for x in cves if x in kev} | {i["cve"] for i in m["items"] if i.get("exploited")})
+                    crit = sum(1 for i in m["items"] if i.get("severity") == "critical")
+                    sev = ("critical" if meta["exposed"] else "high") if kev_c else ("high" if crit else "medium")
+                    ev_key = f"{A}|{m['release']}"
+                    evidence[ev_key] = dict(build=plat.get("os_build"), product=prod, release=m["release"], cves=cves,
+                                            kev_or_exploited=kev_c, kbs=sorted({i["kb"] for i in m["items"]}),
+                                            fixed_builds=sorted({i["fixed_build"] for i in m["items"]}))
+                    c.finding("host", A, f"platform.windows_update.{m['release'].lower()}",
+                              f"{m['release']} security update not installed (build {plat.get('os_build')}): {len(cves)} CVEs "
+                              f"({crit} critical{', exploited ' + ' '.join(kev_c) if kev_c else ''})", sev,
+                              f"raw/vuln-intel/matches.json#{ev_key}", "run Windows Update (cumulative update)", needs_human=True,
+                              kind="vulnerability", refs=kev_c[:10], advisory=f"msrc-{m['release']}", cve=(kev_c or [None])[0],
+                              kev=bool(kev_c), alertable=bool(kev_c), exposed=meta["exposed"], published_at=m["date"],
+                              base_severity="critical" if crit else "high", matcher="msrc-cvrf")
+        fw = plat.get("firmware") or {}
+        if fw.get("vendor"):
+            hcov[A]["firmware-kev"] = "ok"
+            names = (cfg.get("firmware_vendors") or {}).get(fw["vendor"], [fw["vendor"]])
+            for k in hostmatch.vendor_kev(plat, kev, names):
+                ev_key = f"{A}|{k['cve']}"
+                evidence[ev_key] = dict(firmware=fw, kev=k)
+                c.finding("host", A, f"vuln.{k['cve'].lower()}",
+                          f"{k['cve']} (KEV, {k.get('vendor')} {k.get('product')}) added {k['date_added']} after the firmware "
+                          f"build {fw.get('build_date')}: CANDIDATE - verify the model/version against the vendor advisory",
+                          "critical" if meta["exposed"] else "high", f"raw/vuln-intel/matches.json#{ev_key}",
+                          "check the vendor advisory for this model; update firmware or isolate", needs_human=True,
+                          kind="vulnerability", refs=[k["cve"]], cve=k["cve"], kev=True, kev_added=k["date_added"],
+                          published_at=k["date_added"], alertable=True, exposed=meta["exposed"], candidate=True,
+                          matcher="kev-vendor")
+            srcs = [s for s in (vend.get("sources_cfg") or []) if fw["vendor"] in (s.get("vendors") or [])]
+            reviews = spsdk.load_config(os.path.join(DATA, "advisory-reviews.yaml")) if os.path.exists(os.path.join(DATA, "advisory-reviews.yaml")) else {}
+            reviews = (reviews or {}).get("reviews") or {}
+            for s in srcs:
+                if s["name"] in (vend.get("errors") or {}):
+                    hgap(A, f"vendor-advisories:{s['name']}", vend["errors"][s["name"]])
+                    continue
+                hcov[A][f"vendor-advisories:{s['name']}"] = "ok"
+                for it in (vend.get("new") or {}).get(s["name"], []):
+                    rv = reviews.get(it["id"]) or {}
+                    if rv.get("verdict") in ("not-affected", "not-applicable") and rv.get("by"):
+                        continue   # a HUMAN's verdict; the platform never concludes this itself
+                    affected = rv.get("verdict") == "affected"
+                    mentions = [w for w in [fw.get("model"), fw.get("version")] + [x["name"] for x in pk if len(x["name"]) > 4]
+                                if w and re.search(r"(?<![\w-])" + re.escape(w) + r"(?![\w-])", it["text"])]
+                    ev_key = f"{A}|advisory-{it['id']}"
+                    evidence[ev_key] = dict(item=it, mentions=mentions[:10], review=rv or None)
+                    c.finding("host", A, f"advisory.vendor.{it['id']}",
+                              ("AFFECTED (human review): " if affected else "Unreviewed vendor advisory (candidate): ")
+                              + it["text"][:200], "high" if affected else ("medium" if mentions else "low"),
+                              f"raw/vuln-intel/matches.json#{ev_key}",
+                              f"read {it['url']} and record a verdict in advisory-reviews.yaml (id {it['id']})", needs_human=True,
+                              kind="vulnerability", advisory=f"{s['name']}:{it['id']}", published_at=it.get("first_seen", "")[:10],
+                              candidate=not affected, matcher="vendor-advisories")
+    # coverage per HOST (findings live on host:<name>): ok only when every applicable matcher covered it, so a
+    # partial run never marks a finding fixed; the per-matcher detail is evidence
+    for A, parts in hcov.items():
+        bad = {k: v for k, v in parts.items() if v != "ok"}
+        if not parts:
+            c.gap(A, "no matcher applies (no distro packages, fs SBOM, platform feed or firmware vendor)")
+        elif bad:
+            c.gap(A, "partial: " + "; ".join(f"{k} {v}" for k, v in bad.items()))
+        else:
+            c.ok(A)
+    c.raw("host-coverage.json", hcov)
     # ---- OSV: second matcher over the same SBOMs ------------------------------------------------------------
     osv_idx = intel.get("osv", {}).get("index", {})
     osv_hits = 0
     if osv_idx:
-        for ref, meta in images.items():
-            if not meta.get("sbom"):
-                continue
+        targets = [(f"image:{ref}", meta["sbom"], meta) for ref, meta in images.items() if meta.get("sbom")] + host_sboms
+        for asset, sbom_rel, meta in targets:
             try:
-                cdx = json.load(open(os.path.join(DATA, meta["sbom"])))
+                cdx = json.load(open(os.path.join(DATA, sbom_rel)))
             except (OSError, ValueError):
                 continue
             for eco, name, ver, adv in osvmatch.match(osvmatch.components(cdx), osv_idx):
@@ -255,7 +531,6 @@ def main():
                 if not (in_kev or adv["severity"] == "critical"):
                     continue
                 vid = cves[0] if cves else adv["id"]
-                asset = f"image:{ref}"
                 exposed = meta.get("exposed", False)
                 prio = ("critical" if exposed else "high")
                 fixed = osvmatch.fixed_version(adv)
@@ -272,6 +547,8 @@ def main():
                           f"update {name} to {fixed}" if fixed else "mitigate (reduce exposure) / watch for a fix",
                           kind="vulnerability", refs=[vid, adv["id"]], **attrs)
         c.metric("security_vuln_osv_matches", osv_hits, "Component x advisory matches found by the OSV matcher")
+    for k, v in sorted(unmatched.items()):
+        c.metric("security_sbom_unmatched_packages", v, "Inventoried host packages without a structured advisory source", kind=k)
     high = evidence.pop("_high", {})
     c.raw("matches.json", evidence)
     c.raw("high-aggregate.json", high)

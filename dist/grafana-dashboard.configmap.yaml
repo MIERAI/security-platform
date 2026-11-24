@@ -138,103 +138,110 @@ data:
     \      \"mode\": \"absolute\",\n      \"steps\": [\n       {\n        \"color\": \"green\",\n        \"value\": null\n       },\n       {\n\
     \        \"color\": \"red\",\n        \"value\": 90.001\n       }\n      ]\n     }\n    },\n    \"overrides\": []\n   },\n   \"options\":\
     \ {},\n   \"description\": \"Days since the check catalog / benchmarks were last reviewed against upstream (CIS, ATT&CK, Sigma/Falco) (objective\
-    \ <= 90)\"\n  },\n  {\n   \"id\": 23,\n   \"type\": \"row\",\n   \"title\": \"Findings (aggregates only; details stay in the private ledger)\"\
-    ,\n   \"gridPos\": {\n    \"x\": 0,\n    \"y\": 25,\n    \"w\": 24,\n    \"h\": 1\n   }\n  },\n  {\n   \"id\": 24,\n   \"type\": \"timeseries\"\
-    ,\n   \"title\": \"Open findings by layer\",\n   \"gridPos\": {\n    \"x\": 0,\n    \"y\": 26,\n    \"w\": 12,\n    \"h\": 8\n   },\n   \"\
-    datasource\": {\n    \"type\": \"prometheus\",\n    \"uid\": \"${datasource}\"\n   },\n   \"targets\": [\n    {\n     \"refId\": \"A\",\n\
-    \     \"expr\": \"sum by (layer) (security_findings{namespace=~\\\"$namespace\\\", status=\\\"open\\\"})\",\n     \"legendFormat\": \"{{layer}}\"\
+    \ <= 90)\"\n  },\n  {\n   \"id\": 23,\n   \"type\": \"stat\",\n   \"title\": \"time_to_know_hours\",\n   \"gridPos\": {\n    \"x\": 0,\n \
+    \   \"y\": 25,\n    \"w\": 4,\n    \"h\": 4\n   },\n   \"datasource\": {\n    \"type\": \"prometheus\",\n    \"uid\": \"${datasource}\"\n\
+    \   },\n   \"targets\": [\n    {\n     \"refId\": \"A\",\n     \"expr\": \"max(security_sli{namespace=~\\\"$namespace\\\", sli=\\\"time_to_know_hours\\\
+    \"})\"\n    }\n   ],\n   \"fieldConfig\": {\n    \"defaults\": {\n     \"thresholds\": {\n      \"mode\": \"absolute\",\n      \"steps\":\
+    \ [\n       {\n        \"color\": \"green\",\n        \"value\": null\n       },\n       {\n        \"color\": \"red\",\n        \"value\"\
+    : 24.001\n       }\n      ]\n     }\n    },\n    \"overrides\": []\n   },\n   \"options\": {},\n   \"description\": \"Longest time-to-know\
+    \ (last 30 days) for KEV / critical / high detections on already-covered assets - advisory or KEV publication (date granularity: an upper\
+    \ bound) to the first finding; images, repos, hosts and firmware (objective <= 24)\"\n  },\n  {\n   \"id\": 24,\n   \"type\": \"row\",\n \
+    \  \"title\": \"Findings (aggregates only; details stay in the private ledger)\",\n   \"gridPos\": {\n    \"x\": 0,\n    \"y\": 29,\n    \"\
+    w\": 24,\n    \"h\": 1\n   }\n  },\n  {\n   \"id\": 25,\n   \"type\": \"timeseries\",\n   \"title\": \"Open findings by layer\",\n   \"gridPos\"\
+    : {\n    \"x\": 0,\n    \"y\": 30,\n    \"w\": 12,\n    \"h\": 8\n   },\n   \"datasource\": {\n    \"type\": \"prometheus\",\n    \"uid\"\
+    : \"${datasource}\"\n   },\n   \"targets\": [\n    {\n     \"refId\": \"A\",\n     \"expr\": \"sum by (layer) (security_findings{namespace=~\\\
+    \"$namespace\\\", status=\\\"open\\\"})\",\n     \"legendFormat\": \"{{layer}}\"\n    }\n   ],\n   \"fieldConfig\": {\n    \"defaults\": {\n\
+    \     \"thresholds\": {\n      \"mode\": \"absolute\",\n      \"steps\": [\n       {\n        \"color\": \"green\",\n        \"value\": null\n\
+    \       },\n       {\n        \"color\": \"red\",\n        \"value\": 1\n       }\n      ]\n     },\n     \"custom\": {\n      \"stacking\"\
+    : {\n       \"mode\": \"normal\"\n      },\n      \"fillOpacity\": 30\n     }\n    },\n    \"overrides\": []\n   },\n   \"options\": {}\n\
+    \  },\n  {\n   \"id\": 26,\n   \"type\": \"timeseries\",\n   \"title\": \"Open findings by severity\",\n   \"gridPos\": {\n    \"x\": 12,\n\
+    \    \"y\": 30,\n    \"w\": 12,\n    \"h\": 8\n   },\n   \"datasource\": {\n    \"type\": \"prometheus\",\n    \"uid\": \"${datasource}\"\n\
+    \   },\n   \"targets\": [\n    {\n     \"refId\": \"A\",\n     \"expr\": \"sum by (severity) (security_findings{namespace=~\\\"$namespace\\\
+    \", status=\\\"open\\\"})\",\n     \"legendFormat\": \"{{severity}}\"\n    }\n   ],\n   \"fieldConfig\": {\n    \"defaults\": {\n     \"thresholds\"\
+    : {\n      \"mode\": \"absolute\",\n      \"steps\": [\n       {\n        \"color\": \"green\",\n        \"value\": null\n       },\n    \
+    \   {\n        \"color\": \"red\",\n        \"value\": 1\n       }\n      ]\n     },\n     \"custom\": {\n      \"stacking\": {\n       \"\
+    mode\": \"normal\"\n      },\n      \"fillOpacity\": 30\n     }\n    },\n    \"overrides\": []\n   },\n   \"options\": {}\n  },\n  {\n   \"\
+    id\": 27,\n   \"type\": \"bargauge\",\n   \"title\": \"New findings entering an SLI (24h)\",\n   \"gridPos\": {\n    \"x\": 0,\n    \"y\"\
+    : 38,\n    \"w\": 12,\n    \"h\": 6\n   },\n   \"datasource\": {\n    \"type\": \"prometheus\",\n    \"uid\": \"${datasource}\"\n   },\n \
+    \  \"targets\": [\n    {\n     \"refId\": \"A\",\n     \"expr\": \"sum by (sli) (increase(security_sli_new_total{namespace=~\\\"$namespace\\\
+    \"}[24h]))\",\n     \"legendFormat\": \"{{sli}}\"\n    }\n   ],\n   \"fieldConfig\": {\n    \"defaults\": {\n     \"thresholds\": {\n    \
+    \  \"mode\": \"absolute\",\n      \"steps\": [\n       {\n        \"color\": \"green\",\n        \"value\": null\n       },\n       {\n  \
+    \      \"color\": \"red\",\n        \"value\": 1\n       }\n      ]\n     }\n    },\n    \"overrides\": []\n   },\n   \"options\": {}\n  },\n\
+    \  {\n   \"id\": 28,\n   \"type\": \"stat\",\n   \"title\": \"Regressions (reopened, total)\",\n   \"gridPos\": {\n    \"x\": 12,\n    \"\
+    y\": 38,\n    \"w\": 4,\n    \"h\": 6\n   },\n   \"datasource\": {\n    \"type\": \"prometheus\",\n    \"uid\": \"${datasource}\"\n   },\n\
+    \   \"targets\": [\n    {\n     \"refId\": \"A\",\n     \"expr\": \"max(security_findings_reopened_total{namespace=~\\\"$namespace\\\"})\"\
     \n    }\n   ],\n   \"fieldConfig\": {\n    \"defaults\": {\n     \"thresholds\": {\n      \"mode\": \"absolute\",\n      \"steps\": [\n  \
     \     {\n        \"color\": \"green\",\n        \"value\": null\n       },\n       {\n        \"color\": \"red\",\n        \"value\": 1\n\
-    \       }\n      ]\n     },\n     \"custom\": {\n      \"stacking\": {\n       \"mode\": \"normal\"\n      },\n      \"fillOpacity\": 30\n\
-    \     }\n    },\n    \"overrides\": []\n   },\n   \"options\": {}\n  },\n  {\n   \"id\": 25,\n   \"type\": \"timeseries\",\n   \"title\":\
-    \ \"Open findings by severity\",\n   \"gridPos\": {\n    \"x\": 12,\n    \"y\": 26,\n    \"w\": 12,\n    \"h\": 8\n   },\n   \"datasource\"\
+    \       }\n      ]\n     }\n    },\n    \"overrides\": []\n   },\n   \"options\": {}\n  },\n  {\n   \"id\": 29,\n   \"type\": \"stat\",\n\
+    \   \"title\": \"Time to fix p50 (days)\",\n   \"gridPos\": {\n    \"x\": 16,\n    \"y\": 38,\n    \"w\": 4,\n    \"h\": 6\n   },\n   \"datasource\"\
     : {\n    \"type\": \"prometheus\",\n    \"uid\": \"${datasource}\"\n   },\n   \"targets\": [\n    {\n     \"refId\": \"A\",\n     \"expr\"\
-    : \"sum by (severity) (security_findings{namespace=~\\\"$namespace\\\", status=\\\"open\\\"})\",\n     \"legendFormat\": \"{{severity}}\"\n\
-    \    }\n   ],\n   \"fieldConfig\": {\n    \"defaults\": {\n     \"thresholds\": {\n      \"mode\": \"absolute\",\n      \"steps\": [\n   \
-    \    {\n        \"color\": \"green\",\n        \"value\": null\n       },\n       {\n        \"color\": \"red\",\n        \"value\": 1\n \
-    \      }\n      ]\n     },\n     \"custom\": {\n      \"stacking\": {\n       \"mode\": \"normal\"\n      },\n      \"fillOpacity\": 30\n\
-    \     }\n    },\n    \"overrides\": []\n   },\n   \"options\": {}\n  },\n  {\n   \"id\": 26,\n   \"type\": \"bargauge\",\n   \"title\": \"\
-    New findings entering an SLI (24h)\",\n   \"gridPos\": {\n    \"x\": 0,\n    \"y\": 34,\n    \"w\": 12,\n    \"h\": 6\n   },\n   \"datasource\"\
-    : {\n    \"type\": \"prometheus\",\n    \"uid\": \"${datasource}\"\n   },\n   \"targets\": [\n    {\n     \"refId\": \"A\",\n     \"expr\"\
-    : \"sum by (sli) (increase(security_sli_new_total{namespace=~\\\"$namespace\\\"}[24h]))\",\n     \"legendFormat\": \"{{sli}}\"\n    }\n  \
-    \ ],\n   \"fieldConfig\": {\n    \"defaults\": {\n     \"thresholds\": {\n      \"mode\": \"absolute\",\n      \"steps\": [\n       {\n  \
-    \      \"color\": \"green\",\n        \"value\": null\n       },\n       {\n        \"color\": \"red\",\n        \"value\": 1\n       }\n\
-    \      ]\n     }\n    },\n    \"overrides\": []\n   },\n   \"options\": {}\n  },\n  {\n   \"id\": 27,\n   \"type\": \"stat\",\n   \"title\"\
-    : \"Regressions (reopened, total)\",\n   \"gridPos\": {\n    \"x\": 12,\n    \"y\": 34,\n    \"w\": 4,\n    \"h\": 6\n   },\n   \"datasource\"\
-    : {\n    \"type\": \"prometheus\",\n    \"uid\": \"${datasource}\"\n   },\n   \"targets\": [\n    {\n     \"refId\": \"A\",\n     \"expr\"\
-    : \"max(security_findings_reopened_total{namespace=~\\\"$namespace\\\"})\"\n    }\n   ],\n   \"fieldConfig\": {\n    \"defaults\": {\n   \
-    \  \"thresholds\": {\n      \"mode\": \"absolute\",\n      \"steps\": [\n       {\n        \"color\": \"green\",\n        \"value\": null\n\
-    \       },\n       {\n        \"color\": \"red\",\n        \"value\": 1\n       }\n      ]\n     }\n    },\n    \"overrides\": []\n   },\n\
-    \   \"options\": {}\n  },\n  {\n   \"id\": 28,\n   \"type\": \"stat\",\n   \"title\": \"Time to fix p50 (days)\",\n   \"gridPos\": {\n   \
-    \ \"x\": 16,\n    \"y\": 34,\n    \"w\": 4,\n    \"h\": 6\n   },\n   \"datasource\": {\n    \"type\": \"prometheus\",\n    \"uid\": \"${datasource}\"\
-    \n   },\n   \"targets\": [\n    {\n     \"refId\": \"A\",\n     \"expr\": \"max(security_time_to_fix_days{namespace=~\\\"$namespace\\\", quantile=\\\
-    \"0.5\\\"})\"\n    }\n   ],\n   \"fieldConfig\": {\n    \"defaults\": {\n     \"thresholds\": {\n      \"mode\": \"absolute\",\n      \"steps\"\
-    : [\n       {\n        \"color\": \"green\",\n        \"value\": null\n       },\n       {\n        \"color\": \"orange\",\n        \"value\"\
-    : 7\n       }\n      ]\n     }\n    },\n    \"overrides\": []\n   },\n   \"options\": {}\n  },\n  {\n   \"id\": 29,\n   \"type\": \"stat\"\
-    ,\n   \"title\": \"Exceptions active / expired\",\n   \"gridPos\": {\n    \"x\": 20,\n    \"y\": 34,\n    \"w\": 4,\n    \"h\": 3\n   },\n\
-    \   \"datasource\": {\n    \"type\": \"prometheus\",\n    \"uid\": \"${datasource}\"\n   },\n   \"targets\": [\n    {\n     \"refId\": \"\
-    A\",\n     \"expr\": \"max(security_exceptions_active{namespace=~\\\"$namespace\\\"})\"\n    }\n   ],\n   \"fieldConfig\": {\n    \"defaults\"\
+    : \"max(security_time_to_fix_days{namespace=~\\\"$namespace\\\", quantile=\\\"0.5\\\"})\"\n    }\n   ],\n   \"fieldConfig\": {\n    \"defaults\"\
     : {\n     \"thresholds\": {\n      \"mode\": \"absolute\",\n      \"steps\": [\n       {\n        \"color\": \"green\",\n        \"value\"\
-    : null\n       }\n      ]\n     }\n    },\n    \"overrides\": []\n   },\n   \"options\": {}\n  },\n  {\n   \"id\": 30,\n   \"type\": \"stat\"\
-    ,\n   \"title\": \"Expired exceptions\",\n   \"gridPos\": {\n    \"x\": 20,\n    \"y\": 37,\n    \"w\": 4,\n    \"h\": 3\n   },\n   \"datasource\"\
-    : {\n    \"type\": \"prometheus\",\n    \"uid\": \"${datasource}\"\n   },\n   \"targets\": [\n    {\n     \"refId\": \"A\",\n     \"expr\"\
-    : \"max(security_exceptions_expired{namespace=~\\\"$namespace\\\"})\"\n    }\n   ],\n   \"fieldConfig\": {\n    \"defaults\": {\n     \"thresholds\"\
+    : null\n       },\n       {\n        \"color\": \"orange\",\n        \"value\": 7\n       }\n      ]\n     }\n    },\n    \"overrides\": []\n\
+    \   },\n   \"options\": {}\n  },\n  {\n   \"id\": 30,\n   \"type\": \"stat\",\n   \"title\": \"Exceptions active / expired\",\n   \"gridPos\"\
+    : {\n    \"x\": 20,\n    \"y\": 38,\n    \"w\": 4,\n    \"h\": 3\n   },\n   \"datasource\": {\n    \"type\": \"prometheus\",\n    \"uid\"\
+    : \"${datasource}\"\n   },\n   \"targets\": [\n    {\n     \"refId\": \"A\",\n     \"expr\": \"max(security_exceptions_active{namespace=~\\\
+    \"$namespace\\\"})\"\n    }\n   ],\n   \"fieldConfig\": {\n    \"defaults\": {\n     \"thresholds\": {\n      \"mode\": \"absolute\",\n  \
+    \    \"steps\": [\n       {\n        \"color\": \"green\",\n        \"value\": null\n       }\n      ]\n     }\n    },\n    \"overrides\"\
+    : []\n   },\n   \"options\": {}\n  },\n  {\n   \"id\": 31,\n   \"type\": \"stat\",\n   \"title\": \"Expired exceptions\",\n   \"gridPos\"\
+    : {\n    \"x\": 20,\n    \"y\": 41,\n    \"w\": 4,\n    \"h\": 3\n   },\n   \"datasource\": {\n    \"type\": \"prometheus\",\n    \"uid\"\
+    : \"${datasource}\"\n   },\n   \"targets\": [\n    {\n     \"refId\": \"A\",\n     \"expr\": \"max(security_exceptions_expired{namespace=~\\\
+    \"$namespace\\\"})\"\n    }\n   ],\n   \"fieldConfig\": {\n    \"defaults\": {\n     \"thresholds\": {\n      \"mode\": \"absolute\",\n  \
+    \    \"steps\": [\n       {\n        \"color\": \"green\",\n        \"value\": null\n       },\n       {\n        \"color\": \"red\",\n  \
+    \      \"value\": 1\n       }\n      ]\n     }\n    },\n    \"overrides\": []\n   },\n   \"options\": {}\n  },\n  {\n   \"id\": 32,\n   \"\
+    type\": \"row\",\n   \"title\": \"Platform health (inner loop): no findings != secure\",\n   \"gridPos\": {\n    \"x\": 0,\n    \"y\": 44,\n\
+    \    \"w\": 24,\n    \"h\": 1\n   }\n  },\n  {\n   \"id\": 33,\n   \"type\": \"bargauge\",\n   \"title\": \"Collector: hours since last good\
+    \ run\",\n   \"gridPos\": {\n    \"x\": 0,\n    \"y\": 45,\n    \"w\": 12,\n    \"h\": 8\n   },\n   \"datasource\": {\n    \"type\": \"prometheus\"\
+    ,\n    \"uid\": \"${datasource}\"\n   },\n   \"targets\": [\n    {\n     \"refId\": \"A\",\n     \"expr\": \"(time() - max by (collector)\
+    \ (security_collector_last_good_run_timestamp_seconds{namespace=~\\\"$namespace\\\"})) / 3600\",\n     \"legendFormat\": \"{{collector}}\"\
+    \n    }\n   ],\n   \"fieldConfig\": {\n    \"defaults\": {\n     \"thresholds\": {\n      \"mode\": \"absolute\",\n      \"steps\": [\n  \
+    \     {\n        \"color\": \"green\",\n        \"value\": null\n       },\n       {\n        \"color\": \"orange\",\n        \"value\": 26\n\
+    \       },\n       {\n        \"color\": \"red\",\n        \"value\": 50\n       }\n      ]\n     }\n    },\n    \"overrides\": []\n   },\n\
+    \   \"options\": {}\n  },\n  {\n   \"id\": 34,\n   \"type\": \"bargauge\",\n   \"title\": \"Coverage gaps by collector\",\n   \"gridPos\"\
+    : {\n    \"x\": 12,\n    \"y\": 45,\n    \"w\": 12,\n    \"h\": 8\n   },\n   \"datasource\": {\n    \"type\": \"prometheus\",\n    \"uid\"\
+    : \"${datasource}\"\n   },\n   \"targets\": [\n    {\n     \"refId\": \"A\",\n     \"expr\": \"max by (collector) (security_collector_gaps{namespace=~\\\
+    \"$namespace\\\"})\",\n     \"legendFormat\": \"{{collector}}\"\n    }\n   ],\n   \"fieldConfig\": {\n    \"defaults\": {\n     \"thresholds\"\
     : {\n      \"mode\": \"absolute\",\n      \"steps\": [\n       {\n        \"color\": \"green\",\n        \"value\": null\n       },\n    \
     \   {\n        \"color\": \"red\",\n        \"value\": 1\n       }\n      ]\n     }\n    },\n    \"overrides\": []\n   },\n   \"options\"\
-    : {}\n  },\n  {\n   \"id\": 31,\n   \"type\": \"row\",\n   \"title\": \"Platform health (inner loop): no findings != secure\",\n   \"gridPos\"\
-    : {\n    \"x\": 0,\n    \"y\": 40,\n    \"w\": 24,\n    \"h\": 1\n   }\n  },\n  {\n   \"id\": 32,\n   \"type\": \"bargauge\",\n   \"title\"\
-    : \"Collector: hours since last good run\",\n   \"gridPos\": {\n    \"x\": 0,\n    \"y\": 41,\n    \"w\": 12,\n    \"h\": 8\n   },\n   \"\
-    datasource\": {\n    \"type\": \"prometheus\",\n    \"uid\": \"${datasource}\"\n   },\n   \"targets\": [\n    {\n     \"refId\": \"A\",\n\
-    \     \"expr\": \"(time() - max by (collector) (security_collector_last_good_run_timestamp_seconds{namespace=~\\\"$namespace\\\"})) / 3600\"\
-    ,\n     \"legendFormat\": \"{{collector}}\"\n    }\n   ],\n   \"fieldConfig\": {\n    \"defaults\": {\n     \"thresholds\": {\n      \"mode\"\
-    : \"absolute\",\n      \"steps\": [\n       {\n        \"color\": \"green\",\n        \"value\": null\n       },\n       {\n        \"color\"\
-    : \"orange\",\n        \"value\": 26\n       },\n       {\n        \"color\": \"red\",\n        \"value\": 50\n       }\n      ]\n     }\n\
-    \    },\n    \"overrides\": []\n   },\n   \"options\": {}\n  },\n  {\n   \"id\": 33,\n   \"type\": \"bargauge\",\n   \"title\": \"Coverage\
-    \ gaps by collector\",\n   \"gridPos\": {\n    \"x\": 12,\n    \"y\": 41,\n    \"w\": 12,\n    \"h\": 8\n   },\n   \"datasource\": {\n   \
-    \ \"type\": \"prometheus\",\n    \"uid\": \"${datasource}\"\n   },\n   \"targets\": [\n    {\n     \"refId\": \"A\",\n     \"expr\": \"max\
-    \ by (collector) (security_collector_gaps{namespace=~\\\"$namespace\\\"})\",\n     \"legendFormat\": \"{{collector}}\"\n    }\n   ],\n   \"\
-    fieldConfig\": {\n    \"defaults\": {\n     \"thresholds\": {\n      \"mode\": \"absolute\",\n      \"steps\": [\n       {\n        \"color\"\
-    : \"green\",\n        \"value\": null\n       },\n       {\n        \"color\": \"red\",\n        \"value\": 1\n       }\n      ]\n     }\n\
-    \    },\n    \"overrides\": []\n   },\n   \"options\": {}\n  },\n  {\n   \"id\": 34,\n   \"type\": \"bargauge\",\n   \"title\": \"Runner jobs:\
-    \ hours since last success\",\n   \"gridPos\": {\n    \"x\": 0,\n    \"y\": 49,\n    \"w\": 12,\n    \"h\": 8\n   },\n   \"datasource\": {\n\
-    \    \"type\": \"prometheus\",\n    \"uid\": \"${datasource}\"\n   },\n   \"targets\": [\n    {\n     \"refId\": \"A\",\n     \"expr\": \"\
-    (time() - max by (site, job) (security_runner_job_last_success_timestamp_seconds{namespace=~\\\"$namespace\\\"})) / 3600\",\n     \"legendFormat\"\
-    : \"{{site}}/{{job}}\"\n    }\n   ],\n   \"fieldConfig\": {\n    \"defaults\": {\n     \"thresholds\": {\n      \"mode\": \"absolute\",\n\
-    \      \"steps\": [\n       {\n        \"color\": \"green\",\n        \"value\": null\n       },\n       {\n        \"color\": \"orange\"\
-    ,\n        \"value\": 26\n       },\n       {\n        \"color\": \"red\",\n        \"value\": 50\n       }\n      ]\n     }\n    },\n   \
-    \ \"overrides\": []\n   },\n   \"options\": {}\n  },\n  {\n   \"id\": 35,\n   \"type\": \"bargauge\",\n   \"title\": \"Runner job failures\
-    \ (24h)\",\n   \"gridPos\": {\n    \"x\": 12,\n    \"y\": 49,\n    \"w\": 12,\n    \"h\": 8\n   },\n   \"datasource\": {\n    \"type\": \"\
-    prometheus\",\n    \"uid\": \"${datasource}\"\n   },\n   \"targets\": [\n    {\n     \"refId\": \"A\",\n     \"expr\": \"sum by (site, job)\
-    \ (increase(security_runner_job_failures_total{namespace=~\\\"$namespace\\\"}[24h]))\",\n     \"legendFormat\": \"{{site}}/{{job}}\"\n   \
-    \ }\n   ],\n   \"fieldConfig\": {\n    \"defaults\": {\n     \"thresholds\": {\n      \"mode\": \"absolute\",\n      \"steps\": [\n      \
-    \ {\n        \"color\": \"green\",\n        \"value\": null\n       },\n       {\n        \"color\": \"red\",\n        \"value\": 1\n    \
-    \   }\n      ]\n     }\n    },\n    \"overrides\": []\n   },\n   \"options\": {}\n  },\n  {\n   \"id\": 36,\n   \"type\": \"bargauge\",\n\
-    \   \"title\": \"Remediation: overdue by severity\",\n   \"gridPos\": {\n    \"x\": 0,\n    \"y\": 57,\n    \"w\": 12,\n    \"h\": 6\n   },\n\
-    \   \"datasource\": {\n    \"type\": \"prometheus\",\n    \"uid\": \"${datasource}\"\n   },\n   \"targets\": [\n    {\n     \"refId\": \"\
-    A\",\n     \"expr\": \"max by (severity) (security_remediation_overdue{namespace=~\\\"$namespace\\\"})\",\n     \"legendFormat\": \"{{severity}}\"\
-    \n    }\n   ],\n   \"fieldConfig\": {\n    \"defaults\": {\n     \"thresholds\": {\n      \"mode\": \"absolute\",\n      \"steps\": [\n  \
-    \     {\n        \"color\": \"green\",\n        \"value\": null\n       },\n       {\n        \"color\": \"red\",\n        \"value\": 1\n\
-    \       }\n      ]\n     }\n    },\n    \"overrides\": []\n   },\n   \"options\": {}\n  },\n  {\n   \"id\": 37,\n   \"type\": \"bargauge\"\
-    ,\n   \"title\": \"Time to remediate p50 (days) by severity\",\n   \"gridPos\": {\n    \"x\": 12,\n    \"y\": 57,\n    \"w\": 12,\n    \"\
-    h\": 6\n   },\n   \"datasource\": {\n    \"type\": \"prometheus\",\n    \"uid\": \"${datasource}\"\n   },\n   \"targets\": [\n    {\n    \
-    \ \"refId\": \"A\",\n     \"expr\": \"max by (severity) (security_time_to_remediate_days{namespace=~\\\"$namespace\\\", quantile=\\\"0.5\\\
-    \"})\",\n     \"legendFormat\": \"{{severity}}\"\n    }\n   ],\n   \"fieldConfig\": {\n    \"defaults\": {\n     \"thresholds\": {\n     \
-    \ \"mode\": \"absolute\",\n      \"steps\": [\n       {\n        \"color\": \"green\",\n        \"value\": null\n       },\n       {\n   \
-    \     \"color\": \"red\",\n        \"value\": 1\n       }\n      ]\n     }\n    },\n    \"overrides\": []\n   },\n   \"options\": {}\n  },\n\
-    \  {\n   \"id\": 38,\n   \"type\": \"bargauge\",\n   \"title\": \"Intel feed age (hours)\",\n   \"gridPos\": {\n    \"x\": 0,\n    \"y\":\
-    \ 63,\n    \"w\": 12,\n    \"h\": 6\n   },\n   \"datasource\": {\n    \"type\": \"prometheus\",\n    \"uid\": \"${datasource}\"\n   },\n \
-    \  \"targets\": [\n    {\n     \"refId\": \"A\",\n     \"expr\": \"max by (feed) (security_intel_feed_age_seconds{namespace=~\\\"$namespace\\\
-    \"}) / 3600\",\n     \"legendFormat\": \"{{feed}}\"\n    }\n   ],\n   \"fieldConfig\": {\n    \"defaults\": {\n     \"thresholds\": {\n  \
-    \    \"mode\": \"absolute\",\n      \"steps\": [\n       {\n        \"color\": \"green\",\n        \"value\": null\n       },\n       {\n\
-    \        \"color\": \"red\",\n        \"value\": 72\n       }\n      ]\n     }\n    },\n    \"overrides\": []\n   },\n   \"options\": {}\n\
-    \  },\n  {\n   \"id\": 39,\n   \"type\": \"stat\",\n   \"title\": \"Hours since the hub published\",\n   \"gridPos\": {\n    \"x\": 12,\n\
-    \    \"y\": 63,\n    \"w\": 6,\n    \"h\": 6\n   },\n   \"datasource\": {\n    \"type\": \"prometheus\",\n    \"uid\": \"${datasource}\"\n\
+    : {}\n  },\n  {\n   \"id\": 35,\n   \"type\": \"bargauge\",\n   \"title\": \"Runner jobs: hours since last success\",\n   \"gridPos\": {\n\
+    \    \"x\": 0,\n    \"y\": 53,\n    \"w\": 12,\n    \"h\": 8\n   },\n   \"datasource\": {\n    \"type\": \"prometheus\",\n    \"uid\": \"\
+    ${datasource}\"\n   },\n   \"targets\": [\n    {\n     \"refId\": \"A\",\n     \"expr\": \"(time() - max by (site, job) (security_runner_job_last_success_timestamp_seconds{namespace=~\\\
+    \"$namespace\\\"})) / 3600\",\n     \"legendFormat\": \"{{site}}/{{job}}\"\n    }\n   ],\n   \"fieldConfig\": {\n    \"defaults\": {\n   \
+    \  \"thresholds\": {\n      \"mode\": \"absolute\",\n      \"steps\": [\n       {\n        \"color\": \"green\",\n        \"value\": null\n\
+    \       },\n       {\n        \"color\": \"orange\",\n        \"value\": 26\n       },\n       {\n        \"color\": \"red\",\n        \"\
+    value\": 50\n       }\n      ]\n     }\n    },\n    \"overrides\": []\n   },\n   \"options\": {}\n  },\n  {\n   \"id\": 36,\n   \"type\":\
+    \ \"bargauge\",\n   \"title\": \"Runner job failures (24h)\",\n   \"gridPos\": {\n    \"x\": 12,\n    \"y\": 53,\n    \"w\": 12,\n    \"h\"\
+    : 8\n   },\n   \"datasource\": {\n    \"type\": \"prometheus\",\n    \"uid\": \"${datasource}\"\n   },\n   \"targets\": [\n    {\n     \"\
+    refId\": \"A\",\n     \"expr\": \"sum by (site, job) (increase(security_runner_job_failures_total{namespace=~\\\"$namespace\\\"}[24h]))\"\
+    ,\n     \"legendFormat\": \"{{site}}/{{job}}\"\n    }\n   ],\n   \"fieldConfig\": {\n    \"defaults\": {\n     \"thresholds\": {\n      \"\
+    mode\": \"absolute\",\n      \"steps\": [\n       {\n        \"color\": \"green\",\n        \"value\": null\n       },\n       {\n       \
+    \ \"color\": \"red\",\n        \"value\": 1\n       }\n      ]\n     }\n    },\n    \"overrides\": []\n   },\n   \"options\": {}\n  },\n \
+    \ {\n   \"id\": 37,\n   \"type\": \"bargauge\",\n   \"title\": \"Remediation: overdue by severity\",\n   \"gridPos\": {\n    \"x\": 0,\n \
+    \   \"y\": 61,\n    \"w\": 12,\n    \"h\": 6\n   },\n   \"datasource\": {\n    \"type\": \"prometheus\",\n    \"uid\": \"${datasource}\"\n\
+    \   },\n   \"targets\": [\n    {\n     \"refId\": \"A\",\n     \"expr\": \"max by (severity) (security_remediation_overdue{namespace=~\\\"\
+    $namespace\\\"})\",\n     \"legendFormat\": \"{{severity}}\"\n    }\n   ],\n   \"fieldConfig\": {\n    \"defaults\": {\n     \"thresholds\"\
+    : {\n      \"mode\": \"absolute\",\n      \"steps\": [\n       {\n        \"color\": \"green\",\n        \"value\": null\n       },\n    \
+    \   {\n        \"color\": \"red\",\n        \"value\": 1\n       }\n      ]\n     }\n    },\n    \"overrides\": []\n   },\n   \"options\"\
+    : {}\n  },\n  {\n   \"id\": 38,\n   \"type\": \"bargauge\",\n   \"title\": \"Time to remediate p50 (days) by severity\",\n   \"gridPos\":\
+    \ {\n    \"x\": 12,\n    \"y\": 61,\n    \"w\": 12,\n    \"h\": 6\n   },\n   \"datasource\": {\n    \"type\": \"prometheus\",\n    \"uid\"\
+    : \"${datasource}\"\n   },\n   \"targets\": [\n    {\n     \"refId\": \"A\",\n     \"expr\": \"max by (severity) (security_time_to_remediate_days{namespace=~\\\
+    \"$namespace\\\", quantile=\\\"0.5\\\"})\",\n     \"legendFormat\": \"{{severity}}\"\n    }\n   ],\n   \"fieldConfig\": {\n    \"defaults\"\
+    : {\n     \"thresholds\": {\n      \"mode\": \"absolute\",\n      \"steps\": [\n       {\n        \"color\": \"green\",\n        \"value\"\
+    : null\n       },\n       {\n        \"color\": \"red\",\n        \"value\": 1\n       }\n      ]\n     }\n    },\n    \"overrides\": []\n\
+    \   },\n   \"options\": {}\n  },\n  {\n   \"id\": 39,\n   \"type\": \"bargauge\",\n   \"title\": \"Intel feed age (hours)\",\n   \"gridPos\"\
+    : {\n    \"x\": 0,\n    \"y\": 67,\n    \"w\": 12,\n    \"h\": 6\n   },\n   \"datasource\": {\n    \"type\": \"prometheus\",\n    \"uid\"\
+    : \"${datasource}\"\n   },\n   \"targets\": [\n    {\n     \"refId\": \"A\",\n     \"expr\": \"max by (feed) (security_intel_feed_age_seconds{namespace=~\\\
+    \"$namespace\\\"}) / 3600\",\n     \"legendFormat\": \"{{feed}}\"\n    }\n   ],\n   \"fieldConfig\": {\n    \"defaults\": {\n     \"thresholds\"\
+    : {\n      \"mode\": \"absolute\",\n      \"steps\": [\n       {\n        \"color\": \"green\",\n        \"value\": null\n       },\n    \
+    \   {\n        \"color\": \"red\",\n        \"value\": 72\n       }\n      ]\n     }\n    },\n    \"overrides\": []\n   },\n   \"options\"\
+    : {}\n  },\n  {\n   \"id\": 40,\n   \"type\": \"stat\",\n   \"title\": \"Hours since the hub published\",\n   \"gridPos\": {\n    \"x\": 12,\n\
+    \    \"y\": 67,\n    \"w\": 6,\n    \"h\": 6\n   },\n   \"datasource\": {\n    \"type\": \"prometheus\",\n    \"uid\": \"${datasource}\"\n\
     \   },\n   \"targets\": [\n    {\n     \"refId\": \"A\",\n     \"expr\": \"(time() - max(security_metrics_published_timestamp_seconds{namespace=~\\\
     \"$namespace\\\"})) / 3600\"\n    }\n   ],\n   \"fieldConfig\": {\n    \"defaults\": {\n     \"thresholds\": {\n      \"mode\": \"absolute\"\
     ,\n      \"steps\": [\n       {\n        \"color\": \"green\",\n        \"value\": null\n       },\n       {\n        \"color\": \"orange\"\
     ,\n        \"value\": 26\n       },\n       {\n        \"color\": \"red\",\n        \"value\": 50\n       }\n      ]\n     }\n    },\n   \
-    \ \"overrides\": []\n   },\n   \"options\": {}\n  },\n  {\n   \"id\": 40,\n   \"type\": \"stat\",\n   \"title\": \"Invalid findings documents\"\
-    ,\n   \"gridPos\": {\n    \"x\": 18,\n    \"y\": 63,\n    \"w\": 6,\n    \"h\": 6\n   },\n   \"datasource\": {\n    \"type\": \"prometheus\"\
+    \ \"overrides\": []\n   },\n   \"options\": {}\n  },\n  {\n   \"id\": 41,\n   \"type\": \"stat\",\n   \"title\": \"Invalid findings documents\"\
+    ,\n   \"gridPos\": {\n    \"x\": 18,\n    \"y\": 67,\n    \"w\": 6,\n    \"h\": 6\n   },\n   \"datasource\": {\n    \"type\": \"prometheus\"\
     ,\n    \"uid\": \"${datasource}\"\n   },\n   \"targets\": [\n    {\n     \"refId\": \"A\",\n     \"expr\": \"max(security_contract_invalid_documents{namespace=~\\\
     \"$namespace\\\"})\"\n    }\n   ],\n   \"fieldConfig\": {\n    \"defaults\": {\n     \"thresholds\": {\n      \"mode\": \"absolute\",\n  \
     \    \"steps\": [\n       {\n        \"color\": \"green\",\n        \"value\": null\n       },\n       {\n        \"color\": \"red\",\n  \

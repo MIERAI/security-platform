@@ -60,3 +60,7 @@ slis:
     description: Days since the check catalog / benchmarks were last reviewed against upstream (CIS, ATT&CK, Sigma/Falco)
     source: {ledger: check_catalog_age_days}
     objective: {target: 90}
+  - name: time_to_know_hours
+    description: "Longest time-to-know (last 30 days) for KEV / critical / high detections on already-covered assets - advisory or KEV publication (date granularity: an upper bound) to the first finding; images, repos, hosts and firmware"
+    source: {ledger: time_to_know_hours_max_30d}
+    objective: {target: 24}

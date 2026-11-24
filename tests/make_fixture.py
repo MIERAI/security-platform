@@ -12,6 +12,7 @@ import spsdk  # noqa: E402
 SAMPLES = {
     "exposure": ("network", "net-endpoint:host-a@192.0.2.10:9093", "alertmanager.unauth", "detection"),
     "host": ("identity", "host:host-a", "ssh.password_auth_enabled", "compliance"),
+    "host-sbom": ("host", "host:host-a", "sbom.no_packages", "compliance"),
     "k8s": ("workload", "k8s-workload:cluster-a/ns/Deployment/app", "k8s.pod.privileged", "compliance"),
     "vuln-intel": ("supply-chain", "image:registry.example/app:1.0", "vuln.cve-2099-0001", "vulnerability"),
     "codehost-github": ("supply-chain", "repo:github/example/app", "repo.default_branch_unprotected", "compliance"),

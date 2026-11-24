@@ -2,14 +2,18 @@
 
   executor(cfg).run(script, args=(), stdin=None, timeout=...) -> (rc, out, err)
 
-cfg examples (instance config):  {type: local}   {type: ssh, host: <ssh alias>, options: [...]}
+cfg examples (instance config):  {type: local}   {type: ssh, host: <ssh alias>, options: [...], shell: posix|windows}
+`shell: windows` = the remote login shell is cmd.exe (Windows OpenSSH default): argv is quoted with the Windows
+rules (subprocess.list2cmdline) instead of POSIX ones.
+`powershell(executor, script)` runs a PowerShell script of ANY length: a short -EncodedCommand bootstrap reads the
+script from stdin (cmd.exe caps a command line at 8191 characters and silently drops longer ones).
 Rules: never prompt. A password prompt is a failure (BatchMode), recorded by the collector as a coverage gap.
 Future adapters (interface only): ssm (AWS Systems Manager RunCommand), osquery (SQL), edr (vendor API).
 """
 import shlex
 import subprocess
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 
 
 def _run(cmd, stdin=None, timeout=120):
@@ -37,8 +41,9 @@ class SSH:
         self.cfg = cfg
 
     def run(self, argv, stdin=None, timeout=120):
-        cmd = ["ssh"] + self.BASE + list(self.cfg.get("options", [])) + [self.cfg["host"],
-                                                                        " ".join(shlex.quote(a) for a in argv)]
+        remote = subprocess.list2cmdline(argv) if self.cfg.get("shell") == "windows" else \
+            " ".join(shlex.quote(a) for a in argv)
+        cmd = ["ssh"] + self.BASE + list(self.cfg.get("options", [])) + [self.cfg["host"], remote]
         return _run(cmd, stdin, timeout)
 
 
@@ -48,6 +53,18 @@ class NotImplementedAdapter:
 
 
 ADAPTERS = {"local": Local, "ssh": SSH, "ssm": NotImplementedAdapter, "osquery": NotImplementedAdapter}
+
+
+# Reads the whole script from stdin and runs it; UTF-8 output so non-ASCII names (e.g. installed programs) survive.
+PS_BOOTSTRAP = ("[Console]::OutputEncoding=[Text.Encoding]::UTF8;$ProgressPreference='SilentlyContinue';"
+                "$s=@($input) -join [char]10;Invoke-Expression $s")
+
+
+def powershell(e, script, timeout=180):
+    """Run a PowerShell script (ASCII source) through any executor whose target has powershell.exe."""
+    import base64
+    b64 = base64.b64encode(PS_BOOTSTRAP.encode("utf-16-le")).decode()
+    return e.run(["powershell", "-NoProfile", "-NonInteractive", "-EncodedCommand", b64], stdin=script, timeout=timeout)
 
 
 def executor(cfg):
