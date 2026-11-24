@@ -19,6 +19,7 @@ SAMPLES = {
     "secrets-files": ("data-secrets", "secret-file:host-a:~/.ssh/id_ed25519", "secret.ssh_key_no_passphrase", "compliance"),
     "agent-claude-code": ("ai-agents", "agent:claude-code:~/.claude/settings.json", "agent.reads_outside_workdir", "compliance"),
     "identity": ("identity", "identity:github/example-user", "identity.mfa_disabled", "compliance"),
+    "detection": ("detection", "log-source:auth/host-a", "detection.source_silent", "compliance"),
 }
 
 

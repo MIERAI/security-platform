@@ -2,6 +2,19 @@
 
 Components are versioned independently (docs/design.md §5). Entries name the component and its new version.
 
+## 2026-11-24 — detection and response (dimension 7)
+
+- **detections 0.2.0**: every Falco detection also alerts in-cluster on Falco's per-rule counters
+  (`engine=falco-metrics`), so runtime detection does not depend on the log store; the generic critical backstop is
+  gone (it duplicated them). 0.1.0 (#13): catalog, curated Falco rules, node-logs, audit policy, runbooks, playbook.
+- **collector detection 0.1.0** (new): the detection pipeline checked end to end from outside — scope (every
+  `kubernetes:` cluster has a sensor and an audit source), sensors ready on every node, in-cluster backstop present,
+  every expected source delivered logs (k8s-audit, auth, codehost, overlay-network), the ruler has every catalog
+  rule, page alerts reach a notifying receiver; quality metrics: alert minutes per severity, false-positive ratio
+  (human verdicts), drills (time to detect), rule-content age.
+- **scorecard catalog 07-detection**: automated controls from the collector replace the placeholders (runtime,
+  audit, auth, SaaS audit, rules deployed, backstop, page routing, drill + time to detect, false-positive rate,
+  rule freshness, playbook evidence).
 ## 2026-11-24 — security events
 
 - **events 0.1.0** (new): `events/ship.py` ships security events from hosts without a log agent and from SaaS control

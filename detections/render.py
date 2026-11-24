@@ -11,6 +11,7 @@ label filters, ip()); alerts carry severity, component=security-detection, detec
 """
 import argparse
 import os
+import re
 import string
 import sys
 
@@ -74,10 +75,32 @@ def loki_rules(cat):
     return {"groups": [{"name": f"security-detection.{s}", "interval": "1m", "rules": rs} for s, rs in groups.items()]}
 
 
+FALCO_NAMES = re.compile(r'\| rule=~?"([^"]+)"')
+
+
+def falco_rule_names(r):
+    """The Falco rule names a falco-source catalog rule filters on (its query's `| rule=` / `| rule=~` filter)."""
+    m = FALCO_NAMES.search(r["query"])
+    return m.group(1).split("|") if m else []
+
+
 def prometheus_rules(cat):
+    """In-cluster rules: the catalog's `prometheus` entries, plus every Falco detection again on Falco's own
+    per-rule counters (label engine=falco-metrics). Runtime detection then reaches the cluster's Alertmanager even
+    when the log store is down; the log-store rule adds the context (namespace, pod) to the same detection."""
     p = cat["params"]
     rs = [{"alert": alert_name(r["id"]), "expr": r["expr"], "for": r.get("for", "0m"), "labels": labels(r),
            "annotations": annotations(r, p)} for r in cat.get("prometheus", [])]
+    for r in cat["rules"]:
+        names = falco_rule_names(r) if r["source"] == "falco" else []
+        if not names:
+            continue
+        sel = "|".join(re.escape(n).replace("\\ ", " ") for n in names)
+        a = annotations(r, p)
+        a["summary"] = f"{r['title']}: Falco rule {{{{ $labels.rule_name }}}} matched (in-cluster; details in the log store)"
+        rs.append({"alert": alert_name(r["id"]),
+                   "expr": f'sum by (namespace, rule_name) (increase(falcosecurity_falco_rules_matches_total{{rule_name=~"{sel}"}}[5m])) > 0',
+                   "for": "0m", "labels": dict(labels(r), engine="falco-metrics"), "annotations": a})
     return {"apiVersion": "monitoring.coreos.com/v1", "kind": "PrometheusRule",
             "metadata": {"name": "security-detection", "labels": {"app.kubernetes.io/part-of": "security-platform",
                                                                    "security-platform/detections-version": VERSION}},

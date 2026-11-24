@@ -14,7 +14,7 @@
 #   overlay-network  overlay network (VPN) control-plane audit events       labels: source; s.m.: event, actor
 # Severity: page (a human now) | ticket (same day) | info (recorded, no notification). Routing is the instance's
 # Alertmanager configuration; labels: severity, component=security-detection, detection=<id>.
-version: 0.1.0
+version: 0.2.0
 released: "2026-11-24"          # rule-content date: security_detection_ruleset_age_days counts from here
 upstream:
   falco_rules: "falco-rules 5.2.0"     # the upstream rules file the curated selection was reviewed against
@@ -271,16 +271,10 @@ rules:
     query: 'sum by (event, actor) (count_over_time($overlay | event=~"node_added|node_key_expiry_disabled|policy_changed|auth_key_created|user_added|user_role_changed|exit_node_enabled|subnet_routes_changed" [30m])) > 0'
     summary: '{{ $labels.event }} by {{ $labels.actor }} on the overlay network'
 
-# In-cluster backstop (Prometheus, no dependency on the log store) and pipeline health. Rendered into
+# In-cluster rules (Prometheus, no dependency on the log store): pipeline health below, and every falco-source rule
+# above again on Falco's per-rule counters (render.py adds them, label engine=falco-metrics). Rendered into
 # falco/prometheus-rules.yaml with the same labels; each has a runbook too.
 prometheus:
-  - id: falco-critical-backstop
-    title: Falco critical event (in-cluster backstop)
-    pillar: device
-    severity: page
-    attack: []
-    expr: 'sum by (namespace, rule_name) (increase(falcosecurity_falco_rules_matches_total{priority=~"0|1|2|(?i:emergency|alert|critical)"}[10m])) > 0'
-    summary: 'Falco critical rule {{ $labels.rule_name }} matched (backstop: works without the log store)'
   - id: falco-sensor-down
     title: Runtime sensor not running on every node
     pillar: device

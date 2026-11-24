@@ -1,0 +1,50 @@
+{
+ "collector": {
+  "name": "detection",
+  "tools": {},
+  "version": "0.1.0"
+ },
+ "coverage": [
+  {
+   "asset": "log-source:example",
+   "status": "ok"
+  },
+  {
+   "asset": "host:example-offline",
+   "reason": "offline at scan time",
+   "status": "gap"
+  }
+ ],
+ "findings": [
+  {
+   "asset": "log-source:auth/host-a",
+   "check": "detection.source_silent",
+   "evidence": "raw/detection/example.json#x",
+   "id": "56fee356037f",
+   "kind": "compliance",
+   "layer": "detection",
+   "needs_human": false,
+   "observed_at": "2026-11-24T11:46:13Z",
+   "owner": "platform",
+   "remediation": "fix it",
+   "severity": "high",
+   "title": "synthetic example"
+  }
+ ],
+ "metrics": [
+  {
+   "help": "example",
+   "labels": {
+    "kind": "x"
+   },
+   "name": "security_example_metric",
+   "value": 1.0
+  }
+ ],
+ "run": {
+  "finished_at": "2026-11-24T11:46:13Z",
+  "instance": "",
+  "started_at": "2026-11-24T11:46:13Z"
+ },
+ "schema_version": "1.0"
+}
