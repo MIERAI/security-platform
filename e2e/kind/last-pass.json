@@ -1,0 +1,17 @@
+{
+ "schema": "security-platform/e2e-result/v1",
+ "test": "e2e/kind/run.sh",
+ "result": "pass",
+ "passed_at": "2026-11-24T12:20:19Z",
+ "installed": "107ba19",
+ "clone_to_first_findings_seconds": 119,
+ "total_seconds": 333,
+ "environment": {
+  "kubernetes": "v1.36.1",
+  "kube_prometheus_stack": "93.9.0",
+  "code_host": "gitea/gitea:1.24.6",
+  "discovery": "static CIDR",
+  "exec": "ssh",
+  "metrics": "kubernetes-configmap + ServiceMonitor"
+ }
+}
