@@ -30,7 +30,38 @@ def row(e):
             f"{e['id']} |")
 
 
-def build(ledger, latest_docs, exceptions, now, days):
+def remediation_section(tracker, now):
+    """Overdue items and time-to-remediate vs SLO per severity (core/remediation.py keeps tracker/items.json)."""
+    items = list((tracker.get("items") or {}).values())
+    if not items:
+        return ["", "## Remediation", "", "No tracker yet (runner job type `remediation`)."]
+    slo = tracker.get("slo_seconds") or {}
+    over = sorted([i for i in items if i.get("overdue")], key=lambda i: (ORDER.get(i["severity"], 9), i.get("due_at") or ""))
+    L = ["", f"## Overdue remediation ({len(over)})", "",
+         "| sev | " + " | ".join(ORDER) + " |", "|---|" + "---|" * len(ORDER),
+         "| overdue | " + " | ".join(str(sum(1 for i in over if i["severity"] == s)) for s in ORDER) + " |",
+         "| open | " + " | ".join(str(sum(1 for i in items if i["status"] == "open" and i["severity"] == s)) for s in ORDER) + " |",
+         "", "| sev | due | owner | title | item |", "|---|---|---|---|---|"]
+    for i in over[:200]:
+        L.append(f"| {i['severity']} | {(i.get('due_at') or '')[:10]} | {i['owner']} | {i['title'][:100].replace('|', '/')} | {i['id']} |")
+    un = sum(1 for i in items if i["status"] == "open" and i.get("owner") == "unassigned")
+    if un:
+        L += ["", f"Open items without an owner: {un} (instance `remediation.owners` / `default_owner`)."]
+    L += ["", "## Time to remediate vs SLO", "", "| class | SLO (days) | closed | median (days) | max (days) | within SLO |",
+          "|---|---|---|---|---|---|"]
+    for cls in ["kev_exposed"] + list(ORDER):
+        done = [i for i in items if i.get("slo_class") == cls and i["status"] == "fixed" and i.get("time_to_remediate_days") is not None]
+        if not done and cls not in slo:
+            continue
+        d = sorted(i["time_to_remediate_days"] for i in done)
+        lim = slo.get(cls)
+        within = f"{sum(1 for x in d if lim and x * 86400 <= lim)}/{len(d)}" if lim and d else "-"
+        L.append(f"| {cls} | {round(lim / 86400, 1) if lim else '-'} | {len(d)} | {d[len(d) // 2] if d else '-'} | "
+                 f"{d[-1] if d else '-'} | {within} |")
+    return L
+
+
+def build(ledger, latest_docs, exceptions, now, days, tracker=None):
     since = now - days * 86400
     E = list(ledger.get("entries", {}).values())
     new = sorted([e for e in E if ts(e["first_seen"]) >= since], key=lambda e: (ORDER[e["severity"]], e["layer"]))
@@ -50,6 +81,7 @@ def build(ledger, latest_docs, exceptions, now, days):
     L += ["", f"## Fixed ({len(fixed)})", "", "| sev | layer | asset | title | id |", "|---|---|---|---|---|"]
     L += [row(e) + f" {e.get('time_to_fix_days')} d" for e in fixed[:200]]
     L += ["", f"## Regressions still open ({len(reopened)})", ""] + [row(e) for e in reopened]
+    L += remediation_section(tracker or {}, now)
     L += ["", "## Exceptions", "", "| id | expires | approved by | state |", "|---|---|---|---|"]
     for fid, x in sorted(exceptions.items()):
         exp = ts(str(x.get("expires", "1970-01-01")))
@@ -83,8 +115,10 @@ def main():
             exc = {}
     out = os.path.join(a.data, "reports", "digest", time.strftime("%G-W%V", time.gmtime(now)) + ".md")
     os.makedirs(os.path.dirname(out), exist_ok=True)
+    tp = os.path.join(a.data, "tracker", "items.json")
+    tracker = json.load(open(tp)) if os.path.exists(tp) else None
     with open(out, "w") as f:
-        f.write(build(ledger, docs, exc, now, a.days))
+        f.write(build(ledger, docs, exc, now, a.days, tracker))
     print(out)
 
 

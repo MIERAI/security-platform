@@ -26,6 +26,15 @@ intel:
   registry_auth: [{host: registry.example.com, username: security-bot, token_file: ~/.config/security-platform/registry.token}]
   repos: ["~/src/service-a"]
 advisor: {type: none}
+remediation:                         # every open finding: an owner and an SLO-tracked path to closure (design §13)
+  tracker: {type: files}             # private, in the data dir. Or (a PRIVATE repo only; refused otherwise):
+  # tracker: {type: github-issues, repo: example-org/security-tracker, enabled: true}
+  default_owner: security-oncall
+  owners:
+    - {layer_in: [workload, supply-chain], owner: platform-team}
+    - {asset_prefix: "repo:", owner: dev-team}
+  slo: {kev_exposed: 1d, critical: 7d, high: 30d, medium: 90d, low: 180d}
+  advisor: {type: none}              # may only DRAFT remediation text; never closes or merges
 runner:                              # continuous operation (docs/runner.md)
   site: hub
   role: hub
@@ -48,6 +57,7 @@ runner:                              # continuous operation (docs/runner.md)
       site_state: "~/.local/share/security-platform/site-state"
       site_collectors: {exposure: "30 3 * * *"}
       publish_assets: {dir: "~/.local/share/security-platform/assets", discovery: [{type: static, targets: [{name: web-1, address: 192.0.2.10}]}]}
+    remediation:     {type: remediation, schedule: "50 * * * *"}
     digest:          {type: digest, schedule: "0 9 * * 1"}
 # ... and the vantage host's own config (JSON is fine; no PyYAML needed there):
 # {"name": "example", "exposure": {"discovery": [{"type": "file", "path": "~/.local/share/security-platform/assets/assets.json", "max_age": 259200}],

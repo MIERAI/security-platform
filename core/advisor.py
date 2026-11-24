@@ -10,7 +10,7 @@ import json
 import os
 import time
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 
 
 class NoAdvisor:
@@ -20,10 +20,14 @@ class NoAdvisor:
         return None
 
 
+# type -> factory(cfg). Implementations register here (and tests register fakes); `claude` / `local` are future adapters.
+ADVISORS = {"none": lambda cfg: NoAdvisor()}
+
+
 def advisor(cfg):
     kind = (cfg or {}).get("type", "none")
-    if kind == "none":
-        return NoAdvisor()
+    if kind in ADVISORS:
+        return ADVISORS[kind](cfg)
     raise NotImplementedError(f"advisor {kind!r}: future adapter (claude / local)")
 
 

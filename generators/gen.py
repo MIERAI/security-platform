@@ -67,6 +67,10 @@ def rules(cat):
         alert("SecurityMetricsSinkFailing", "max by (namespace, site, sink) (security_runner_sink_consecutive_failures) >= 4",
               "ticket", "Metrics sink {{ $labels.sink }} of {{ $labels.site }} failed 4 ticks in a row (retried every tick)",
               "runner-stale"),
+        alert("SecurityRemediationOverdue",
+              'sum by (namespace) (security_remediation_overdue{severity=~"critical|high"}) > 0',
+              "ticket", "{{ $value }} critical/high finding(s) past their remediation SLO (owner and due date in the private tracker)",
+              "remediation-overdue", for_="1h"),
         alert("SecurityContractViolation", "max by (namespace) (security_contract_invalid_documents) > 0", "ticket",
               "A collector emitted a findings document that fails the schema (it was ignored)", "contract-violation"),
         alert("SecurityIntelFeedStale", "max by (namespace, feed) (security_intel_feed_age_seconds) > 3 * 86400", "ticket",
@@ -143,6 +147,11 @@ def dashboard(cat):
     add("Runner job failures (24h)", f"sum by (site, job) (increase(security_runner_job_failures_total{{{ns}}}[24h]))", "bargauge", 12, y, 12, 8,
         "{{site}}/{{job}}")
     y += 8
+    add("Remediation: overdue by severity", f"max by (severity) (security_remediation_overdue{{{ns}}})",
+        "bargauge", 0, y, 12, 6, "{{severity}}")
+    add("Time to remediate p50 (days) by severity", f'max by (severity) (security_time_to_remediate_days{{{ns}, quantile="0.5"}})',
+        "bargauge", 12, y, 12, 6, "{{severity}}")
+    y += 6
     add("Intel feed age (hours)", f"max by (feed) (security_intel_feed_age_seconds{{{ns}}}) / 3600", "bargauge", 0, y, 12, 6, "{{feed}}",
         thresholds={"mode": "absolute", "steps": [{"color": "green", "value": None}, {"color": "red", "value": 72}]})
     add("Hours since the hub published", f"(time() - max(security_metrics_published_timestamp_seconds{{{ns}}})) / 3600", x=12, y=y, w=6, h=6,

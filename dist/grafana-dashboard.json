@@ -5,7 +5,7 @@
  "version": 1,
  "tags": [
   "security-platform",
-  "generator-0.3.0"
+  "generator-0.4.0"
  ],
  "time": {
   "from": "now-30d",
@@ -1033,10 +1033,92 @@
   {
    "id": 28,
    "type": "bargauge",
-   "title": "Intel feed age (hours)",
+   "title": "Remediation: overdue by severity",
    "gridPos": {
     "x": 0,
     "y": 41,
+    "w": 12,
+    "h": 6
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "max by (severity) (security_remediation_overdue{namespace=~\"$namespace\"})",
+     "legendFormat": "{{severity}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "id": 29,
+   "type": "bargauge",
+   "title": "Time to remediate p50 (days) by severity",
+   "gridPos": {
+    "x": 12,
+    "y": 41,
+    "w": 12,
+    "h": 6
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "max by (severity) (security_time_to_remediate_days{namespace=~\"$namespace\", quantile=\"0.5\"})",
+     "legendFormat": "{{severity}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "id": 30,
+   "type": "bargauge",
+   "title": "Intel feed age (hours)",
+   "gridPos": {
+    "x": 0,
+    "y": 47,
     "w": 12,
     "h": 6
    },
@@ -1072,12 +1154,12 @@
    "options": {}
   },
   {
-   "id": 29,
+   "id": 31,
    "type": "stat",
    "title": "Hours since the hub published",
    "gridPos": {
     "x": 12,
-    "y": 41,
+    "y": 47,
     "w": 6,
     "h": 6
    },
@@ -1116,12 +1198,12 @@
    "options": {}
   },
   {
-   "id": 30,
+   "id": 32,
    "type": "stat",
    "title": "Invalid findings documents",
    "gridPos": {
     "x": 18,
-    "y": 41,
+    "y": 47,
     "w": 6,
     "h": 6
    },

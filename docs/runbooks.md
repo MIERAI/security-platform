@@ -45,6 +45,19 @@ did not fire, the runner could not start, the host is down, or the only sink to 
    missing, rebuild the environment (`render.py env --install DIR`) and re-render the wrapper.
 4. Sink: credentials, namespace existence, reachability; it recovers by itself on the next tick once fixed.
 
+## remediation-overdue
+
+`SecurityRemediationOverdue`: critical/high findings are open past their remediation SLO (`remediation.slo`;
+KEV on an exposed asset 1 d, critical 7 d, high 30 d by default). The details are in the PRIVATE tracker only
+(`<data>/tracker/README.md`, or the private issue tracker if configured), never in the alert.
+1. Open the tracker index: overdue items first, with owner and due date. `unassigned` = fix the owner rules first.
+2. For each item: fix it (change process: PR, approval, rollout), then let the next collector run that covers the
+   asset close it. Nothing else closes an item (not the tracker, not the advisor, not an issue being closed).
+3. If it cannot be fixed in time: a time-boxed exception in `exceptions.yaml` (`approved_by` + `expires` + reason).
+   It reopens by itself on expiry.
+4. Weekly digest: "Overdue remediation" and "Time to remediate vs SLO" sections; repeated misses = Re-plan (SLO,
+   owner, or the control itself).
+
 ## contract-violation
 
 A findings document failed the schema and was ignored (`security_contract_invalid_documents` > 0). The runner keeps
