@@ -2,7 +2,10 @@
 
 Components are versioned independently (docs/design.md §5). Entries name the component and its new version.
 
-## 2026-11-24 — fix
+## 2026-11-24 — fixes
+
+- **runner 0.4.1**: a job with `as:` runs `collectors/<collector>/` and reports under the `as` name (it looked for
+  `collectors/<as>/` and exited 2: the in-cluster k8s collector never ran).
 
 - **deploy 0.3.1**: the ClusterRoleBindings of the hub and the in-cluster site name their ServiceAccount in namespace
   `default`, which kustomize rewrites to the overlay's namespace (it left `security-platform` as it was, binding an

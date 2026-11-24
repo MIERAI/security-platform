@@ -128,6 +128,16 @@ class Execute(Base):
         self.assertEqual((st["consecutive_failures"], st["failures_total"]), (0, 2))
         self.assertTrue(os.path.exists(os.path.join(blocker, "m.prom")))
 
+    def test_as_renames_the_report_not_the_program(self):
+        # `as:` deploys the same collector under another name: the program is still collectors/<collector>/
+        r = runner.Runner(self.instance({"k": {"collector": "agent-claude-code", "as": "agent-claude-code-other",
+                                               "schedule": "* * * * *", "env": {"HOME": self.d}}}), self.data)
+        r.execute("k")
+        st = r.load_state("k")
+        self.assertNotIn("rc=2", st["last_note"], st)
+        log = open(os.path.join(self.data, st["last_run_dir"], "agent-claude-code-other.log")).read()
+        self.assertNotIn("can't open file", log)
+
     def test_failure_timeout_and_contract(self):
         inst = self.instance({"slow": self.cmd_job("import time; time.sleep(30)", timeout="1s"),
                               "bad": self.cmd_job("import os; open(os.path.join(os.environ['SP_RUN_DIR'],'host.findings.json'),'w').write('{\"schema_version\": \"9.0\"}')",
