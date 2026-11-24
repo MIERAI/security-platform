@@ -11,12 +11,16 @@ dimension:
 controls:
   # ---- accounts and MFA -------------------------------------------------------------------------------------------
   - id: people.codehost-mfa
-    title: Every code-host account has two-factor authentication on (checked through the API)
+    title: Every code-host account has two-factor authentication on (the API where it can tell, else a human)
     csf: PR.AA
     cis: ["6.3", "6.5"]
     check: automated
     weight: 3
-    source: {type: findings, check_in: [identity.mfa_disabled], require_collector: identity, require_coverage: "identity:"}
+    validity: 90d
+    question: "Is 2FA on for every code-host account (Settings > Password and authentication), with a passkey or security key?"
+    source: {type: first_known, of: [
+      {type: findings, check_in: [identity.mfa_disabled], require_collector: identity, require_coverage: "identity-mfa:"},
+      {type: attestation}]}
   - id: people.org-mfa-required
     title: Every organisation enforces two-factor authentication for its members
     csf: PR.AA
@@ -106,14 +110,18 @@ controls:
     question: "Did you remove accounts and devices no longer in use?"
     weight: 1
   - id: people.overlay-acl
-    title: The overlay network has an ACL narrower than allow-all (checked through its API)
+    title: The overlay network has an ACL narrower than allow-all (its API with a read-only key, else a human)
     csf: PR.AA
     cis: ["6.1", "12.2"]
     pillars: [people, network]
     check: automated
     weight: 2
-    source: {type: findings, check_in: [identity.overlay_acl_allow_all], require_collector: identity,
-             require_coverage: "identity-provider:tailscale"}
+    validity: 90d
+    question: "Is the overlay network's access policy narrower than the default allow-all, with device approval on?"
+    source: {type: first_known, of: [
+      {type: findings, check_in: [identity.overlay_acl_allow_all], require_collector: identity,
+       require_coverage: "identity-provider:tailscale"},
+      {type: attestation}]}
   - id: people.overlay-key-expiry
     title: Overlay network device keys expire (key expiry not disabled)
     csf: PR.AA

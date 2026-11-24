@@ -23,6 +23,9 @@ Built-in types:
   file        evidence document {path, max_age?, contains?, mode_max?}: exists; reviewed (git commit date, else
               mtime) within max_age; text matches `contains`; permission bits within mode_max (e.g. "0700")
   all / any   {of: [sources]}: every / at least one sub-source passes (unknown wins over fail in `all`)
+  first_known {of: [sources]}: the first sub-source that is not `unknown` decides - e.g. an API check, and a human
+              attestation where the API cannot tell (the control then needs `validity` and `question`)
+  attestation {}: the control's own human attestation (same rules as check: attested; usable inside first_known)
   builtin     {name: pillars_covered | functions_covered | attestations_current}: about the scorecard itself
   none        {reason}: declared but not implemented yet -> status "not_implemented" (counted as failing)
 """
@@ -225,6 +228,23 @@ def ev_any(ctx, src):
     return st, "; ".join(r[1] for r in res)
 
 
+def ev_first_known(ctx, src):
+    res = None
+    for s in src["of"]:
+        res = evaluate(ctx, s)
+        if res[0] != "unknown":
+            return res
+    return res or ("unknown", "no sources")
+
+
+def ev_attestation(ctx, src):
+    import scorecard
+    c = ctx.current
+    st, detail, exp = scorecard.attestation_status(c, ctx.attestations.get(c["id"]), ctx.now)
+    c["_expires"] = exp
+    return st, detail
+
+
 def ev_builtin(ctx, src):
     name = src["name"]
     if name in ("pillars_covered", "functions_covered"):
@@ -239,7 +259,7 @@ def ev_builtin(ctx, src):
                                                     if missing else f"every {key[:-1]} has a passing {'/'.join(auto)} control")
     if name == "attestations_current":
         att = [c for c in ctx.controls if c["check"] == "attested"]
-        bad = [c["id"] for c in att if c.get("_status") in ("expired",)]
+        bad = [c["id"] for c in ctx.controls if c.get("_status") == "expired"]
         return ("pass" if not bad else "fail"), (f"expired: {', '.join(bad)}" if bad else f"{len(att)} attested controls, none expired")
     raise ValueError(f"unknown builtin {name!r}")
 
@@ -249,7 +269,8 @@ def ev_none(ctx, src):
 
 
 EVALUATORS = {"findings": ev_findings, "sli": ev_sli, "metric": ev_metric, "collector_fresh": ev_collector_fresh,
-              "job": ev_job, "file": ev_file, "all": ev_all, "any": ev_any, "builtin": ev_builtin, "none": ev_none}
+              "job": ev_job, "file": ev_file, "all": ev_all, "any": ev_any, "builtin": ev_builtin, "none": ev_none, "first_known": ev_first_known,
+              "attestation": ev_attestation}
 DEFERRED = {"builtin"}   # evaluated after every other control (they look at the others' results)
 
 

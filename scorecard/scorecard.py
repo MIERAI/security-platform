@@ -106,7 +106,7 @@ def lint(dims, controls):
             src = c.get("source") or {}
             if src.get("type") not in ev.EVALUATORS:
                 errs.append(f"{cid}: source.type must be one of {sorted(ev.EVALUATORS)}")
-        if c.get("check") == "attested":
+        if c.get("check") == "attested" or attestable(c):
             try:
                 ev.duration(c.get("validity"))
             except ValueError as e:
@@ -116,6 +116,11 @@ def lint(dims, controls):
             if not c.get("question"):
                 errs.append(f"{cid}: attested controls need the question a human answers")
     return errs
+
+
+def attestable(c):
+    """A human may attest this control: check `attested`, or an automated one with an `attestation` fallback."""
+    return c.get("check") == "attested" or '"attestation"' in json.dumps(c.get("source") or {})
 
 
 # ---- variables ---------------------------------------------------------------------------------------------------
@@ -185,6 +190,7 @@ class Ctx:
                     self.metrics = [m for m in sinks.parse_text(f.read()) if not m[0].startswith("security_score")]
             except ValueError:
                 self.metrics = []
+        self.attestations, self.current = {}, None
         self.coverage = []          # (collector, asset, status) of the newest document of every collector
         for p in glob.glob(os.path.join(data, "latest", "*.findings.json")):
             d = ev.load_json(p, {})
@@ -215,6 +221,7 @@ def compute(data, inst=None, now=None, extra_dirs=None):
     vars_ = dict(data=data, product=ROOT, **{k: v for k, v in (sc.get("vars") or {}).items()})
     att = load_attestations(data)
     ctx = Ctx(data, now, controls, sc.get("pillars", PILLARS), list(FUNCTIONS))
+    ctx.attestations = att
     deferred = []
     for c in controls:
         a = att.get(c["id"])
@@ -234,8 +241,10 @@ def compute(data, inst=None, now=None, extra_dirs=None):
         if src.get("type") in ev.DEFERRED:
             deferred.append((c, src))
             continue
+        ctx.current = c
         c["_status"], c["_detail"] = ev.evaluate(ctx, src)
     for c, src in deferred:
+        ctx.current = c
         c["_status"], c["_detail"] = ev.evaluate(ctx, src)
 
     def group(pred):
@@ -271,8 +280,9 @@ def compute(data, inst=None, now=None, extra_dirs=None):
                 cross[f"{did}|{pl}"] = score_of(items)[0]
     att_counts = {"valid": 0, "expiring": 0, "expired": 0, "missing": 0}
     for c in controls:
-        if c["check"] != "attested" or c["_status"] == "na":
-            continue
+        if not attestable(c) or c["_status"] == "na" or (c["check"] != "attested" and c.get("_expires") is None
+                                                           and c["_status"] not in ("unattested", "expired")):
+            continue            # an automated control decided by its API counts as no attestation
         if c["_status"] == "expired":
             att_counts["expired"] += 1
         elif c["_status"] == "unattested":
@@ -293,6 +303,7 @@ def compute(data, inst=None, now=None, extra_dirs=None):
                       "csf": c.get("csf"), "function": c["function"], "cis": c.get("cis", []), "check": c["check"],
                       "weight": c["weight"], "status": c["_status"], "detail": c["_detail"],
                       "needs_human": bool(c.get("needs_human") or c["check"] == "attested"),
+                      "attestable": attestable(c), "question": c.get("question"),
                       "remediation": c.get("remediation", ""),
                       "expires": time.strftime("%Y-%m-%d", time.gmtime(c["_expires"])) if c.get("_expires") else None}
                      for c in controls]}
@@ -399,8 +410,8 @@ def attest(data, inst, cid, by, note=None, days=None, expires=None, value=True, 
     c = next((x for x in controls if x["id"] == cid), None)
     if c is None:
         raise SystemExit(f"unknown control {cid}")
-    if c["check"] != "attested" and not na:
-        raise SystemExit(f"{cid} is {c['check']}, not attested (only --not-applicable may be recorded for it)")
+    if not attestable(c) and not na:
+        raise SystemExit(f"{cid} is {c['check']} without an attestation fallback (only --not-applicable may be recorded)")
     p = os.path.join(data, "attestations.yaml")
     doc = (load_config(p) or {}) if os.path.exists(p) else {}
     doc.setdefault("schema", ATTEST_SCHEMA)

@@ -2,6 +2,27 @@
 
 Components are versioned independently (docs/design.md §5). Entries name the component and its new version.
 
+## 2026-11-24 — people pillar (identity, AI agents as personnel)
+
+- **adapters/identity 0.1.0** (new): `provider(cfg).collect()` normalises accounts (MFA true/false/unknown), orgs
+  (2FA requirement), grants (collaborators, deploy keys, members), credentials (kind, scopes, created/expires, never
+  a value) and policies (fork-PR approval, overlay ACL allow-all). `github` via gh with an ETag cache (304s cost no
+  rate limit) and `orgs:` scoping (other organisations are never read); `tailscale` with a read-only API key file
+  (0600) or the CLI; `local_credentials` (gh keyring dates, kubeconfig users incl. certificate expiry, SSH keys,
+  Docker registries, token files). `google-workspace`, `okta`, `entra`, `gitlab`: documented interfaces (gaps).
+- **collector identity 0.1.0** (new): provider-independent checks `identity.mfa_disabled`, `org_mfa_not_required`,
+  `collaborator_unexpected`, `deploy_key_unused`, `fork_pr_approval_weak`, `overlay_acl_allow_all`,
+  `token_age_over_90d`, `token_classic_full_repo`, `token_expiring_soon`, `credential_expired`,
+  `ssh_key_age_over_365d`, `overlay_device_dormant`, `credential_file_readable`; MFA the API cannot tell is a coverage
+  gap (`identity-mfa:`), answered by a human attestation in the scorecard. Metrics `security_identity_*`.
+- **collector agent-claude-code 0.2.0**: memory files scanned for credential shapes (counts only; prose after a
+  keyword is not a value), `agent.no_credential_deny_rules` (deny rules for credential paths), audit trail metadata
+  (`agent.audit_trail_missing`: no transcript within 7 days or retention below `min_transcript_retention_days`),
+  hooks inventory; coverage `agent-guard:`, `agent-memory:`, `agent-audit:`.
+- **scorecard 0.2.0**: evaluators `first_known` (the API decides when it can tell, otherwise the next source) and
+  `attestation` (the control's own human answer); `people.codehost-mfa` and `people.overlay-acl` use them;
+  `attest` accepts controls with an attestation fallback; the digest lists every control a human must answer.
+
 ## 2026-11-24 — scorecard (weakest link)
 
 - **scorecard 0.1.0** (new component): `scorecard/scorecard.py` (`compute`, `attest`, `lint`, `list`) and
