@@ -2,6 +2,17 @@
 
 Components are versioned independently (docs/design.md §5). Entries name the component and its new version.
 
+## 2026-11-24 — a second kind of environment
+
+- **adapters/discovery 0.3.0**: `static` takes CIDR ranges (`cidrs:`, `exclude:`, `max_hosts` default 1024 so a typo
+  cannot start a /8 scan); range-derived assets carry `attrs.cidr`.
+- **exposure 0.4.0**: an address from a CIDR range where nothing answers is "no host there", not a coverage gap.
+- **codehost-gitea 0.1.0** (new): Gitea / Forgejo over the REST API (stdlib; token from a 0600 file): unprotected
+  default branch, protection without approvals, write deploy keys, plain-http pull mirrors. Same check names as the
+  GitHub collector where the meaning is the same.
+- **codehost-github 0.1.1**: entries of another code-host type are left to their own collector (no false gap).
+- Tests: `tests/test_adapters_generic.py` (CIDR expansion and limits; Gitea against an in-process fake API).
+
 ## 2026-11-24 — usability: the `sp` command line and notifiers
 
 - **cli 0.1.0** (new): `bin/sp` (symlink it into PATH): `init` (a private data directory with a starter config whose

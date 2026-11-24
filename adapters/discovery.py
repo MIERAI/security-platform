@@ -2,7 +2,10 @@
 
   discover(cfg) -> [ {name, address, os, online, attrs{}} ]
 
-Implemented: tailscale (local `tailscale status --json`), static (addresses/CIDRs listed in the instance config),
+Implemented: tailscale (local `tailscale status --json`), static (addresses and/or CIDR ranges listed in the instance
+config: `targets: [{name, address, os?}]`, `cidrs: ["10.0.0.0/28", ...]`, `exclude: [addresses]`; a CIDR expands to
+its host addresses, at most `max_hosts` (default 1024) per config so a typo cannot start a /8 scan; CIDR-derived
+assets carry `attrs.cidr`, and a collector may treat "nothing answers" there as "no host", not as a coverage gap),
 file (a JSON list in the same shape, e.g. exported by a hub for a site that cannot discover by itself; `max_age`
 seconds: older = error, so a stale list becomes a coverage gap instead of a silent scan of the wrong hosts).
 Future (interface only): aws-vpc (ec2:DescribeInstances), gcp (compute.instances.list), azure, cmdb.
@@ -27,8 +30,21 @@ def tailscale(cfg):
 
 
 def static(cfg):
-    return [dict(name=t.get("name", t["address"]), address=t["address"], os=t.get("os", ""), online=True, attrs={})
-            for t in cfg.get("targets", [])]
+    import ipaddress
+    res = [dict(name=t.get("name", t["address"]), address=t["address"], os=t.get("os", ""), online=True, attrs={})
+           for t in cfg.get("targets", [])]
+    seen = {r["address"] for r in res} | set(cfg.get("exclude", []))
+    limit = int(cfg.get("max_hosts", 1024))
+    for c in cfg.get("cidrs", []):
+        net = ipaddress.ip_network(c, strict=False)
+        if net.num_addresses > limit + 2:
+            raise ValueError(f"CIDR {c} has {net.num_addresses} addresses (max_hosts {limit})")
+        for ip in (net.hosts() if net.num_addresses > 2 else net):
+            a = str(ip)
+            if a not in seen:
+                seen.add(a)
+                res.append(dict(name=a, address=a, os="", online=True, attrs={"cidr": str(net)}))
+    return res
 
 
 def file(cfg):

@@ -2,7 +2,8 @@
 """Collector `exposure`: what an outsider sees. Open TCP ports + which HTTP(S) services answer without auth.
 
 Adapters (from the instance config, section `exposure`):
-  discovery: [ {type: tailscale} | {type: static, targets: [{name, address}]} ]   -> targets
+  discovery: [ {type: tailscale} | {type: static, targets: [{name, address}], cidrs: [CIDR]} ]   -> targets
+             (a CIDR address where nothing answers is "no host there", not a coverage gap)
   vantage:   an exec adapter config for a host OUTSIDE the targets' trust zone (the role, not a device)
   extra_ports: "P,Q"   ports to scan on top of nmap top-1000 + the built-in known list
 Classification is by response fingerprint (generic), not by the instance's port numbers.
@@ -110,18 +111,21 @@ def main():
         except Exception as err:  # noqa: BLE001
             c.gap(f"discovery:{dcfg.get('type')}", f"{type(err).__name__}: {err}")
     ev_dev = c.raw("devices.json", devices)
-    targets, name_of, verified = [], {}, set()
+    targets, name_of, verified, from_cidr = [], {}, set(), set()
     for d in devices:
         if not d.get("address"):
             continue
         name_of[d["address"]] = d["name"]
         if d["online"] and d["attrs"].get("online_verified"):
             verified.add(d["address"])
+        if (d.get("attrs") or {}).get("cidr"):
+            from_cidr.add(d["address"])
         if not d["online"]:
             c.gap(f"host:{d['name']}", "offline at scan time")
             continue
         targets.append(d["address"])
-        c.ok(f"host:{d['name']}")   # covers exactly this asset (discovery facts), not its endpoints
+        if d["address"] not in from_cidr:
+            c.ok(f"host:{d['name']}")   # covers exactly this asset (discovery facts), not its endpoints
         if d["attrs"].get("key_expiry_disabled"):
             c.finding("identity", f"host:{d['name']}", "overlay.node_key_expiry_disabled",
                       "overlay-network node key never expires", "low", ev_dev,
@@ -146,6 +150,8 @@ def main():
         if not ports:
             if ip in verified:   # discovery saw it online at scan time: nothing open = fully filtered (the goal)
                 c.ok(asset)
+                continue
+            if ip in from_cidr:  # an unused address of a range nobody vouched for: no host there, nothing to cover
                 continue
             # -Pn scan of an address nobody vouched for: down or filtered cannot be told apart -> no "fixed"
             c.gap(f"host:{name_of.get(ip, ip)}", "no open port seen from the vantage point (down or filtered)")

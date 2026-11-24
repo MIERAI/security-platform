@@ -16,6 +16,7 @@ SAMPLES = {
     "k8s": ("workload", "k8s-workload:cluster-a/ns/Deployment/app", "k8s.pod.privileged", "compliance"),
     "vuln-intel": ("supply-chain", "image:registry.example/app:1.0", "vuln.cve-2099-0001", "vulnerability"),
     "codehost-github": ("supply-chain", "repo:github/example/app", "repo.default_branch_unprotected", "compliance"),
+    "codehost-gitea": ("supply-chain", "repo:gitea/git.example/example/app", "repo.default_branch_unprotected", "compliance"),
     "secrets-files": ("data-secrets", "secret-file:host-a:~/.ssh/id_ed25519", "secret.ssh_key_no_passphrase", "compliance"),
     "agent-claude-code": ("ai-agents", "agent:claude-code:~/.claude/settings.json", "agent.reads_outside_workdir", "compliance"),
     "identity": ("identity", "identity:github/example-user", "identity.mfa_disabled", "compliance"),
