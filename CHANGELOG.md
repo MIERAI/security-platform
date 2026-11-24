@@ -2,6 +2,14 @@
 
 Components are versioned independently (docs/design.md §5). Entries name the component and its new version.
 
+## 2026-11-24 — platform self-security
+
+- docs/threat-model.md (new): the platform's own threat model (assets, trust boundaries, STRIDE threats T1-T11 with
+  controls and gaps), the secret-handling review, and the data-at-rest decision (full-disk encryption on every host
+  holding the data; copies leaving the host encrypted separately).
+- Scorecard catalog `self`: `self.image-ci-scan-sbom` (CI scan + SBOM through the shared build workflow);
+  `self.image-signed` matches the workflow's `sign: true`.
+
 ## 2026-11-24 — people pillar (identity, AI agents as personnel)
 
 - **adapters/identity 0.1.0** (new): `provider(cfg).collect()` normalises accounts (MFA true/false/unknown), orgs
