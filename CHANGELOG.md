@@ -2,6 +2,15 @@
 
 Components are versioned independently (docs/design.md §5). Entries name the component and its new version.
 
+## 2026-11-24 — overview dashboard
+
+- **generators 0.6.0**: a second dashboard, **Security overview** (`dist/grafana-overview.json`, uid
+  `security-platform-overview`; also a second key of the existing dashboard ConfigMap, so the Grafana sidecar picks it
+  up with no deployment change): the security score, critical+high open, overdue fixes, new in 24h, regressions and
+  "could not check" tiles; score by pillar and by dimension with failing controls; top risks (open critical/high by
+  area), overdue fixes by severity, exposure/KEV SLIs; 30-day trend; job health; a plain-language "what to do" note.
+  Aggregates only, every panel described in plain words.
+
 ## 2026-11-24 — fix: default owner
 
 - **core 0.6.1**: `remediation.default_owner` applies to findings whose owner is only the SDK's role hint (`platform`
