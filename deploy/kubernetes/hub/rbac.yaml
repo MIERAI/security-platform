@@ -1,0 +1,54 @@
+# Least privilege for the hub (replaces an operator's admin kubeconfig):
+#  - cluster: READ-ONLY posture for the k8s collector; no Secrets, no exec, no writes;
+#  - its own namespace: read and delete inbox documents (Secrets), publish its snapshot Secret and its metrics
+#    ConfigMap. Nothing else, nowhere else.
+apiVersion: v1
+kind: ServiceAccount
+metadata: { name: security-platform-hub }
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata: { name: security-platform-hub-read }
+rules:
+  - { apiGroups: [""], resources: [namespaces, pods, services], verbs: [get, list] }
+  - { apiGroups: [networking.k8s.io], resources: [networkpolicies], verbs: [get, list] }
+  - { apiGroups: [rbac.authorization.k8s.io], resources: [roles, rolebindings, clusterroles, clusterrolebindings], verbs: [get, list] }
+  - { apiGroups: [wgpolicyk8s.io], resources: [policyreports, clusterpolicyreports], verbs: [get, list] }
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata: { name: security-platform-hub-read }
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: security-platform-hub-read }
+subjects: [{ kind: ServiceAccount, name: security-platform-hub, namespace: security-platform }]   # kustomize rewrites the namespace
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: { name: security-platform-hub }
+rules:
+  - { apiGroups: [""], resources: [secrets], verbs: [list, get, delete] }                  # the inbox
+  - { apiGroups: [""], resources: [secrets], verbs: [create] }                              # first snapshot
+  - { apiGroups: [""], resources: [secrets], verbs: [patch], resourceNames: [security-platform-snapshot] }
+  - { apiGroups: [""], resources: [configmaps], verbs: [create] }                           # first publish
+  - { apiGroups: [""], resources: [configmaps], verbs: [get, patch], resourceNames: [security-platform-metrics] }
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: { name: security-platform-hub }
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: Role, name: security-platform-hub }
+subjects: [{ kind: ServiceAccount, name: security-platform-hub }]
+---
+# Sites (an external vantage host, an operator workstation, an in-cluster CronJob of another cluster) can only DROP
+# documents into the inbox: create, never read, list or delete. Bind it per site (site-identity.example.yaml).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: { name: security-platform-inbox-writer }
+rules:
+  - { apiGroups: [""], resources: [secrets], verbs: [create] }
+---
+# The operator's off-cluster copy: read the hub's snapshot Secret by name, nothing else.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: { name: security-platform-snapshot-reader }
+rules:
+  - { apiGroups: [""], resources: [secrets], verbs: [get], resourceNames: [security-platform-snapshot] }

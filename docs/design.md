@@ -153,6 +153,20 @@
 - `SecurityCollectorStale`：某 collector 超过 2 个周期没跑（看不见也是事故）。
 - `SecurityCriticalOpen`：critical finding 开放超过 N 天。
 
+### 3.7 hub 放进集群（deploy 0.3.0，2026-11-24 的决定）
+
+hub 跑在操作者工作站上时，工作站睡眠/断网 = 整个平台停。改为 **hub = 集群内 CronJob**，工作站和外部视角主机都退成 site，向 hub 的**认证收件箱**推送。细节见 docs/runner.md「In-cluster hub」。
+
+| 决定 | 选择 | 理由（成熟公司的做法） |
+|---|---|---|
+| 状态放哪 | PVC（只本命名空间可挂载） | 不需要新的对象存储凭据；集群已有默认 StorageClass |
+| 备份 / 审计轨迹 | hub 每小时把快照（`security-platform/snapshot/v1`：tar.gz + sha256 清单）写进**本命名空间的一个 Secret**；操作者工作站按名字 `get` 它，校验后解到私有数据仓库并提交 | 发现物不出私有边界（不进公开仓库、不进共享桶）；保留原有的私有 git 审计轨迹；工作站只有"读这一个 Secret"的权限。对象存储（S3）适配器留接口：需要**专用**桶和专用凭据（现有 S3 凭据是数据库备份共用的管理员身份，不复用） |
+| 收件箱 | 本命名空间的 Secret（经 API server，TLS + ServiceAccount 令牌） | 复用 k8s 的认证/授权/审计；site 只有 `create`，读不到别人的东西；不开新端口、不加无认证入口 |
+| site 身份 | ValidatingAdmissionPolicy 把 `security-platform/site` 标签绑定到写入者的 SA 名 | 标签由写入者自报，不绑定就能冒充别的 site |
+| hub 权限 | 集群级只读（无 Secret），命名空间内只动自己的对象 | 取代操作者的管理员 kubeconfig |
+| 人批准的例外 | 工作站 `push` → hub 只在声明了 `accept_control` 的 ingest 上接受 | 批准仍在私有仓库里做，hub 只是副本 |
+| 离线 | site 先写本地 spool，`forward` 每 tick 投递、成功才确认 | 网络抖动不丢文档，积压可见 |
+
 ---
 
 ## 4. 数据契约与 OCSF

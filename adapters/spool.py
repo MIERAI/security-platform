@@ -4,9 +4,11 @@ to the HUB that keeps the ledger. Documents are attacker intelligence: they stay
   Spool(cfg).list() -> [name]      get(name) -> text      ack(name)      put(name, text)
 cfg: {type: exec, exec: <exec adapter cfg>, dir: <directory on that host>}   any host reachable by an exec adapter
      {type: local, dir: <directory>}
-     {type: kubernetes-secret, namespace, kubeconfig?, context?}   one Secret per document (gzip; data never in
-         logs or ConfigMaps); a site in a cluster writes them (RBAC: create secrets in its namespace), the hub reads
-         and deletes them. kubeconfig empty = in-cluster ServiceAccount.
+     {type: kubernetes-secret, namespace?, box?, site?, + adapters/kubeapi.py transport (server+token_file+ca_file |
+         in-cluster | kubeconfig)}   the hub's authenticated inbox: one Secret per document (gzip; never in logs or
+         ConfigMaps); writers can only create, the hub reads and deletes (deploy/kubernetes/hub).
+Store and forward: a site writes to a LOCAL spool first (always works offline); the runner's `forward` drains it to
+a remote spool every tick and only acknowledges what was delivered (docs/runner.md).
 Future (interface only): s3.
 """
 import base64
@@ -16,12 +18,13 @@ import json
 import os
 import re
 import shlex
-import subprocess
+import time
 
 from . import exec as ex
 
-VERSION = "0.2.0"
-LABEL = "security-platform/outbox"
+VERSION = "0.3.0"
+PREFIX = "security-platform"
+LABEL = PREFIX + "/outbox"
 
 
 class ExecSpool:
@@ -55,43 +58,76 @@ class ExecSpool:
 
 
 class KubeSecretSpool:
+    """An authenticated inbox in a Kubernetes namespace: one Secret per document (gzip). Writers need only `create
+    secrets` there (they cannot read what others sent); the hub lists, reads and deletes. Labels:
+      security-platform/outbox=true, security-platform/box=<outbox|state|...>, security-platform/site=<site>
+    The site label is what the hub trusts; the product's admission policy (deploy/kubernetes/hub) rejects a Secret
+    whose site label does not match the writer's ServiceAccount, so a site cannot speak for another one.
+    Several documents may share a name (a site's job state is re-sent every run): get() returns the newest, ack()
+    deletes them all."""
     def __init__(self, cfg):
-        self.ns = cfg["namespace"]
-        self.kc = ["kubectl"] + (["--kubeconfig", os.path.expanduser(cfg["kubeconfig"])] if cfg.get("kubeconfig") else []) + \
-            (["--context", cfg["context"]] if cfg.get("context") else []) + ["-n", self.ns]
+        from . import kubeapi
+        self.api = kubeapi.client(cfg)
+        self.ns = self.api.namespace or cfg.get("namespace")
+        if not self.ns:
+            raise ValueError("kubernetes-secret spool: namespace required outside a cluster")
+        self.box, self.site = cfg.get("box", "outbox"), cfg.get("site", "")
+        self._items = None
 
     @staticmethod
-    def secret_name(name):
-        base = re.sub(r"[^a-z0-9-]+", "-", name.lower()).strip("-")[:200]
-        return f"sp-outbox-{base}-{hashlib.sha1(name.encode()).hexdigest()[:8]}"
+    def secret_name(name, box="outbox", site="", salt=""):
+        base = re.sub(r"[^a-z0-9-]+", "-", f"{box}-{site}".lower()).strip("-")[:60]
+        return f"sp-{base}-{hashlib.sha1((name + salt).encode()).hexdigest()[:12]}"
 
-    def _k(self, args, stdin=None):
-        p = subprocess.run(self.kc + args, input=stdin, capture_output=True, text=True, timeout=120)
-        if p.returncode != 0:
-            raise RuntimeError(f"kubectl {args[0]} rc={p.returncode}: {p.stderr.strip()[-160:]}")
-        return p.stdout
+    def _path(self, name=None):
+        return f"/api/v1/namespaces/{self.ns}/secrets" + (f"/{name}" if name else "")
+
+    def _list(self):
+        sel = f"{LABEL}=true" + (f",{PREFIX}/site={self.site}" if self.site else "")
+        items = self.api.request("GET", self._path(), query={"labelSelector": sel}).get("items") or []
+        by = {}
+        for i in items:
+            md = i["metadata"]
+            if (md.get("labels") or {}).get(PREFIX + "/box", "outbox") != self.box:
+                continue
+            n = (md.get("annotations") or {}).get(LABEL + "-name", "")
+            by.setdefault(n, []).append(i)
+        for v in by.values():
+            v.sort(key=lambda i: (i["metadata"].get("creationTimestamp", ""), i["metadata"]["name"]), reverse=True)
+        self._items = by
+        return by
 
     def list(self, suffix=".json"):
-        items = json.loads(self._k(["get", "secrets", "-l", f"{LABEL}=true", "-o", "json"]))["items"]
-        names = [(i["metadata"].get("annotations") or {}).get(LABEL + "-name", "") for i in items]
-        return sorted(n for n in names if n.endswith(suffix))
+        return sorted(n for n in self._list() if n.endswith(suffix))
 
     def get(self, name):
-        sec = json.loads(self._k(["get", "secret", self.secret_name(name), "-o", "json"]))
-        return gzip.decompress(base64.b64decode(sec["data"]["doc"])).decode()
+        items = (self._items if self._items and name in self._items else self._list()).get(name)
+        if not items:
+            raise KeyError(name)
+        return gzip.decompress(base64.b64decode(items[0]["data"]["doc"])).decode()
 
     def ack(self, name):
-        self._k(["delete", "secret", self.secret_name(name), "--ignore-not-found"])
+        for i in (self._items or self._list()).get(name, []):
+            try:
+                self.api.request("DELETE", self._path(i["metadata"]["name"]))
+            except Exception as e:  # noqa: BLE001
+                if getattr(e, "status", None) != 404:
+                    raise
+        if self._items:
+            self._items.pop(name, None)
 
     def put(self, name, text):
         data = base64.b64encode(gzip.compress(text.encode())).decode()
         if len(data) > 900_000:
             raise ValueError(f"{name}: {len(data)} bytes after compression: too large for one Secret")
+        labels = {LABEL: "true", PREFIX + "/box": self.box, "app.kubernetes.io/part-of": "security-platform"}
+        if self.site:
+            labels[PREFIX + "/site"] = self.site
         sec = {"apiVersion": "v1", "kind": "Secret", "type": "Opaque",
-               "metadata": {"name": self.secret_name(name), "labels": {LABEL: "true", "app.kubernetes.io/part-of": "security-platform"},
-                            "annotations": {LABEL + "-name": name}},
+               "metadata": {"name": self.secret_name(name, self.box, self.site, str(time.time_ns())),
+                            "labels": labels, "annotations": {LABEL + "-name": name}},
                "data": {"doc": data}}
-        self._k(["create", "-f", "-"], stdin=json.dumps(sec))
+        self.api.request("POST", self._path(), body=sec)
 
 
 def _future(cfg):

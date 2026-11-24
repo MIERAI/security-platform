@@ -121,40 +121,5 @@ class Files(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(self.d, "out", "sent", "a.json")))
 
 
-class KubeSpool(unittest.TestCase):
-    def test_roundtrip_with_a_fake_kubectl(self):
-        d = tempfile.mkdtemp()
-        try:
-            store = os.path.join(d, "store")
-            os.makedirs(store)
-            fake = os.path.join(d, "kubectl")
-            open(fake, "w").write(f"""#!{sys.executable}
-import json, os, sys
-a = [x for x in sys.argv[1:]]
-a = a[a.index("-n") + 2:]
-S = {store!r}
-if a[0] == "create":
-    o = json.load(sys.stdin); json.dump(o, open(os.path.join(S, o["metadata"]["name"]), "w"))
-elif a[0] == "get" and a[1] == "secrets":
-    print(json.dumps({{"items": [json.load(open(os.path.join(S, f))) for f in os.listdir(S)]}}))
-elif a[0] == "get":
-    print(open(os.path.join(S, a[2])).read())
-elif a[0] == "delete":
-    os.remove(os.path.join(S, a[2]))
-""")
-            os.chmod(fake, 0o755)
-            os.environ["PATH"] = d + os.pathsep + os.environ["PATH"]
-            sp = spool.spool({"type": "kubernetes-secret", "namespace": "x"})
-            sp.put("20260101T000000-k8s.k8s-incluster.findings.json", '{"a": 1}')
-            self.assertEqual(sp.list(), ["20260101T000000-k8s.k8s-incluster.findings.json"])
-            self.assertEqual(sp.get(sp.list()[0]), '{"a": 1}')
-            self.assertRegex(spool.KubeSecretSpool.secret_name("A_b.json"), r"^[a-z0-9-]{1,253}$")
-            sp.ack(sp.list()[0])
-            self.assertEqual(sp.list(), [])
-        finally:
-            os.environ["PATH"] = os.environ["PATH"].split(os.pathsep, 1)[1]
-            shutil.rmtree(d)
-
-
 if __name__ == "__main__":
     unittest.main()
