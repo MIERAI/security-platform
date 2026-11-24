@@ -1,2 +1,3 @@
 # git pathspecs skipped by bin/check-residue: this repository's own hosting configuration only
 .github/
+.residue-allow
