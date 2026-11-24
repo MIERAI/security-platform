@@ -1,0 +1,674 @@
+{
+ "uid": "security-platform-overview",
+ "title": "Security overview",
+ "schemaVersion": 39,
+ "version": 1,
+ "tags": [
+  "security-platform",
+  "overview",
+  "generator-0.6.0"
+ ],
+ "time": {
+  "from": "now-30d",
+  "to": "now"
+ },
+ "templating": {
+  "list": [
+   {
+    "name": "datasource",
+    "type": "datasource",
+    "query": "prometheus",
+    "label": "Prometheus"
+   },
+   {
+    "name": "namespace",
+    "type": "query",
+    "label": "namespace",
+    "datasource": {
+     "type": "prometheus",
+     "uid": "${datasource}"
+    },
+    "query": {
+     "query": "label_values(security_ledger_last_update_timestamp_seconds, namespace)",
+     "refId": "ns"
+    },
+    "refresh": 2,
+    "includeAll": true,
+    "multi": false,
+    "current": {
+     "text": "All",
+     "value": "$__all"
+    }
+   }
+  ]
+ },
+ "panels": [
+  {
+   "id": 1,
+   "type": "stat",
+   "title": "Security score",
+   "gridPos": {
+    "x": 0,
+    "y": 0,
+    "w": 4,
+    "h": 7
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "min(security_score_overall{namespace=~\"$namespace\"})"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "green",
+        "value": 75
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {},
+   "description": "The weakest dimension's score (0-100). Below 75 = the programme fails somewhere; see the bars."
+  },
+  {
+   "id": 2,
+   "type": "stat",
+   "title": "Critical + high open",
+   "gridPos": {
+    "x": 4,
+    "y": 0,
+    "w": 4,
+    "h": 7
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum(security_findings{namespace=~\"$namespace\", status=\"open\", severity=~\"critical|high\"}) or vector(0)"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {},
+   "description": "Open findings that should be fixed this week or sooner."
+  },
+  {
+   "id": 3,
+   "type": "stat",
+   "title": "Overdue fixes",
+   "gridPos": {
+    "x": 8,
+    "y": 0,
+    "w": 4,
+    "h": 7
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum(security_remediation_overdue{namespace=~\"$namespace\"}) or vector(0)"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {},
+   "description": "Open findings past their fix-by date (remediation SLO). `sp findings --overdue` lists them."
+  },
+  {
+   "id": 4,
+   "type": "stat",
+   "title": "New in 24h",
+   "gridPos": {
+    "x": 12,
+    "y": 0,
+    "w": 4,
+    "h": 7
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum(increase(security_sli_new_total{namespace=~\"$namespace\"}[24h])) or vector(0)"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {},
+   "description": "Serious findings that appeared today (they also alert)."
+  },
+  {
+   "id": 5,
+   "type": "stat",
+   "title": "Came back (regressions)",
+   "gridPos": {
+    "x": 16,
+    "y": 0,
+    "w": 4,
+    "h": 7
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "max(security_findings_reopened_total{namespace=~\"$namespace\"}) or vector(0)"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {},
+   "description": "Fixed findings that reappeared, ever. A rise means a fix was undone."
+  },
+  {
+   "id": 6,
+   "type": "stat",
+   "title": "Could not check",
+   "gridPos": {
+    "x": 20,
+    "y": 0,
+    "w": 4,
+    "h": 7
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum(security_collector_gaps{namespace=~\"$namespace\"}) or vector(0)"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {},
+   "description": "Things in scope that no scan could look at. No finding there does NOT mean safe."
+  },
+  {
+   "id": 7,
+   "type": "bargauge",
+   "title": "Score by pillar",
+   "gridPos": {
+    "x": 0,
+    "y": 7,
+    "w": 8,
+    "h": 9
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "min by (pillar) (security_score{namespace=~\"$namespace\", pillar!=\"\", dimension=\"\"})",
+     "legendFormat": "{{pillar}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "green",
+        "value": 75
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {},
+   "description": "Network, device, people, software: the weakest pillar is where to invest."
+  },
+  {
+   "id": 8,
+   "type": "bargauge",
+   "title": "Score by dimension",
+   "gridPos": {
+    "x": 8,
+    "y": 7,
+    "w": 10,
+    "h": 9
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "min by (dimension) (security_score{namespace=~\"$namespace\", dimension!=\"\", pillar=\"\"})",
+     "legendFormat": "{{dimension}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "green",
+        "value": 75
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {},
+   "description": "docs/scorecard.md explains each dimension; reports/scorecard.md lists the failing controls."
+  },
+  {
+   "id": 9,
+   "type": "bargauge",
+   "title": "Failing controls",
+   "gridPos": {
+    "x": 18,
+    "y": 7,
+    "w": 6,
+    "h": 9
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum by (dimension) (security_score_controls{namespace=~\"$namespace\", status=\"fail\"})",
+     "legendFormat": "{{dimension}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "id": 10,
+   "type": "table",
+   "title": "Top risks: open critical and high, by area",
+   "gridPos": {
+    "x": 0,
+    "y": 16,
+    "w": 12,
+    "h": 9
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sort_desc(sum by (layer, severity) (security_findings{namespace=~\"$namespace\", status=\"open\", severity=~\"critical|high\"}))",
+     "instant": true,
+     "format": "table"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {},
+   "description": "Where the serious findings are. `sp findings --open --severity high` on the hub lists them; `sp explain <id>` says how to fix each.",
+   "transformations": [
+    {
+     "id": "organize",
+     "options": {
+      "excludeByName": {
+       "Time": true
+      },
+      "renameByName": {
+       "layer": "area",
+       "Value": "open"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": 11,
+   "type": "bargauge",
+   "title": "Overdue fixes by severity",
+   "gridPos": {
+    "x": 12,
+    "y": 16,
+    "w": 6,
+    "h": 9
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "max by (severity) (security_remediation_overdue{namespace=~\"$namespace\"})",
+     "legendFormat": "{{severity}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "id": 12,
+   "type": "bargauge",
+   "title": "Exposure and exploited vulnerabilities",
+   "gridPos": {
+    "x": 18,
+    "y": 16,
+    "w": 6,
+    "h": 9
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "max by (sli) (security_sli{namespace=~\"$namespace\", sli=~\"unauth_network_services|kev_or_critical_exposed|kev_affecting_assets\"})",
+     "legendFormat": "{{sli}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {},
+   "description": "Open services without login seen from outside, and known-exploited (KEV) or critical vulnerabilities on exposed assets: the most urgent kinds of risk."
+  },
+  {
+   "id": 13,
+   "type": "timeseries",
+   "title": "Open findings by severity (30 days)",
+   "gridPos": {
+    "x": 0,
+    "y": 25,
+    "w": 12,
+    "h": 8
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum by (severity) (security_findings{namespace=~\"$namespace\", status=\"open\"})",
+     "legendFormat": "{{severity}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 1
+       }
+      ]
+     },
+     "custom": {
+      "stacking": {
+       "mode": "normal"
+      },
+      "fillOpacity": 30
+     }
+    },
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "id": 14,
+   "type": "bargauge",
+   "title": "Platform health: hours since each job last succeeded",
+   "gridPos": {
+    "x": 12,
+    "y": 25,
+    "w": 12,
+    "h": 8
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "(time() - max by (job) (security_runner_job_last_success_timestamp_seconds{namespace=~\"$namespace\"})) / 3600",
+     "legendFormat": "{{job}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 26
+       },
+       {
+        "color": "red",
+        "value": 50
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "id": 15,
+   "type": "text",
+   "title": "What to do",
+   "gridPos": {
+    "x": 0,
+    "y": 33,
+    "w": 24,
+    "h": 3
+   },
+   "options": {
+    "mode": "markdown",
+    "content": "**Red tiles first.** On the hub: `sp status` (one screen), `sp findings --open --severity high`, `sp explain <id>` (what, why, how to fix, how to verify). A fix is confirmed by the next scan; accepting a risk is a human entry in `exceptions.yaml` with an end date. Details never appear here: they stay in the private data directory. Full dashboard: *Security platform*."
+   }
+  }
+ ],
+ "links": [
+  {
+   "title": "Security platform (details)",
+   "type": "dashboards",
+   "tags": [
+    "security-platform"
+   ]
+  }
+ ]
+}

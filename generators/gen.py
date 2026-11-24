@@ -197,11 +197,81 @@ def dashboard(cat):
             "panels": ps}
 
 
-def dashboard_configmap(dash):
+def overview(cat):
+    """The landing page: one screen that answers "are we OK, what is worst, what is late" in plain words. Aggregates
+    only, like every generated panel; the details are one `sp explain <id>` away on the private hub."""
+    ns = 'namespace=~"$namespace"'
+    ps, pid = [], 0
+    score_th = {"mode": "absolute", "steps": [{"color": "red", "value": None}, {"color": "green", "value": 75}]}
+    zero_ok = {"mode": "absolute", "steps": [{"color": "green", "value": None}, {"color": "red", "value": 1}]}
+
+    def add(*a, **k):
+        nonlocal pid
+        pid += 1
+        ps.append(panel(pid, *a, **k))
+        return ps[-1]
+
+    def text(title, md, x, y, w, h):
+        nonlocal pid
+        pid += 1
+        ps.append({"id": pid, "type": "text", "title": title, "gridPos": {"x": x, "y": y, "w": w, "h": h},
+                   "options": {"mode": "markdown", "content": md}})
+
+    add("Security score", f"min(security_score_overall{{{ns}}})", x=0, y=0, w=4, h=7, thresholds=score_th,
+        desc="The weakest dimension's score (0-100). Below 75 = the programme fails somewhere; see the bars.")
+    add("Critical + high open", f'sum(security_findings{{{ns}, status="open", severity=~"critical|high"}}) or vector(0)',
+        x=4, y=0, w=4, h=7, thresholds=zero_ok, desc="Open findings that should be fixed this week or sooner.")
+    add("Overdue fixes", f"sum(security_remediation_overdue{{{ns}}}) or vector(0)", x=8, y=0, w=4, h=7, thresholds=zero_ok,
+        desc="Open findings past their fix-by date (remediation SLO). `sp findings --overdue` lists them.")
+    add("New in 24h", f"sum(increase(security_sli_new_total{{{ns}}}[24h])) or vector(0)", x=12, y=0, w=4, h=7,
+        thresholds=zero_ok, desc="Serious findings that appeared today (they also alert).")
+    add("Came back (regressions)", f"max(security_findings_reopened_total{{{ns}}}) or vector(0)", x=16, y=0, w=4, h=7,
+        thresholds=zero_ok, desc="Fixed findings that reappeared, ever. A rise means a fix was undone.")
+    add("Could not check", f"sum(security_collector_gaps{{{ns}}}) or vector(0)", x=20, y=0, w=4, h=7,
+        thresholds={"mode": "absolute", "steps": [{"color": "green", "value": None}, {"color": "orange", "value": 1}]},
+        desc="Things in scope that no scan could look at. No finding there does NOT mean safe.")
+    add("Score by pillar", f'min by (pillar) (security_score{{{ns}, pillar!="", dimension=""}})', "bargauge", 0, 7, 8, 9,
+        "{{pillar}}", thresholds=score_th, desc="Network, device, people, software: the weakest pillar is where to invest.")
+    add("Score by dimension", f'min by (dimension) (security_score{{{ns}, dimension!="", pillar=""}})', "bargauge", 8, 7, 10, 9,
+        "{{dimension}}", thresholds=score_th, desc="docs/scorecard.md explains each dimension; reports/scorecard.md lists "
+        "the failing controls.")
+    add("Failing controls", f'sum by (dimension) (security_score_controls{{{ns}, status="fail"}})', "bargauge", 18, 7, 6, 9,
+        "{{dimension}}", thresholds={"mode": "absolute", "steps": [{"color": "green", "value": None}, {"color": "orange", "value": 1}]})
+    top = add("Top risks: open critical and high, by area", f'sort_desc(sum by (layer, severity) (security_findings{{{ns}, '
+              f'status="open", severity=~"critical|high"}}))', "table", 0, 16, 12, 9,
+              desc="Where the serious findings are. `sp findings --open --severity high` on the hub lists them; "
+                   "`sp explain <id>` says how to fix each.")
+    top["targets"][0].update(instant=True, format="table")
+    top["transformations"] = [{"id": "organize", "options": {"excludeByName": {"Time": True},
+                                                            "renameByName": {"layer": "area", "Value": "open"}}}]
+    add("Overdue fixes by severity", f"max by (severity) (security_remediation_overdue{{{ns}}})", "bargauge", 12, 16, 6, 9,
+        "{{severity}}", thresholds=zero_ok)
+    add("Exposure and exploited vulnerabilities", f'max by (sli) (security_sli{{{ns}, sli=~"unauth_network_services|'
+        f'kev_or_critical_exposed|kev_affecting_assets"}})', "bargauge", 18, 16, 6, 9, "{{sli}}", thresholds=zero_ok,
+        desc="Open services without login seen from outside, and known-exploited (KEV) or critical vulnerabilities on "
+             "exposed assets: the most urgent kinds of risk.")
+    add("Open findings by severity (30 days)", f'sum by (severity) (security_findings{{{ns}, status="open"}})', "timeseries",
+        0, 25, 12, 8, "{{severity}}")
+    add("Platform health: hours since each job last succeeded",
+        f"(time() - max by (job) (security_runner_job_last_success_timestamp_seconds{{{ns}}})) / 3600", "bargauge", 12, 25,
+        12, 8, "{{job}}", thresholds={"mode": "absolute", "steps": [{"color": "green", "value": None},
+                                                                     {"color": "orange", "value": 26}, {"color": "red", "value": 50}]})
+    text("What to do", "**Red tiles first.** On the hub: `sp status` (one screen), `sp findings --open --severity high`, "
+         "`sp explain <id>` (what, why, how to fix, how to verify). A fix is confirmed by the next scan; accepting a risk "
+         "is a human entry in `exceptions.yaml` with an end date. Details never appear here: they stay in the private "
+         "data directory. Full dashboard: *Security platform*.", 0, 33, 24, 3)
+    d = dashboard(cat)
+    return dict(d, uid="security-platform-overview", title="Security overview", panels=ps,
+                tags=["security-platform", "overview", f"generator-{VERSION}"],
+                links=[{"title": "Security platform (details)", "type": "dashboards", "tags": ["security-platform"]}])
+
+
+def dashboard_configmap(dash, ov):
     return {"apiVersion": "v1", "kind": "ConfigMap",
             "metadata": {"name": "security-platform-dashboard", "labels": {"grafana_dashboard": "1",
                                                                            "app.kubernetes.io/part-of": "security-platform"}},
-            "data": {"security-platform.json": json.dumps(dash, indent=1)}}
+            "data": {"security-platform.json": json.dumps(dash, indent=1),
+                     "security-platform-overview.json": json.dumps(ov, indent=1)}}
 
 
 def collectors_of(instance):
@@ -270,7 +340,11 @@ def main(argv=None):
     with open(os.path.join(a.out, "grafana-dashboard.json"), "w") as f:
         json.dump(d, f, indent=1)
         f.write("\n")
-    write_yaml(dashboard_configmap(d), os.path.join(a.out, "grafana-dashboard.configmap.yaml"), hdr)
+    o = overview(cat)
+    with open(os.path.join(a.out, "grafana-overview.json"), "w") as f:
+        json.dump(o, f, indent=1)
+        f.write("\n")
+    write_yaml(dashboard_configmap(d, o), os.path.join(a.out, "grafana-dashboard.configmap.yaml"), hdr)
     write_yaml(slos(cat, collectors_of(a.instance), a.app, a.env), os.path.join(a.out, "slo-platform-slos.yaml"), hdr)
     stale = os.path.join(a.out, "slo-platform-slos.draft.yaml")
     if os.path.exists(stale):

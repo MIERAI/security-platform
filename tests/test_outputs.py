@@ -79,7 +79,8 @@ class Generated(unittest.TestCase):
         shutil.rmtree(cls.d)
 
     def test_dist_is_up_to_date(self):
-        for f in ("prometheus-rules.yaml", "grafana-dashboard.json", "slo-platform-slos.yaml", "grafana-dashboard.configmap.yaml"):
+        for f in ("prometheus-rules.yaml", "grafana-dashboard.json", "slo-platform-slos.yaml", "grafana-dashboard.configmap.yaml",
+                  "grafana-overview.json"):
             self.assertEqual(open(os.path.join(ROOT, "dist", f)).read(), open(os.path.join(self.d, f)).read(),
                              f"dist/{f} is stale: run generators/gen.py")
 
@@ -123,7 +124,11 @@ class Generated(unittest.TestCase):
                             "SLO burn alerts stay silent: the platform alerts on regressions only")
 
     def test_dashboard_aggregates_only(self):
-        for p in self.dash["panels"]:
+        ov = json.load(open(os.path.join(self.d, "grafana-overview.json")))
+        self.assertEqual(ov["uid"], "security-platform-overview")
+        cm = yaml.safe_load(open(os.path.join(self.d, "grafana-dashboard.configmap.yaml")))
+        self.assertEqual(json.loads(cm["data"]["security-platform-overview.json"]), ov)
+        for p in self.dash["panels"] + ov["panels"]:
             for t in p.get("targets", []):
                 self.assertIn('namespace=~"$namespace"', t["expr"])
                 for lab in re.findall(r"by \(([^)]*)\)", t["expr"]):
