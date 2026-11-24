@@ -20,6 +20,14 @@ Components are versioned independently (docs/design.md §5). Entries name the co
   platform advisories count (`advisory`), `security_time_to_know_hours{asset_class,priority,quantile}`; SLI
   `time_to_know_hours` (objective 24h; disclosure dates are day-granular).
 
+## 2026-11-24 — private outputs whatever the umask
+
+- **core 0.5.1**: `ledger.json` is created 0600 regardless of the caller's umask (a manual `runner.py run` from a
+  shell with umask 022 left it world-readable inside the 0700 directory).
+- **scorecard 0.2.1**: report and metrics files are created 0600; `self.image-no-high-vulns` requires that the
+  platform image was actually covered (`require_coverage: image:${self_image}`) - an image that is not running yet
+  is `unknown`, not a pass.
+
 ## 2026-11-24 — platform self-security
 
 - docs/threat-model.md (new): the platform's own threat model (assets, trust boundaries, STRIDE threats T1-T11 with

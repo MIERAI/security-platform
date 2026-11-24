@@ -207,6 +207,21 @@ class Scoring(Base):
         self.assertNotIn("people.mfa", text, "control ids stay in the private report")
         md = open(os.path.join(self.data, "reports", "scorecard.md")).read()
         self.assertIn("people.mfa", md)
+        for rel in ("reports/scorecard.md", "reports/scorecard.json", "metrics/scorecard.prom"):
+            self.assertEqual(stat.S_IMODE(os.stat(os.path.join(self.data, rel)).st_mode), 0o600, rel)
+
+    def test_ledger_private_whatever_the_umask(self):
+        run = os.path.join(self.d, "run")
+        os.makedirs(run)
+        shutil.copy(os.path.join(ROOT, "tests", "fixtures", "host.findings.json"), run)
+        os.remove(os.path.join(self.data, "ledger.json"))
+        old = os.umask(0o022)
+        try:
+            subprocess.run([sys.executable, os.path.join(ROOT, "core", "ledger.py"), "--run", run, "--data", self.data],
+                           check=True, capture_output=True)
+        finally:
+            os.umask(old)
+        self.assertEqual(stat.S_IMODE(os.stat(os.path.join(self.data, "ledger.json")).st_mode), 0o600)
 
     def test_attest_cli(self):
         write_catalog(self.cat, "people", [ctl("people.pm", check="attested"),

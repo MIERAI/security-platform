@@ -391,9 +391,9 @@ def write_outputs(data, result, now):
     for sub in ("reports", "metrics"):
         os.makedirs(os.path.join(data, sub), exist_ok=True)
 
-    def put(rel, text):
+    def put(rel, text):        # private regardless of the caller's umask (failing controls are attacker intelligence)
         p = os.path.join(data, rel)
-        with open(p + ".tmp", "w") as f:
+        with open(os.open(p + ".tmp", os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "w") as f:
             f.write(text)
         os.replace(p + ".tmp", p)
     put("reports/scorecard.json", json.dumps(result, indent=1, sort_keys=True, ensure_ascii=False))
