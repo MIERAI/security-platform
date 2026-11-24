@@ -32,6 +32,19 @@ intervals; `SecurityLedgerStale`: the hub has not merged anything for two days.
 3. Sites (e.g. an external vantage host) reach the ledger through the hub's `ingest` job: check both ends.
 Fix the collector before trusting any SLI that depends on it.
 
+## runner-stale
+
+`SecurityRunnerStale`: the hub's tick heartbeat (`security_runner_tick_timestamp_seconds`) is older than
+`security_runner_tick_max_gap_seconds` (instance `runner.tick_stale_after`). Nothing reached this cluster: the trigger
+did not fire, the runner could not start, the host is down, or the only sink to this cluster fails.
+`SecurityMetricsSinkFailing`: a sink failed 4 ticks in a row (seen through another sink or the local metrics file).
+1. The runner log (`<data>/state/runner/tick.log`, or the CronJob's pod logs): `tick.sh: runner exited rc=…`,
+   `cannot start: …`, `sink …: … (failed Nx in a row; retried next tick)`.
+2. `runner.py status`; `<data>/state/runner/sinks.json` (last error per sink).
+3. Environment: ticks never install anything (`deploy/render.py env` built it at deploy time). If the interpreter is
+   missing, rebuild the environment (`render.py env --install DIR`) and re-render the wrapper.
+4. Sink: credentials, namespace existence, reachability; it recovers by itself on the next tick once fixed.
+
 ## contract-violation
 
 A findings document failed the schema and was ignored (`security_contract_invalid_documents` > 0). The runner keeps

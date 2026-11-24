@@ -15,7 +15,10 @@ trigger stays dumb and the same everywhere:
     site: hub                       # label of this runner in the metrics (a role, not a device name)
     role: hub                       # hub: keeps the ledger and publishes metrics; site: only fills an outbox
     outbox: {type: local, dir: ...} # role site: where finished findings documents go (a spool adapter)
-    sinks: [ ... ]                  # role hub: metric sinks (adapters/sinks.py)
+    sinks: [ ... ]                  # role hub: metric sinks (adapters/sinks.py); a failing sink is retried every
+                                    # tick and reported (security_runner_sink_*), it never fails the tick
+    tick_stale_after: 1h            # the trigger's heartbeat is overdue after this (alert SecurityRunnerStale); a
+                                    # hub that sleeps at night (a laptop) sets e.g. 12h
     jobs:
       <name>:
         type: collector | command | ingest | digest | snapshot   (default collector; collector = job name unless `collector:`)
@@ -355,7 +358,18 @@ class Runner:
     # ---- metrics ----------------------------------------------------------------------------------------
     def runner_series(self, now):
         s = [("security_runner_tick_timestamp_seconds", {"site": self.site}, int(now),
-              "Heartbeat of the trigger: when the runner last ticked")]
+              "Heartbeat of the trigger: when the runner last ticked"),
+             ("security_runner_tick_max_gap_seconds", {"site": self.site},
+              cron.parse_duration(self.cfg.get("tick_stale_after", "1h")),
+              "The tick heartbeat is overdue after this many seconds (broken trigger, environment or host)")]
+        for key, st in sorted(self.sink_state().items()):
+            lab = {"site": self.site, "sink": key}
+            if st.get("last_success"):
+                s.append(("security_runner_sink_last_success_timestamp_seconds", lab, st["last_success"],
+                          "When the sink last accepted the metrics"))
+            s.append(("security_runner_sink_failures_total", lab, st.get("failures_total", 0), "Failed deliveries (counter)"))
+            s.append(("security_runner_sink_consecutive_failures", lab, st.get("consecutive_failures", 0),
+                      "Deliveries failed in a row (0 = the last one worked); retried every tick"))
         rows = [(self.site, name, self.load_state(name), j) for name, j in self.jobs.items()]
         for sf in glob.glob(os.path.join(self.data, "state", "sites", "*.json")):
             try:
@@ -402,17 +416,41 @@ class Runner:
                               "When the hub last published these metrics")]))
         return merge_families("".join(parts))
 
+    def sink_state(self):
+        try:
+            return json.load(open(os.path.join(self.state_dir, "sinks.json")))
+        except (OSError, ValueError):
+            return {}
+
     def publish(self, now):
+        """Hand the metrics to every sink. A failing sink (cluster unreachable, namespace not created yet, offline
+        host) is logged, counted and retried on the next tick; it never fails the tick or blocks the other sinks."""
         if self.role != "hub":
             return
         text = self.metrics_text(now)
-        os.makedirs(os.path.join(self.data, "metrics"), exist_ok=True)
-        sinks.textfile({"path": os.path.join(self.data, "metrics", "security-platform.prom")}, text)
+        local = {"path": os.path.join(self.data, "metrics", "security-platform.prom")}
+        sinks.textfile(local, text)
+        states = self.sink_state()
         for i, s in enumerate(self.cfg.get("sinks") or []):
+            key = f"{i}-{s.get('type')}"
+            st = states.setdefault(key, {"failures_total": 0, "consecutive_failures": 0})
+            st["last_attempt"] = int(time.time())
             try:
                 sinks.publish(s, text)
+                if st.get("consecutive_failures"):
+                    log(f"sink {key}: delivered again after {st['consecutive_failures']} failed tick(s)")
+                st.update(last_success=int(time.time()), consecutive_failures=0, last_error="")
             except Exception as e:  # noqa: BLE001 - one sink down must not block the others
-                log(f"sink {i} ({s.get('type')}): {type(e).__name__}: {str(e)[:200]}")
+                st["failures_total"] = st.get("failures_total", 0) + 1
+                st["consecutive_failures"] = st.get("consecutive_failures", 0) + 1
+                st["last_error"] = f"{type(e).__name__}: {str(e)[:200]}"
+                log(f"sink {key}: {st['last_error']} (failed {st['consecutive_failures']}x in a row; retried next tick)")
+        p = os.path.join(self.state_dir, "sinks.json")
+        with open(p + ".tmp", "w") as f:
+            json.dump(states, f, indent=1, sort_keys=True)
+        os.replace(p + ".tmp", p)
+        if self.cfg.get("sinks"):
+            sinks.textfile(local, self.metrics_text(now))   # the local copy carries this tick's sink results
 
 
 def merge_families(text):
@@ -486,7 +524,11 @@ def main(argv=None):
     if a.cmd == "serve-metrics":
         serve_metrics(a.dir, a.port)
         return 0
-    r = Runner(a.instance, a.data)
+    try:
+        r = Runner(a.instance, a.data)
+    except Exception as e:  # noqa: BLE001 - say why in the log; the missing heartbeat is what alerts
+        log(f"cannot start: {type(e).__name__}: {str(e)[:300]}")
+        return 78
     now = a.now or time.time()
     if a.cmd == "status":
         print(json.dumps({n: dict(r.load_state(n), due=r.due(n, now)[1], schedule=j["schedule"]) for n, j in r.jobs.items()},
@@ -509,7 +551,11 @@ def main(argv=None):
             slot, why = r.due(name, time.time() if not a.now else now)
             if slot is not None:
                 rc = max(rc, r.execute(name, slot) or 0)
-        r.publish(time.time())
+        try:
+            r.publish(time.time())
+        except Exception as e:  # noqa: BLE001 - e.g. the local metrics file; the stale heartbeat alerts
+            log(f"publish: {type(e).__name__}: {str(e)[:300]}")
+            rc = max(rc, 1)
     finally:
         if tick_lock:
             tick_lock.close()

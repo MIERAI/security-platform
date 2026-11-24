@@ -69,6 +69,32 @@ Semantics, all deterministic and unit-tested (`tests/test_runner.py`):
 sets PATH/TZ, `nice`, rotates its log, and runs `runner.py tick`. Install the product with `bin/sp-install` (a
 versioned release directory per commit, `current` symlink; rollback = point `current` back).
 
+**Offline by design (deploy 0.2.0).** A security monitor must not stop because the network blips, so a tick never
+resolves or downloads anything:
+
+```sh
+bin/sp-install ~/.local/opt/security-platform                                    # the code (a release)
+~/.local/opt/security-platform/current/deploy/render.py env --install ~/.local/opt/security-platform
+#   -> envs/<hash>/ from deploy/requirements.lock (exact versions + sha256), `env` -> it; network only here
+#      (--find-links DIR for air-gapped hosts; uv when available, else python -m venv + pip)
+render.py wrapper --install … --instance … --data …   # default python: <install>/env/bin/python3; exports
+                                                       # PIP_NO_INDEX/UV_OFFLINE; refuses `uv run --with …`
+```
+
+Hosts with a JSON instance config need no third-party package at all (`--python python3`). Collectors that need the
+network (feeds, a remote host, a cluster API) fail on their own and become coverage gaps; the tick goes on.
+Every error goes to the runner log (`<data>/state/runner/tick.log`): the wrapper's own (`tick.sh: runner exited
+rc=N`, `cannot enter …`), the runner's (`cannot start: …`), and the trigger's stdout/stderr (launchd, systemd, cron
+all append to the same file; nothing goes to /dev/null). `tests/test_offline.py` ticks with every socket blocked.
+
+**A broken tick is visible.** The heartbeat `security_runner_tick_timestamp_seconds` and its threshold
+`security_runner_tick_max_gap_seconds` (instance `runner.tick_stale_after`, default 1h; a hub that sleeps at night
+sets more) drive `SecurityRunnerStale`; it fires whether the trigger, the environment, the host or the only sink to
+that cluster is broken. Each sink's result is kept in `state/runner/sinks.json` and exported
+(`security_runner_sink_last_success_timestamp_seconds`, `…_failures_total`, `…_consecutive_failures`, label
+`sink="<index>-<type>"`); a failing sink (e.g. its namespace does not exist yet) is retried every tick and never
+fails the tick; `SecurityMetricsSinkFailing` after 4 in a row.
+
 | target | where | notes |
 |---|---|---|
 | `launchd` | macOS | LaunchAgent with `StartInterval`; a sleeping Mac catches up once on wake |

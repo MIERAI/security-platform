@@ -7,11 +7,12 @@ ARG KUBECTL_VERSION=v1.36.5
 ARG KUBECTL_SHA256_amd64=33bc88a24c3b09cf55bfd59e6ca977881b61fc3f25ab65bc80c65b430248648e
 ARG KUBECTL_SHA256_arm64=88fc1aca8fd0c1b44fe379f67c39bd6858bdfc50241dc55775f84d0f5b31da3a
 ARG VERSION=dev
+COPY deploy/requirements.lock /tmp/requirements.lock
 RUN set -eu; \
     python3 -c "import urllib.request; urllib.request.urlretrieve('https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/${TARGETARCH}/kubectl', '/usr/local/bin/kubectl')"; \
     want=$(eval echo \${KUBECTL_SHA256_${TARGETARCH}}); echo "$want  /usr/local/bin/kubectl" | sha256sum -c -; \
     chmod 0755 /usr/local/bin/kubectl; \
-    pip install --no-cache-dir 'PyYAML==6.0.3'
+    pip install --no-cache-dir --require-hashes -r /tmp/requirements.lock; rm /tmp/requirements.lock   # = --require-hashes -r deploy/requirements.lock
 WORKDIR /opt/security-platform
 COPY LICENSE NOTICE README.md ./
 COPY runner runner
