@@ -101,7 +101,50 @@ fails the tick; `SecurityMetricsSinkFailing` after 4 in a row.
 | `cron` | any Unix | one crontab line |
 | `systemd` | Linux | `.service` + `.timer`, `Persistent=true` |
 | `termux-job` | Android (Termux) | JobScheduler, 15 min minimum, survives reboots (`--persisted`); no cron daemon needed |
-| Kubernetes | a cluster | `deploy/kubernetes/`: the metrics exporter; `deploy/kubernetes/cronjob/`: an in-cluster site (CronJob → Secret outbox → hub `ingest` with `source: {type: kubernetes-secret, namespace, kubeconfig}`) |
+| Kubernetes | a cluster | `deploy/kubernetes/`: the metrics exporter; `deploy/kubernetes/hub/`: the hub itself (below); `deploy/kubernetes/cronjob/`: an in-cluster site (CronJob → Secret outbox → hub `ingest` with `source: {type: kubernetes-secret, namespace, kubeconfig}`) |
+
+## In-cluster hub (deploy 0.3.0)
+
+A hub on a workstation stops when the workstation sleeps or goes offline. `deploy/kubernetes/hub/` runs the hub in a
+cluster instead; workstations and external hosts become **sites** that push to it.
+
+```
+ site: external vantage host        site: operator workstation            cluster (hub namespace)
+ exposure → local outbox            host, secrets, agent, intel …         ┌─────────────────────────────────────────┐
+     │ forward (every tick,          → local outbox                       │ CronJob security-platform-hub (*/15)    │
+     │ retried; ack on delivery)     exceptions/catalog review (push)      │  tick: k8s (read-only), ingest-<site>,  │
+     └──────────────┐               │ forward                              │  digest, snapshot, metrics              │
+                    ▼               ▼                                      │ PVC: ledger, reports, state, tracker    │
+           Kubernetes API (TLS, ServiceAccount tokens)  ── create only ──▶ │ inbox: Secrets sp-* (site label bound   │
+                                                                           │  to the writer by admission policy)     │
+           operator workstation ◀── get security-platform-snapshot ─────── │ snapshot Secret → pulled off-cluster    │
+                                                                           │ ConfigMap security-platform-metrics ──▶ exporter → Prometheus
+                                                                           └─────────────────────────────────────────┘
+```
+
+| piece | how | least privilege |
+|---|---|---|
+| trigger | CronJob `*/15`, `concurrencyPolicy: Forbid`; schedule per job in the instance ConfigMap `security-platform-hub` | — |
+| state | PVC `security-platform-hub-data` (RWO): ledger, reports, runner state, tracker; `runner.retention` prunes `runs/` | only pods of the namespace mount it |
+| identity | ServiceAccount `security-platform-hub` | cluster: get/list namespaces, pods, services, NetworkPolicies, RBAC, PolicyReports — **no Secrets**; namespace: list/get/delete the inbox Secrets, create + patch its own snapshot Secret and metrics ConfigMap (by name) |
+| inbox | spool `kubernetes-secret` (adapters/kubeapi.py: HTTPS + bearer token, stdlib only — a phone needs no kubectl) | each site: ServiceAccount `security-platform-site-<site>`, Role `security-platform-inbox-writer` = **create** Secrets only (cannot read, list or delete anything) |
+| site identity | ValidatingAdmissionPolicy `security-platform-inbox-identity`: a site SA may only create Opaque `sp-*` Secrets labelled `security-platform/site=<its own name>` | a site cannot speak for another site, mint tokens or plant other Secrets |
+| control files | the workstation's `push` job sends `exceptions` / `catalog-review` when they change; the hub accepts them only on ingest jobs with `accept_control` | human approval stays in the operator's private repository |
+| network | NetworkPolicy: no ingress; egress only DNS and the API server | — |
+| metrics | sink `kubernetes-configmap` over the API (namespace defaults to the pod's) | patch one ConfigMap by name |
+| off-cluster copy | `snapshot` job with `to: {type: kubernetes-secret, name: security-platform-snapshot}` (contract `security-platform/snapshot/v1`: tar.gz + manifest with sha256); the workstation's `pull-snapshot` job verifies and extracts it into its private git repository and commits | the workstation's SA: `get` that one Secret by name |
+
+Sites keep working offline: they write to a **local** spool first and `forward` drains it to the inbox on every tick,
+acknowledging only what was delivered (`state forward-<i>`, exported like a job: a stuck queue shows up as a failing,
+stale job). Tokens: `kubectl create token security-platform-site-<site> --duration=…` from an admin session, stored as
+a 0600 file on the site; rotate before expiry (an expired token = a stale site, which alerts).
+
+Example configs: `deploy/kubernetes/hub/hub.example.json` (the hub), `site-identity.example.yaml` (per site). A site's
+outbox for the inbox: `{type: kubernetes-secret, namespace: <hub ns>, site: <site>, server: https://<api>:6443,
+ca_file: <cluster CA>, token_file: <0600 token>}` (`box: state` for its job states).
+
+**Migration (parallel run).** A hub can also be a site of another hub (`outbox` on a hub = a copy): run the old hub
+and the in-cluster hub side by side, compare the ledgers, then reduce the old host to its local collectors.
 
 ## Metrics delivery (choose per instance)
 

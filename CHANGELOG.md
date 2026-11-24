@@ -2,6 +2,27 @@
 
 Components are versioned independently (docs/design.md §5). Entries name the component and its new version.
 
+## 2026-11-24 — in-cluster hub
+
+- **deploy 0.3.0**: `deploy/kubernetes/hub/` — the hub as a CronJob (tick every 15 min) with its state on a PVC, a
+  least-privilege ServiceAccount (cluster read-only without Secrets; in its namespace only the inbox, its snapshot
+  Secret and its metrics ConfigMap), the inbox writer and snapshot reader Roles, a ValidatingAdmissionPolicy that binds
+  an inbox document's `security-platform/site` label to the writer's ServiceAccount, a NetworkPolicy (no ingress;
+  DNS + API only), example hub and site-identity configs.
+- **runner 0.3.0**: `forward` (store and forward from a local spool to a remote one every tick; ack on delivery;
+  reported as job `forward-<i>`); `outbox` and `state_outbox` may be lists, and a hub may have an `outbox` (a copy
+  for another hub: parallel runs); job types `push` (human-approved control files to the outbox when they change),
+  `pull-snapshot`; `snapshot` with `to:` publishes a `security-platform/snapshot/v1` tarball into a Secret; ingest
+  `site_state` may be a spool, `accept_control: [exceptions, catalog-review]`; `retention` prunes `runs/`; job types
+  with dashes dispatch.
+- **adapters**: `kubeapi` 0.1.0 (new: stdlib Kubernetes API client — HTTPS + 0600 token file, in-cluster
+  ServiceAccount, or kubectl with a kubeconfig); spool 0.3.0 (`kubernetes-secret` over kubeapi: `box`, `site`
+  labels, newest-wins get, ack deletes every copy, writers need create only; legacy documents without a box are read
+  as `outbox`); sinks 0.2.0 (`kubernetes-configmap` over kubeapi: server-side apply, namespace defaults to the pod's).
+- Tests: `tests/test_hub.py` against an in-memory API with per-token permissions (inbox round trip, writers cannot
+  read, private token files, site → forward → inbox → ingest → ledger → ConfigMap, offline queueing, control files only
+  from trusted ingest jobs, snapshot publish/pull, unsafe or tampered snapshots rejected, RBAC promises).
+
 ## 2026-11-24 — offline-safe runner
 
 - **deploy 0.2.0**: `render.py env` builds the runtime environment ONCE at deploy time from `deploy/requirements.lock`

@@ -1,0 +1,40 @@
+# The trigger: Kubernetes calls `runner.py tick` every 15 minutes; the schedule of each job lives in the instance
+# config (ConfigMap security-platform-hub). Forbid = never two ticks at once (the runner also locks).
+apiVersion: batch/v1
+kind: CronJob
+metadata: { name: security-platform-hub }
+spec:
+  schedule: "*/15 * * * *"
+  timeZone: Etc/UTC
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 600
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 0                 # the runner retries per job; a failed tick is the next tick's business
+      activeDeadlineSeconds: 3000
+      ttlSecondsAfterFinished: 3600
+      template:
+        metadata: { labels: { app.kubernetes.io/name: security-platform-hub } }
+        spec:
+          serviceAccountName: security-platform-hub
+          automountServiceAccountToken: true
+          restartPolicy: Never
+          enableServiceLinks: false
+          securityContext: { runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532, fsGroup: 65532, seccompProfile: { type: RuntimeDefault } }
+          containers:
+            - name: runner
+              image: security-platform
+              args: ["tick", "--instance", "/config/instance.json", "--data", "/data"]
+              env: [{ name: HOME, value: /tmp }]
+              resources: { requests: { cpu: 50m, memory: 128Mi }, limits: { memory: 512Mi } }
+              securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] } }
+              volumeMounts:
+                - { name: config, mountPath: /config, readOnly: true }
+                - { name: data, mountPath: /data }
+                - { name: tmp, mountPath: /tmp }
+          volumes:
+            - { name: config, configMap: { name: security-platform-hub } }
+            - { name: data, persistentVolumeClaim: { claimName: security-platform-hub-data } }
+            - { name: tmp, emptyDir: { sizeLimit: 256Mi } }

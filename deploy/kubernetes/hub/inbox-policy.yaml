@@ -1,0 +1,37 @@
+# The inbox trusts the label `security-platform/site`. This admission policy (Kubernetes ValidatingAdmissionPolicy,
+# no policy engine needed) binds it to the writer: a ServiceAccount named security-platform-site-<site> may only
+# create Opaque inbox Secrets (name sp-*, label security-platform/outbox=true) labelled site=<site>, in its own
+# namespace. A site therefore cannot speak for another site, mint ServiceAccount tokens, or plant other Secrets.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata: { name: security-platform-inbox-identity }
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules: [{ apiGroups: [""], apiVersions: [v1], operations: [CREATE, UPDATE], resources: [secrets] }]
+  matchConditions:
+    - name: site-writer
+      expression: >-
+        request.userInfo.username.startsWith('system:serviceaccount:' + request.namespace + ':security-platform-site-')
+  variables:
+    - name: site
+      expression: >-
+        request.userInfo.username.substring(size('system:serviceaccount:' + request.namespace + ':security-platform-site-'))
+    - name: labels
+      expression: "has(object.metadata.labels) ? object.metadata.labels : {}"
+  validations:
+    - expression: "request.operation == 'CREATE'"
+      message: "sites may only create inbox documents"
+    - expression: "object.type == 'Opaque' && object.metadata.name.startsWith('sp-')"
+      message: "inbox documents are Opaque Secrets named sp-*"
+    - expression: >-
+        'security-platform/outbox' in variables.labels && variables.labels['security-platform/outbox'] == 'true' &&
+        'security-platform/site' in variables.labels && variables.labels['security-platform/site'] == variables.site
+      messageExpression: "'the inbox document must carry security-platform/site=' + variables.site"
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata: { name: security-platform-inbox-identity }
+spec:
+  policyName: security-platform-inbox-identity
+  validationActions: [Deny]

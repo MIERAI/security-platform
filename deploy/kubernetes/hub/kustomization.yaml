@@ -1,0 +1,18 @@
+# The HUB inside a cluster (component `deploy`): the runner ticks as a CronJob, keeps the private ledger on a
+# PersistentVolume, ingests what sites send to its authenticated inbox (Secrets in this namespace), runs the in-cluster
+# k8s collector with a read-only identity, publishes metrics to the ConfigMap the exporter (../) serves, and publishes
+# a snapshot Secret that the operator pulls off the cluster. docs/runner.md "In-cluster hub".
+# The instance supplies the ConfigMap `security-platform-hub` (key instance.json; hub.example.json) and, per site,
+# a ServiceAccount `security-platform-site-<site>` bound to the Role `security-platform-inbox-writer`
+# (site-identity.example.yaml). Use together with ../ (the exporter) in the same namespace.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+labels:
+  - pairs: { app.kubernetes.io/part-of: security-platform }
+    includeSelectors: false
+resources:
+  - rbac.yaml
+  - inbox-policy.yaml
+  - storage.yaml
+  - cronjob.yaml
+  - networkpolicy.yaml

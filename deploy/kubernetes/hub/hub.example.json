@@ -1,0 +1,19 @@
+{"name": "example",
+ "kubernetes": [{"name": "prod", "kubeconfig": "in-cluster", "role": "prod", "parts": ["workloads", "rbac", "policy"]}],
+ "runner": {
+  "site": "hub", "role": "hub", "tick_stale_after": "1h", "retention": "14d",
+  "sinks": [{"type": "kubernetes-configmap", "name": "security-platform-metrics"}],
+  "jobs": {
+   "k8s":    {"schedule": "45 0 * * *", "jitter": "10m", "as": "k8s-incluster", "timeout": "40m", "retries": 2, "retry_delay": "30m"},
+   "ingest-vantage": {"type": "ingest", "schedule": "*/15 * * * *", "timeout": "10m", "site": "vantage",
+                      "source": {"type": "kubernetes-secret", "site": "vantage"},
+                      "site_state": {"type": "kubernetes-secret", "site": "vantage", "box": "state"},
+                      "site_collectors": {"exposure": "30 18 * * *"}},
+   "ingest-workstation": {"type": "ingest", "schedule": "*/15 * * * *", "timeout": "10m", "site": "workstation",
+                          "source": {"type": "kubernetes-secret", "site": "workstation"},
+                          "site_state": {"type": "kubernetes-secret", "site": "workstation", "box": "state"},
+                          "accept_control": ["exceptions", "catalog-review"],
+                          "site_collectors": {"host": "15 0 * * *", "secrets-files": "30 2 * * *"}},
+   "digest":   {"type": "digest", "schedule": "0 0 * * 1"},
+   "snapshot": {"type": "snapshot", "schedule": "5 * * * *", "to": {"type": "kubernetes-secret", "name": "security-platform-snapshot"}}
+  }}}
