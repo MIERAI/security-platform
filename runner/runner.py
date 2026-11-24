@@ -26,7 +26,7 @@ trigger stays dumb and the same everywhere:
                                     # hub that sleeps at night (a laptop) sets e.g. 12h
     jobs:
       <name>:
-        type: collector | command | ingest | digest | remediation | snapshot | push | pull-snapshot
+        type: collector | command | ingest | digest | remediation | snapshot | push | pull-snapshot | events
                                                (default collector; collector = job name unless `collector:`)
                                                remediation: core/remediation.py (owners, SLO due dates, tracker)
                                                snapshot: commit the private data directory if it is a git
@@ -40,6 +40,10 @@ trigger stays dumb and the same everywhere:
                                                accepts them only from sites listed with `accept_control`)
                                                ingest: `source:` a spool; `site_state:` a dir on the source host or a
                                                spool; `accept_control: [exceptions, catalog-review, attestations]`
+                                               events: `sources: [...]`, `loki: {url, token_file}`: ship security
+                                               events (auth logs, code host / overlay network audit) to a log
+                                               store with events/ship.py; cursors and baselines in
+                                               <data>/state/events/<job>/; success = every source shipped
                                                command: `argv: [...]` any program that writes <collector>.findings.json
                                                into $SP_RUN_DIR (e.g. a wrapper around a third-party scanner)
         schedule: "30 3 * * *"                 cron, local time of the host (TZ)
@@ -407,6 +411,24 @@ class Runner:
         st["pushed"] = hashes
         self.save_state(name, st)
         return 0, ("sent " + ", ".join(sent)) if sent else "unchanged"
+
+    def job_events(self, name, j, run_dir):
+        """Security events -> log store (events/ship.py). Not a findings document: success = exit 0 (every source
+        collected and pushed); a failing source keeps its cursor and is retried on the next slot."""
+        cfg = {"loki": j["loki"], "sources": j.get("sources") or []}
+        cf = os.path.join(run_dir, "events.config.json")
+        with open(cf, "w") as f:
+            json.dump(cfg, f, indent=1)
+        summary = os.path.join(run_dir, "events.summary.json")
+        rc = self.spawn([sys.executable, os.path.join(ROOT, "events", "ship.py"), "--config", cf,
+                         "--state", os.path.join(self.data, "state", "events", name), "--summary", summary],
+                        self.env(j, run_dir), cron.parse_duration(j.get("timeout", "10m")), os.path.join(run_dir, "events.log"))
+        try:
+            srcs = json.load(open(summary))["sources"]
+            note = ", ".join(f"{k}: {v['shipped']}" if v.get("ok") else f"{k}: FAILED" for k, v in sorted(srcs.items()))
+        except (OSError, ValueError, KeyError):
+            note = "no summary"
+        return rc, f"events {note}" if rc == 0 else f"events rc={rc} ({note}; see events.log)"
 
     def job_digest(self, name, j, run_dir):
         return self.spawn([sys.executable, os.path.join(ROOT, "core", "digest.py"), "--data", self.data] +

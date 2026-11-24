@@ -2,6 +2,13 @@
 
 Components are versioned independently (docs/design.md §5). Entries name the component and its new version.
 
+## 2026-11-24 — security events
+
+- **events 0.1.0** (new): `events/ship.py` ships security events from hosts without a log agent and from SaaS control
+  planes to a Loki push endpoint (log contract: `source`, `host`, structured metadata `event`/`user`/`src_ip`/`novel`,
+  `actor`/`repo`); sources `command` (openssh, dropbear, sudo, macOS unified log parsers), `file-integrity`,
+  `github-account`, `tailscale-audit`; at-least-once cursors, first-run baselines.
+- **runner 0.6.0**: job type `events` (docs/runner.md "Security events").
 ## 2026-11-25 — coverage gaps closed (device and software pillars)
 
 - **collector secrets-files 0.2.0**: Windows targets (exec `shell: windows`, script read as UTF-8 bytes, permissions

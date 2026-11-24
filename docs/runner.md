@@ -163,6 +163,48 @@ when no scrape path exists. Never a Pushgateway (stale values never expire).
 Metric contract: names start with `security_`; labels are aggregates or scopes only (`tests/test_outputs.py` lists
 the allowed ones) — never an asset, address, port, CVE or finding id.
 
+## Security events (job type `events`, events 0.1.0)
+
+Findings answer "what is misconfigured"; events answer "what is happening". An `events` job reads security events
+from hosts and SaaS control planes and pushes them to a Loki push endpoint, where the detection rules
+(detections/catalog.yaml, Loki ruler) evaluate them. It is for sources that have no resident log agent: a phone, a
+router, a workstation's unified log, a code host account, an overlay network's audit log. Cluster nodes use the
+`node-logs` DaemonSet instead (real time).
+
+```yaml
+jobs:
+  auth-events:
+    type: events
+    schedule: "*/15 * * * *"          # detection latency for these sources = the schedule (+ the trigger's)
+    timeout: 5m
+    loki: {url: "http://<log store>/loki/api/v1/push", token_file: "~/.config/security-platform/loki.token"}   # 0600
+    sources:
+      - {name: self-sshd, type: command, host: <asset>, parser: openssh, exec: {type: local},
+         argv: [logcat, -d, -v, epoch, -s, sshd, sshd-session]}
+      - {name: router-sshd, type: command, host: <asset>, parser: dropbear, utc_offset: "+08:00",
+         exec: {type: ssh, host: <ssh alias>}, argv: [sh, -c, "grep -h dropbear /tmp/messages || true"]}
+      - {name: self-sudo, type: command, host: <asset>, parser: macos-unified, exec: {type: local},
+         argv: [log, show, --style, ndjson, --info, --start, "{since_local}", --predicate,
+                'process == "sudo" OR process == "sshd" OR process == "sshd-session"']}
+      - {name: keys, type: file-integrity, host: <asset>, exec: {type: ssh, host: <alias>},
+         paths: [{path: "~/.ssh/authorized_keys", user: <account>}]}
+      - {name: codehost, type: github-account, host: <account>, token_env: GH_TOKEN, max_repos: 50}
+      - {name: overlay, type: tailscale-audit, host: <tailnet>, token_file: "~/.config/security-platform/ts.token"}
+```
+
+| | |
+|---|---|
+| sources | `command` (argv run by the exec adapter, local or ssh; parsers `openssh`, `dropbear`, `sudo`/`syslog` for logcat `-v epoch`, ISO-8601 and BSD syslog lines, `macos-unified` for `log show --style ndjson`; argv placeholders `{since_epoch}`, `{since_local}`), `file-integrity` (sha256 of authorized_keys files → `authorized_keys_changed`), `github-account` (snapshot diff: keys, repository visibility, deploy keys, hooks, app installations + PublicEvent), `tailscale-audit` (configuration audit log API) |
+| contract | labels `source` (auth / codehost / overlay-network) and `host`; the raw line (or a compact JSON of the API record, never a token or key material); structured metadata `event`, `user`, `src_ip`, `novel` / `actor`, `repo` |
+| delivery | at-least-once: the cursor moves only after Loki accepted the batch; a failing source keeps its cursor, the others go on; exit 1 if any failed (the job's staleness metrics and `SecurityRunnerStale` show it) |
+| baseline | a source's first run records a baseline (seen login sources, key hashes, the account snapshot) and reports nothing as new or novel |
+| secrets | token files must be 0600 (refused otherwise); state files are written 0600 (`<data>/state/events/<job>/`) |
+| API budget | GitHub: conditional requests (ETag; a 304 does not count against the rate limit), `max_repos` caps the per-repository calls; endpoints the token cannot read are recorded as `unsupported`, not failures |
+
+Run once by hand: `runner.py run --instance F --data D auth-events`; dry run without pushing:
+`events/ship.py --config <run dir>/events.config.json --state /tmp/x --dry-run`. Source capabilities and required
+scopes: docs/detection-sources.md.
+
 ## Alerts, SLOs, dashboard
 
 `generators/gen.py [--instance F] [--runbook-url URL]` writes:
