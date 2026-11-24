@@ -70,10 +70,12 @@ class Items(unittest.TestCase):
         cfg = {"owners": [{"layer_in": ["workload"], "owner": "platform"}, {"asset_prefix": "repo:", "owner": "dev"}],
                "default_owner": "secops"}
         L = {"entries": {"w": entry("w", layer="workload"), "r": entry("r", asset="repo:x"),
-                         "f": entry("f", owner="human"), "d": entry("d")}}
+                         "f": entry("f", owner="team-x"), "d": entry("d"), "p": entry("p", owner="platform"),
+                         "h": entry("h", owner="human", needs_human=True)}}
         items = rem.update({}, L, cfg, T0)
         self.assertEqual({k: (v["owner"], v["owner_source"]) for k, v in items.items()},
-                         {"w": ("platform", "rule"), "r": ("dev", "rule"), "f": ("human", "finding"), "d": ("secops", "default")})
+                         {"w": ("platform", "rule"), "r": ("dev", "rule"), "f": ("team-x", "finding"), "d": ("secops", "default"),
+                          "p": ("secops", "default"), "h": ("secops", "default")})
         items = rem.update({}, {"entries": {"d": entry("d")}}, {}, T0)
         self.assertEqual(items["d"]["owner"], "unassigned")
         un = [s for s in rem.series(items, {}) if s[0] == "security_remediation_unassigned"]

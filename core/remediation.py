@@ -16,7 +16,8 @@ Rules (deterministic, docs/design.md section 13):
   - an expired exception makes the ledger reopen the finding; the item reopens with it (reopened_at, reason).
   - a fixed finding that comes back (regression) reopens the item; the SLO clock restarts at reopened_at.
   - owner: first matching `remediation.owners` rule (layer_in / asset_prefix / check_prefix / severity_in), else the
-    finding's own owner, else `remediation.default_owner`, else "unassigned" (reported as a metric).
+    finding's own owner (a team name; the SDK role hints "platform"/"human" do not count), else
+    `remediation.default_owner`, else "unassigned" (reported as a metric).
   - due_at = opened (or reopened) + SLO of the item's class: `kev_exposed` (KEV on an exposed asset) or its severity.
     Accepted items are not overdue while the exception is valid. Info findings have no SLO unless configured.
   - the advisor (remediation.advisor, default none) may DRAFT a runbook/PR text per open item without a draft:
@@ -80,6 +81,11 @@ def slo_class(e):
     return "kev_exposed" if a.get("kev") and a.get("exposed") else e["severity"]
 
 
+# owner values that are not a team: the SDK's role hints ("platform" = a fix by configuration, "human" = needs_human)
+# and placeholders. Real collectors always set one of them, so they must not shadow `default_owner`.
+ROLE_HINTS = ("unknown", "unassigned", "platform", "human")
+
+
 def owner_of(e, cfg):
     for r in (cfg or {}).get("owners") or []:
         if (("layer_in" not in r or e["layer"] in r["layer_in"])
@@ -87,7 +93,7 @@ def owner_of(e, cfg):
                 and ("asset_prefix" not in r or e["asset"].startswith(r["asset_prefix"]))
                 and ("check_prefix" not in r or e["check"].startswith(r["check_prefix"]))):
             return r["owner"], "rule"
-    if e.get("owner") and e["owner"] not in ("unknown", "unassigned"):
+    if e.get("owner") and e["owner"] not in ROLE_HINTS:
         return e["owner"], "finding"
     if (cfg or {}).get("default_owner"):
         return cfg["default_owner"], "default"
