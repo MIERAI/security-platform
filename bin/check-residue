@@ -30,13 +30,13 @@ filt() { if [[ -s $SEDS ]]; then sed -E -f "$SEDS" | grep -E -f "$PATS" || true;
 found=0
 if [[ -n $HIST ]]; then
   for c in $(git rev-list HEAD); do
-    out=$(git grep -I -n -E -f "$PATS" "$c" -- . "${EXCL[@]}" | filt)
+    out=$(git grep -I -n -E -f "$PATS" "$c" -- . "${EXCL[@]}" | filt || true)
     if [[ -n $out ]]; then echo "$out"; found=1; fi
     # commit messages too (public once pushed); author identity is the publishing account's own noreply address
     if git log -1 --format='%B' "$c" | grep -n -E -f "$PATS" | sed "s/^/$c:message:/" | grep . ; then found=1; fi
   done
 else
-  out=$(git ls-files -co --exclude-standard -- . "${EXCL[@]}" | tr '\n' '\0' | xargs -0 grep -I -n -E -f "$PATS" -- 2>/dev/null | filt)
+  out=$(git ls-files -co --exclude-standard -- . "${EXCL[@]}" | tr '\n' '\0' | xargs -0 grep -I -n -E -f "$PATS" -- 2>/dev/null | filt || true)
   if [[ -n $out ]]; then echo "$out"; found=1; fi
 fi
 [[ $found == 0 ]] || { echo "residue found: instance-specific values in the product repo" >&2; exit 1; }
