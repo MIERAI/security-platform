@@ -31,9 +31,9 @@ params:
   audit_fields: '| json verb, user="user.username", resource="objectRef.resource", sub="objectRef.subresource", ns="objectRef.namespace", name="objectRef.name", code="responseStatus.code", uri="requestURI"'
   # subjects allowed to do things without an alert (regular expressions, RE2, anchored by LogQL)
   gitops_subjects: 'system:serviceaccount:argocd:.*'
-  control_plane_subjects: 'system:(apiserver|kube-controller-manager|kube-scheduler|k3s-.*|serviceaccount:kube-system:.*|node:.*)'
-  secret_readers: 'system:(apiserver|kube-controller-manager|kube-scheduler|k3s-.*|node:.*|serviceaccount:(kube-system|argocd|cert-manager|cnpg-system|kyverno|monitoring|chaos-mesh|argo-rollouts):.*)'
-  rbac_writers: 'system:(apiserver|kube-controller-manager|k3s-.*|serviceaccount:(kube-system|argocd|kyverno|cert-manager):.*)'
+  control_plane_subjects: 'k3s-.*|system:(apiserver|kube-controller-manager|kube-scheduler|k3s-.*|serviceaccount:kube-system:.*|node:.*)'
+  secret_readers: 'k3s-.*|system:(apiserver|kube-controller-manager|kube-scheduler|k3s-.*|node:.*|serviceaccount:(kube-system|argocd|cert-manager|cnpg-system|kyverno|monitoring|chaos-mesh|argo-rollouts):.*)'
+  rbac_writers: 'k3s-.*|system:(apiserver|kube-controller-manager|k3s-.*|serviceaccount:(kube-system|argocd|kyverno|cert-manager):.*)'
   token_minters: 'system:(apiserver|kube-controller-manager|node:.*|serviceaccount:kube-system:.*)'
   sudo_users: '.+'                 # instances narrow it (e.g. the admin accounts); '.+' = nobody is unexpected
   ssh_failure_burst: "10"          # failed logins per host per 10 minutes
@@ -142,7 +142,9 @@ rules:
     pillar: network
     severity: ticket
     attack: [T1552.007]
-    query: 'sum by (cluster, user, ns) (count_over_time($audit |= "secrets" $audit_fields | resource="secrets" | verb=~"get|list|watch" | code=~"2.." | user!~"$secret_readers" [5m])) > 0'
+    # workloads reading Secrets of their OWN namespace are normal (operators, instance managers); cross-namespace or
+    # cluster-wide reads by a ServiceAccount, and any read by a person, are not (unless allowlisted)
+    query: 'sum by (cluster, user, ns) (count_over_time($audit |= "secrets" $audit_fields | resource="secrets" | verb=~"get|list|watch" | code=~"2.." | user!~"$secret_readers" | label_format sa_ns=`{{ regexReplaceAll "^system:serviceaccount:([^:]+):.*$$" .user "$${1}" }}` | label_format own=`{{ if eq .sa_ns .ns }}yes{{ end }}` | own!="yes" [5m])) > 0'
     summary: '{{ $labels.user }} read Secrets in {{ $labels.ns }} ({{ $labels.cluster }})'
   - id: k8s-rbac-changed
     title: RBAC changed outside GitOps

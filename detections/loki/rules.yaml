@@ -160,8 +160,8 @@ groups:
       attack: T1609
   - alert: SecurityDetectionK8sSecretReadUnexpected
     expr: sum by (cluster, user, ns) (count_over_time({source="k8s-audit"} |= "secrets" | json verb, user="user.username", resource="objectRef.resource", sub="objectRef.subresource", ns="objectRef.namespace",
-      name="objectRef.name", code="responseStatus.code", uri="requestURI" | resource="secrets" | verb=~"get|list|watch" | code=~"2.." | user!~"system:(apiserver|kube-controller-manager|kube-scheduler|k3s-.*|node:.*|serviceaccount:(kube-system|argocd|cert-manager|cnpg-system|kyverno|monitoring|chaos-mesh|argo-rollouts):.*)"
-      [5m])) > 0
+      name="objectRef.name", code="responseStatus.code", uri="requestURI" | resource="secrets" | verb=~"get|list|watch" | code=~"2.." | user!~"k3s-.*|system:(apiserver|kube-controller-manager|kube-scheduler|k3s-.*|node:.*|serviceaccount:(kube-system|argocd|cert-manager|cnpg-system|kyverno|monitoring|chaos-mesh|argo-rollouts):.*)"
+      | label_format sa_ns=`{{ regexReplaceAll "^system:serviceaccount:([^:]+):.*$" .user "${1}" }}` | label_format own=`{{ if eq .sa_ns .ns }}yes{{ end }}` | own!="yes" [5m])) > 0
     for: 0m
     labels:
       severity: ticket
@@ -176,7 +176,7 @@ groups:
   - alert: SecurityDetectionK8sRbacChanged
     expr: sum by (cluster, user, resource, ns, name) (count_over_time({source="k8s-audit"} |= "rbac.authorization.k8s.io" | json verb, user="user.username", resource="objectRef.resource", sub="objectRef.subresource",
       ns="objectRef.namespace", name="objectRef.name", code="responseStatus.code", uri="requestURI" | resource=~"roles|rolebindings|clusterroles|clusterrolebindings" | verb=~"create|update|patch|delete|deletecollection"
-      | code=~"2.." | user!~"system:(apiserver|kube-controller-manager|k3s-.*|serviceaccount:(kube-system|argocd|kyverno|cert-manager):.*)" [5m])) > 0
+      | code=~"2.." | user!~"k3s-.*|system:(apiserver|kube-controller-manager|k3s-.*|serviceaccount:(kube-system|argocd|kyverno|cert-manager):.*)" [5m])) > 0
     for: 0m
     labels:
       severity: ticket
@@ -190,7 +190,7 @@ groups:
       attack: T1098, T1078.004
   - alert: SecurityDetectionK8sClusterrolebindingCreated
     expr: sum by (cluster, user, name) (count_over_time({source="k8s-audit"} |= "clusterrolebindings" | json verb, user="user.username", resource="objectRef.resource", sub="objectRef.subresource", ns="objectRef.namespace",
-      name="objectRef.name", code="responseStatus.code", uri="requestURI" | resource="clusterrolebindings" | verb="create" | code=~"2.." | user!~"system:(apiserver|kube-controller-manager|kube-scheduler|k3s-.*|serviceaccount:kube-system:.*|node:.*)"
+      name="objectRef.name", code="responseStatus.code", uri="requestURI" | resource="clusterrolebindings" | verb="create" | code=~"2.." | user!~"k3s-.*|system:(apiserver|kube-controller-manager|kube-scheduler|k3s-.*|serviceaccount:kube-system:.*|node:.*)"
       [5m])) > 0
     for: 0m
     labels:
