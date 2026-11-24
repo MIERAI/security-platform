@@ -2,6 +2,13 @@
 
 Components are versioned independently (docs/design.md §5). Entries name the component and its new version.
 
+## 2026-11-24 — Tailscale OAuth client (read-only)
+
+- **adapters/identity 0.2.0**: the `tailscale` provider takes an OAuth client (`oauth_client_id` +
+  `oauth_client_secret_file`, 0600) and exchanges it for a short-lived token with only the client's scopes; preferred
+  over `api_key_file` (an API key carries its user's full rights). Read-only scopes: `devices:core:read`,
+  `users:read`, `policy_file:read`.
+
 ## 2026-11-25 — host software inventory and platform advisories
 
 - **collector host-sbom 0.1.0** (new): software inventory of every host through the exec adapter + an OS profile

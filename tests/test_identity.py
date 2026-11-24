@@ -167,6 +167,34 @@ class Checks(unittest.TestCase):
                 idp.provider({"type": t}).collect()
 
 
+class TailscaleAdapter(unittest.TestCase):
+    def test_oauth_read_only_and_file_modes(self):
+        d = tempfile.mkdtemp()
+        try:
+            sec = os.path.join(d, "client.secret")
+            open(sec, "w").write("tskey-client-NEVER-LOGGED\n")
+            os.chmod(sec, 0o644)
+            cfg = {"type": "tailscale", "oauth_client_id": "cid", "oauth_client_secret_file": sec}
+            t = idp.Tailscale(cfg)
+            t.cli = lambda s: s
+            s = t.collect()
+            self.assertIn("must be mode 0600", s["gaps"][0][1])
+            os.chmod(sec, 0o600)
+            seen = []
+            t._oauth_token = lambda cid, secret: (seen.append((cid, secret)), "access")[1]
+            t._api = lambda path, key: {"/tailnet/-/devices?fields=all": {"devices": [
+                {"hostname": "n1", "keyExpiryDisabled": True, "lastSeen": iso(NOW)}]},
+                "/tailnet/-/users": {"users": [{"loginName": "u@example.com", "role": "owner"}]},
+                "/tailnet/-/acl": {"acls": [{"action": "accept", "src": ["*"], "dst": ["*:*"]}]}}[path]
+            s = t.collect()
+            self.assertEqual(seen, [("cid", "tskey-client-NEVER-LOGGED")])
+            self.assertEqual(s["covered"], ["identity-provider:tailscale"])
+            self.assertEqual(s["policies"][0]["value"], True)
+            self.assertNotIn("NEVER-LOGGED", json.dumps(s))
+        finally:
+            shutil.rmtree(d)
+
+
 class LocalCredentials(unittest.TestCase):
     def test_metadata_only(self):
         d = tempfile.mkdtemp()
