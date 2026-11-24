@@ -96,10 +96,13 @@ def prometheus_rules(cat):
         if not names:
             continue
         sel = "|".join(re.escape(n).replace("\\ ", " ") for n in names)
+        m = f'falcosecurity_falco_rules_matches_total{{rule_name=~"{sel}"}}'
         a = annotations(r, p)
         a["summary"] = f"{r['title']}: Falco rule {{{{ $labels.rule_name }}}} matched (in-cluster; details in the log store)"
         rs.append({"alert": alert_name(r["id"]),
-                   "expr": f'sum by (namespace, rule_name) (increase(falcosecurity_falco_rules_matches_total{{rule_name=~"{sel}"}}[5m])) > 0',
+                   # Falco exports a rule's counter only after its first match: a new series is a match too
+                   "expr": (f'sum by (namespace, rule_name) (increase({m}[5m])) > 0 or '
+                            f'(sum by (namespace, rule_name) ({m}) unless sum by (namespace, rule_name) ({m} offset 5m))'),
                    "for": "0m", "labels": dict(labels(r), engine="falco-metrics"), "annotations": a})
     return {"apiVersion": "monitoring.coreos.com/v1", "kind": "PrometheusRule",
             "metadata": {"name": "security-detection", "labels": {"app.kubernetes.io/part-of": "security-platform",

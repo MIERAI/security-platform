@@ -70,10 +70,12 @@
 - macro: sp_open_write
   condition: (evt.type in (open, openat, openat2) and evt.is_open_write = true and fd.typechar = 'f' and fd.num >= 0)
 
-# Destinations a pod may reach without an alert: private ranges, the overlay network (CGNAT) and link-local.
+# Destinations a pod may reach without an alert: private ranges (IPv4 and IPv6 ULA), loopback, the overlay network
+# (CGNAT) and link-local.
 # Instances extend it with `- list: sp_allowed_outbound_nets` + `override: {items: append}` in their own rules file.
 - list: sp_allowed_outbound_nets
-  items: ['"10.0.0.0/8"', '"172.16.0.0/12"', '"192.168.0.0/16"', '"100.64.0.0/10"', '"127.0.0.0/8"', '"169.254.0.0/16"']
+  items: ['"10.0.0.0/8"', '"172.16.0.0/12"', '"192.168.0.0/16"', '"100.64.0.0/10"', '"127.0.0.0/8"', '"169.254.0.0/16"',
+          '"::1/128"', '"fc00::/7"', '"fe80::/10"']
 
 # Namespaces whose workloads legitimately talk to the internet (GitOps controller fetching repositories, certificate
 # issuers, intel feeds ...). Empty in the product; instances append (`override: {items: append}`).

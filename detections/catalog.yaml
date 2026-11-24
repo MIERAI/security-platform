@@ -14,7 +14,7 @@
 #   overlay-network  overlay network (VPN) control-plane audit events       labels: source; s.m.: event, actor
 # Severity: page (a human now) | ticket (same day) | info (recorded, no notification). Routing is the instance's
 # Alertmanager configuration; labels: severity, component=security-detection, detection=<id>.
-version: 0.2.0
+version: 0.2.1
 released: "2026-11-24"          # rule-content date: security_detection_ruleset_age_days counts from here
 upstream:
   falco_rules: "falco-rules 5.2.0"     # the upstream rules file the curated selection was reviewed against
