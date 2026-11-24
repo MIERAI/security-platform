@@ -2,6 +2,16 @@
 
 Components are versioned independently (docs/design.md §5). Entries name the component and its new version.
 
+## 2026-11-24 — scorecard: generality and usability controls
+
+- **scorecard catalog** (dimensions 9 and 10, data only): generality now needs evidence that a second, different
+  environment ran the product within 45 days (`e2e/kind/last-pass.json`), alternative adapters (static CIDR
+  discovery, a second code host), an install guide and configuration reference, an upgrade policy with two-step
+  changes, contract tests, tagged releases, and a multi-architecture image (not implemented yet: counted as failing).
+  Usability needs a measured clone-to-first-findings under 15 minutes, `sp` with plain-language explanations enforced
+  by a test, a daily summary that reached a person (`notify` job), both dashboards, reference/FAQ/translations, plus the
+  existing quick start, installer, weekly digest and the operator's attested review.
+
 ## 2026-11-24 — events heartbeat
 
 - **events 0.1.1**: one `event=heartbeat` line per source and successful run, so a quiet host (no logins) is
