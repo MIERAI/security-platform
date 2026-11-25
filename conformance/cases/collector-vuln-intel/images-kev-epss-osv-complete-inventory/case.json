@@ -1,0 +1,379 @@
+{
+ "component": "collector-vuln-intel",
+ "title": "Running images x trivy (fake) x cached KEV / EPSS / OSV feeds: priority from intel and exposure (KEV, EPSS >= 0.5 raises one step, outside prod at most high), HIGH fixes aggregated, OSV as a second matcher, a local repository, the complete image inventory declared with complete_scope image:, a future feed is a gap. Fresh caches: no feed is fetched",
+ "contract": "collector-protocol/1.0 / findings/1.2",
+ "origin": "collectors/vuln-intel/collector.py; tests/test_intel.py; tests/test_retired.py",
+ "files": {
+  "instance.json": "instance.json",
+  "data/.keep": {
+   "text": ""
+  },
+  "fake_trivy.json": "trivy.json",
+  "bin/trivy": {
+   "text": "#!/bin/sh\nexec \"{python}\" \"{case}/fake_trivy.py\" \"$@\"\n",
+   "mode": "0755"
+  },
+  "data/cache/feeds/known_exploited_vulnerabilities.json": "feed-known_exploited_vulnerabilities.json",
+  "data/cache/feeds/known_exploited_vulnerabilities.json.meta.json": {
+   "text": "{\"checked_at\": {now_epoch}, \"etag\": \"\\\"v1\\\"\", \"last_modified\": null, \"url\": \"x\"}"
+  },
+  "data/cache/feeds/epss_scores-current.csv.gz": {
+   "raw": "feed-epss_scores-current.csv.gz"
+  },
+  "data/cache/feeds/epss_scores-current.csv.gz.meta.json": {
+   "text": "{\"checked_at\": {now_epoch}, \"etag\": \"\\\"v1\\\"\", \"last_modified\": null, \"url\": \"x\"}"
+  },
+  "data/cache/feeds/osv/Go/all.zip": {
+   "raw": "feed-osv-Go-all.zip"
+  },
+  "data/cache/feeds/osv/Go/all.zip.meta.json": {
+   "text": "{\"checked_at\": {now_epoch}, \"etag\": \"\\\"v1\\\"\", \"last_modified\": null, \"url\": \"x\"}"
+  },
+  "data/latest/inventory.k8s-images.json": "inventory.json",
+  "src/app/go.mod": {
+   "text": "module app\n"
+  }
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-vuln-intel",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance",
+     "PATH": "{sandbox}/bin:{path}",
+     "FAKE_TRIVY_DATA": "{sandbox}/fake_trivy.json",
+     "FAKE_TRIVY_LOG": "{sandbox}/.svc-trivy.calls",
+     "https_proxy": "http://127.0.0.1:9",
+     "HTTPS_PROXY": "http://127.0.0.1:9",
+     "http_proxy": "http://127.0.0.1:9",
+     "HTTP_PROXY": "http://127.0.0.1:9",
+     "no_proxy": "",
+     "NO_PROXY": ""
+    },
+    "writes_only_under": [
+     "run",
+     "data/cache",
+     "data/sbom"
+    ]
+   },
+   "expect": [
+    {
+     "json": "run/vuln-intel.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "vuln-intel"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "json": "run/vuln-intel.findings.json",
+     "subset": {
+      "collector": {
+       "tools": {
+        "trivy": "0.99.1",
+        "trivy-db": "2026-11-24T06:12:00.123456789Z"
+       }
+      },
+      "coverage": [
+       {
+        "asset": "feed:cisa-kev",
+        "status": "ok"
+       },
+       {
+        "asset": "feed:epss",
+        "status": "ok"
+       },
+       {
+        "asset": "feed:osv",
+        "status": "ok"
+       },
+       {
+        "asset": "feed:nvd",
+        "status": "gap",
+        "reason": "NotImplementedError: feed 'nvd' is a documented future adapter"
+       },
+       {
+        "asset": "inventory:container-image",
+        "status": "ok",
+        "complete_scope": "image:"
+       },
+       {
+        "asset": "image:registry.example/web:1.4",
+        "status": "ok"
+       },
+       {
+        "asset": "image:registry.example/batch:2",
+        "status": "ok"
+       },
+       {
+        "asset": "image:registry.example/tool:1",
+        "status": "ok"
+       },
+       {
+        "asset": "image:busybox:1.36",
+        "status": "ok"
+       },
+       {
+        "asset": "repo:app",
+        "status": "ok"
+       }
+      ],
+      "findings": {
+       "$unordered": [
+        {
+         "check": "vuln.cve-2099-0001",
+         "asset": "image:registry.example/web:1.4",
+         "severity": "critical",
+         "layer": "supply-chain",
+         "kind": "vulnerability",
+         "refs": [
+          "CVE-2099-0001"
+         ],
+         "title": "CVE-2099-0001 in openssl 3.0.1 (fix 3.0.9)",
+         "evidence": "raw/vuln-intel/matches.json#image:registry.example/web:1.4|CVE-2099-0001",
+         "remediation": "update openssl to 3.0.9",
+         "attributes": {
+          "cve": "CVE-2099-0001",
+          "package": "openssl",
+          "installed": "3.0.1",
+          "fixed": "3.0.9",
+          "cvss": 9.8,
+          "base_severity": "critical",
+          "published_at": "2026-01-15",
+          "kev": false,
+          "kev_added": null,
+          "epss": 0.012,
+          "exposed": true,
+          "prod": true,
+          "clusters": [
+           "lab",
+           "prod"
+          ],
+          "target": "registry.example/web:1.4",
+          "matcher": "trivy",
+          "alertable": true
+         }
+        },
+        {
+         "check": "vuln.cve-2099-0002",
+         "asset": "image:registry.example/web:1.4",
+         "severity": "critical",
+         "title": "CVE-2099-0002 in zlib 1.2.11 (fix 1.2.12) [KEV]",
+         "attributes": {
+          "kev": true,
+          "kev_added": "2026-02-01",
+          "cvss": 7,
+          "epss": null,
+          "alertable": true,
+          "matcher": "trivy"
+         }
+        },
+        {
+         "check": "vuln.cve-2099-0003",
+         "asset": "image:registry.example/web:1.4",
+         "severity": "critical",
+         "title": "CVE-2099-0003 in curl 7.0 (no fix yet)",
+         "remediation": "mitigate (reduce exposure) / watch for a fix",
+         "attributes": {
+          "cvss": 9.1,
+          "epss": 0.73,
+          "fixed": ""
+         }
+        },
+        {
+         "check": "vuln.high_fixable_aggregate",
+         "asset": "image:registry.example/web:1.4",
+         "severity": "medium",
+         "title": "2 HIGH CVEs with available fixes",
+         "evidence": "raw/vuln-intel/high-aggregate.json#image:registry.example/web:1.4",
+         "attributes": {
+          "count": 2
+         }
+        },
+        {
+         "check": "vuln.cve-2099-0001",
+         "asset": "image:registry.example/batch:2",
+         "severity": "high",
+         "attributes": {
+          "exposed": false,
+          "alertable": false
+         }
+        },
+        {
+         "check": "vuln.cve-2099-0006",
+         "asset": "image:registry.example/tool:1",
+         "severity": "high",
+         "attributes": {
+          "prod": false,
+          "alertable": true
+         }
+        },
+        {
+         "check": "vuln.cve-2099-0008",
+         "asset": "repo:app",
+         "severity": "high",
+         "attributes": {
+          "clusters": [],
+          "prod": true,
+          "exposed": false
+         }
+        },
+        {
+         "check": "vuln.cve-2099-0101",
+         "asset": "image:registry.example/web:1.4",
+         "severity": "critical",
+         "title": "CVE-2099-0101 in example.com/lib v1.3.0 (fix 1.4.2) [OSV]",
+         "refs": [
+          "CVE-2099-0101",
+          "GO-2099-0001"
+         ],
+         "attributes": {
+          "osv_id": "GO-2099-0001",
+          "matcher": "osv",
+          "target": "Go",
+          "epss": 0.33,
+          "base_severity": "critical"
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/raw/vuln-intel/images.json",
+     "subset": {
+      "registry.example/web:1.4": {
+       "clusters": [
+        "lab",
+        "prod"
+       ],
+       "exposed": true,
+       "prod": true,
+       "sbom": {
+        "$regex": "^sbom/[0-9a-f]{16}\\.cdx\\.json$"
+       }
+      }
+     }
+    },
+    {
+     "json": "run/raw/vuln-intel/matches.json",
+     "subset": {
+      "image:registry.example/web:1.4|CVE-2099-0002": {
+       "matcher": "osv"
+      }
+     }
+    },
+    {
+     "prom": "run/vuln-intel.prom",
+     "has": [
+      {
+       "name": "security_vuln_matches",
+       "labels": {
+        "severity": "critical"
+       },
+       "value": 5
+      },
+      {
+       "name": "security_vuln_matches",
+       "labels": {
+        "severity": "high"
+       },
+       "value": 4
+      },
+      {
+       "name": "security_vuln_kev_matches",
+       "value": 1
+      },
+      {
+       "name": "security_vuln_alertable_matches",
+       "value": 5
+      },
+      {
+       "name": "security_vuln_osv_matches",
+       "value": 3
+      },
+      {
+       "name": "security_sbom_images",
+       "value": 4
+      },
+      {
+       "name": "security_intel_feed_age_seconds",
+       "labels": {
+        "feed": "trivy-db"
+       }
+      }
+     ]
+    },
+    {
+     "file": ".svc-trivy.calls",
+     "regex": [
+      "^version --format json auth=no$",
+      "^image --cache-backend memory --image-src remote --format cyclonedx --skip-db-update --output \\S+/data/sbom/[0-9a-f]{16}\\.cdx\\.json\\.tmp registry\\.example/web@sha256:a{64} auth=no$",
+      "^image .* registry\\.example/tool:1 auth=no$",
+      "^image .* busybox:1\\.36 auth=no$",
+      "^sbom --cache-backend memory --format json --skip-db-update --scanners vuln \\S+\\.cdx\\.json auth=no$",
+      "^fs --cache-backend memory --format json --skip-db-update --scanners vuln \\S+/src/app auth=no$"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "second run: SBOMs are cached by digest, only matched again",
+   "remove": [
+    "run",
+    ".svc-trivy.calls"
+   ],
+   "exec": {
+    "impl": "collector-vuln-intel",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance",
+     "PATH": "{sandbox}/bin:{path}",
+     "FAKE_TRIVY_DATA": "{sandbox}/fake_trivy.json",
+     "FAKE_TRIVY_LOG": "{sandbox}/.svc-trivy.calls",
+     "https_proxy": "http://127.0.0.1:9",
+     "HTTPS_PROXY": "http://127.0.0.1:9",
+     "http_proxy": "http://127.0.0.1:9",
+     "HTTP_PROXY": "http://127.0.0.1:9",
+     "no_proxy": "",
+     "NO_PROXY": ""
+    },
+    "writes_only_under": [
+     "run",
+     "data/cache",
+     "data/sbom"
+    ]
+   },
+   "expect": [
+    {
+     "json": "run/vuln-intel.findings.json",
+     "schema": "findings",
+     "subset": {
+      "findings": {
+       "$len": 8
+      }
+     }
+    },
+    {
+     "file": ".svc-trivy.calls",
+     "not_regex": [
+      "^image "
+     ]
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "intel": {
+  "feeds": [],
+  "registry_auth": [
+   {
+    "host": "registry.private.example",
+    "token_file": "{sandbox}/secrets/registry.token",
+    "username": "reader"
+   },
+   {
+    "host": "registry.loose.example",
+    "token_file": "{sandbox}/secrets/loose.token",
+    "username": "reader"
+   }
+  ]
+ },
+ "name": "conformance"
+}

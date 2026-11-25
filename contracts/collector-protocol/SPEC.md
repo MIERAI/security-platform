@@ -113,7 +113,11 @@ Target behaviour of `collectors/k8s` (the Go implementation, `sp k8s collect`, h
 
 Target behaviour of `collectors/vuln-intel` (Go: `sp vuln-intel collect`).
 
-None recorded yet.
+| id | what | target |
+|---|---|---|
+| VULN-D1 | Every feed is read from one fixed URL: no mirror for air-gapped or pinned sources, and the fetch path cannot be exercised against a test server. | Optional per-feed `url` (`osv`: a template with `{ecosystem}`; `msrc-cvrf`: `url` for the update list, `cvrf_url` with `{id}`), HTTPS only (plain HTTP only to a loopback address), the same cache files and conditional GET (`If-None-Match` / `If-Modified-Since`, 304 keeps the copy). Case `collector-vuln-intel/feed-mirror-conditional-get`. |
+| VULN-D2 | A download is written over the cached copy before it is read: an error page or a truncated file replaces the last good copy, and the feed is lost until the next good download. No size limit. | The payload is parsed (and bounded: `max_bytes`, inflated size and entry count of archives) before it replaces anything; a rejected download keeps the last good copy in use and the feed is a gap saying so. Case `collector-vuln-intel/corrupt-feed-keeps-last-good-copy`. |
+| VULN-D3 | A refresh that fails (outage, HTTP 5xx) makes the feed unavailable even when a cached copy exists: KEV / EPSS enrichment disappears and priorities drop for that run. | The cached copy is used; the feed is a gap whose reason says the refresh failed and since when the copy is confirmed; `security_intel_feed_age_seconds` shows its real age. Case `collector-vuln-intel/feed-outage-uses-cached-copy`. |
 
 ### Collector `identity`
 
