@@ -82,7 +82,7 @@ from adapters import sinks, spool  # noqa: E402
 from spsdk import load_config, render  # noqa: E402
 
 VERSION = open(os.path.join(HERE, "VERSION")).read().strip()
-# the product release this tree was installed as (RELEASE, written by bin/sp-install); "" in a checkout or an image
+# the product release this tree was installed as (RELEASE: written by bin/sp-install, or by the image build); "" in a checkout
 try:
     with open(os.path.join(ROOT, "RELEASE")) as _f:
         RELEASE = dict(ln.strip().split("=", 1) for ln in _f if "=" in ln).get("version", "")

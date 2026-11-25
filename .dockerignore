@@ -1,0 +1,5 @@
+# The Dockerfile copies named directories only; keep the history, build output and caches out of the context.
+.git
+build
+**/__pycache__
+**/*.pyc
