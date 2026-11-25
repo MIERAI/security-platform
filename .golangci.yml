@@ -10,7 +10,7 @@ linters:
     - bodyclose        # HTTP response bodies are closed
     - contextcheck     # contexts are passed down, not replaced
     - copyloopvar
-    - depguard         # standard library and this module only (docs/go.md: dependencies are justified)
+    - depguard         # standard library, this module and the justified dependencies of docs/go.md
     - durationcheck
     - errcheck
     - errname
@@ -47,6 +47,7 @@ linters:
           allow:
             - $gostd
             - github.com/MIERAI/security-platform
+            - go.yaml.in/yaml/v3   # YAML 1.2 parser for operator-written files; justified in docs/go.md
     errcheck:
       check-type-assertions: true
     forbidigo:

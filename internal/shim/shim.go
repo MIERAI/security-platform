@@ -42,6 +42,7 @@ type command func(ctx context.Context, env Env, args []string) int
 // goCommands are the subcommands implemented in Go. A fresh map on every call.
 func goCommands() map[string]command {
 	return map[string]command{
+		"ledger":  runLedger,
 		"version": runVersion,
 	}
 }

@@ -151,7 +151,7 @@ func TestVersionText(t *testing.T) {
 	}{
 		{"--version, installed tree", "version=v0.4.0\ncommit=abc\n", []string{"--version"},
 			[]string{"sp 0.3.0 (security-platform v0.4.0)", "binary: v0.4.0, go1.27.4, linux/amd64",
-				"go subcommands: version", "go components: (none)", "python components: cli collectors/host core"}},
+				"go subcommands: ledger version", "go components: (none)", "python components: cli collectors/host core"}},
 		{"version subcommand", "version=v0.4.0\n", []string{"version"}, []string{"sp 0.3.0 (security-platform v0.4.0)"}},
 		{"mismatch is flagged", "version=v0.3.0\n", []string{"--version"},
 			[]string{"warning: the sp binary is v0.4.0 but the Python tree is v0.3.0"}},
@@ -184,7 +184,7 @@ func TestVersionJSON(t *testing.T) {
 	py := rep.Python
 	if rep.Schema != VersionSchema || rep.Release != "v0.4.0" || rep.ReleaseMismatch || py == nil ||
 		py.CLIVersion != "0.3.0" || py.Source != "env" || len(rep.Components) != 3 ||
-		rep.Components[0].Implementation != "python" || rep.GoSubcommands[0] != "version" {
+		rep.Components[0].Implementation != "python" || strings.Join(rep.GoSubcommands, " ") != "ledger version" {
 		t.Fatalf("unexpected report %+v", rep)
 	}
 }

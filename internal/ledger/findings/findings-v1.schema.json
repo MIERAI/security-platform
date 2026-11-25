@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "security-platform/findings/v1",
+  "title": "security-platform findings document v1 (one collector run)",
+  "type": "object",
+  "required": ["schema_version", "collector", "run", "coverage", "findings"],
+  "properties": {
+    "schema_version": {"type": "string", "pattern": "^1\\.[0-9]+$"},
+    "collector": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {
+        "name": {"type": "string", "pattern": "^[a-z0-9-]+$"},
+        "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+        "tools": {"type": "object", "additionalProperties": {"type": "string"}}
+      }
+    },
+    "run": {
+      "type": "object",
+      "required": ["started_at", "finished_at"],
+      "properties": {
+        "started_at": {"type": "string", "format": "date-time"},
+        "finished_at": {"type": "string", "format": "date-time"},
+        "instance": {"type": "string"}
+      }
+    },
+    "coverage": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["asset", "status"],
+        "properties": {
+          "asset": {"type": "string"},
+          "status": {"enum": ["ok", "gap"]},
+          "reason": {"type": "string"},
+          "complete_scope": {"type": "string", "pattern": "^[a-z0-9-]+:"},
+          "checks": {"type": "array", "items": {"type": "string", "pattern": "^[a-z0-9_.*-]+$"}}
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "check", "layer", "asset", "title", "severity", "evidence", "remediation",
+                     "needs_human", "owner", "observed_at"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[0-9a-f]{12}$"},
+          "check": {"type": "string", "pattern": "^[a-z0-9_.-]+$"},
+          "layer": {"enum": ["identity", "network", "host", "workload", "supply-chain", "data-secrets",
+                             "ai-agents", "detection"]},
+          "asset": {"type": "string", "pattern": "^[a-z0-9-]+:.+$"},
+          "title": {"type": "string", "maxLength": 300},
+          "severity": {"enum": ["critical", "high", "medium", "low", "info"]},
+          "evidence": {"type": "string"},
+          "remediation": {"type": "string"},
+          "needs_human": {"type": "boolean"},
+          "owner": {"type": "string"},
+          "observed_at": {"type": "string", "format": "date-time"},
+          "kind": {"enum": ["detection", "vulnerability", "compliance"]},
+          "refs": {"type": "array", "items": {"type": "string"}},
+          "attributes": {"type": "object"}
+        }
+      }
+    },
+    "metrics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "value"],
+        "properties": {
+          "name": {"type": "string", "pattern": "^security_[a-z0-9_]+$"},
+          "value": {"type": "number"},
+          "labels": {"type": "object", "additionalProperties": {"type": "string"}},
+          "help": {"type": "string"}
+        }
+      }
+    }
+  }
+}
