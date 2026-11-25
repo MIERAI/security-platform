@@ -20,6 +20,9 @@
 #   --down   tear down only
 # Needs: docker, python3 >= 3.10, uv (Prowler's own Python 3.12 environment), network for images and tools (first run).
 # SP_CLOUD_E2E_TOOLS=DIR reuses a tool install (Prowler, Steampipe) between runs; default: built in the work dir, removed.
+# SP_CLOUD_E2E_IMPL=go runs the Go implementation (`sp cloud collect`, built here; needs go and openssl) instead of
+# collectors/cloud/collector.py, and every scan is also run with the Python implementation on the same state and
+# compared byte for byte (compare_impls.py: only times may differ). Default: python.
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/../.." && pwd)
@@ -27,8 +30,11 @@ NAME=${SP_CLOUD_E2E_NAME:-sp-cloud-e2e}
 LS_IMAGE=${SP_CLOUD_E2E_LOCALSTACK:-localstack/localstack:4.14.0@sha256:3ebc37595918b8accb852f8048fef2aff047d465167edd655528065b07bc364a}
 OIDC_IMAGE=${SP_CLOUD_E2E_OIDC:-ghcr.io/navikt/mock-oauth2-server:6.1.5@sha256:d88e445d55c4ff6eed59b02d86adfece47d985233b1616fb712669b98328c8a2}
 LS_PORT=${SP_CLOUD_E2E_LS_PORT:-14566} OIDC_PORT=18080 MOCK_PORT=18090   # the mock scenario names the issuer port
+MOCK_TLS_PORT=18443
+IMPL=${SP_CLOUD_E2E_IMPL:-python}
+[[ $IMPL == python || $IMPL == go ]] || { echo "SP_CLOUD_E2E_IMPL must be python or go" >&2; exit 2; }
 KEEP='' DOWN=''
-while [[ $# -gt 0 ]]; do case $1 in --keep) KEEP=1; shift;; --down) DOWN=1; shift;; *) sed -n '2,22p' "$0"; exit 2;; esac; done
+while [[ $# -gt 0 ]]; do case $1 in --keep) KEEP=1; shift;; --down) DOWN=1; shift;; *) sed -n '2,25p' "$0"; exit 2;; esac; done
 STATE=${TMPDIR:-/tmp}/$NAME.state
 
 say() { printf '\n== %s\n' "$*" >&2; }
@@ -68,10 +74,25 @@ PY=$TOOLS/env/bin/python3                                  # the runner's enviro
 TPY=$TOOLS/tools/prowler/current/bin/python3              # Prowler's own environment (boto3: used to SEED LocalStack)
 echo "ok   prowler $("$TPY" -c 'import importlib.metadata as m; print(m.version("prowler"))'), steampipe $("$TOOLS/tools/steampipe/current/bin/steampipe" --version | awk '{print $NF}'), scoutsuite $("$TOOLS/tools/scoutsuite/current/bin/python3" -c 'import importlib.metadata as m; print(m.version("scoutsuite"))')"
 
+SP=
+if [[ $IMPL == go ]]; then
+  SP=$WORK/bin/sp
+  ( cd "$ROOT" && go build -trimpath -o "$SP" ./cmd/sp )
+  echo "ok   implementation under test: Go ($("$SP" version | head -1)); Python runs alongside for the comparison"
+fi
+
 say "2. local endpoints: LocalStack (AWS), an OIDC issuer, the GCP/Azure token mock"
+MOCK_TLS=()
+if [[ $IMPL == go ]]; then      # the Azure SDK for Go accepts only an https authority: the mock also speaks TLS
+  mkdir -p "$WORK/mock-tls"
+  openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj /CN=127.0.0.1 -addext subjectAltName=IP:127.0.0.1 \
+    -keyout "$WORK/mock-tls/key.pem" -out "$WORK/mock-tls/cert.pem" 2>/dev/null
+  MOCK_TLS=(--tls-port "$MOCK_TLS_PORT" --tls-cert "$WORK/mock-tls/cert.pem" --tls-key "$WORK/mock-tls/key.pem")
+  export SP_E2E_AZURE_TLS="https://127.0.0.1:$MOCK_TLS_PORT" SP_E2E_CA_FILE="$WORK/mock-tls/cert.pem"
+fi
 docker run -d --name "$NAME-localstack" -p "127.0.0.1:$LS_PORT:4566" -e SERVICES=s3,ec2,iam,sts "$LS_IMAGE" >/dev/null
 docker run -d --name "$NAME-oidc" -p "127.0.0.1:$OIDC_PORT:8080" -e JSON_CONFIG="$(cat "$HERE/oidc-config.json")" "$OIDC_IMAGE" >/dev/null
-python3 "$HERE/cloudmock.py" --port "$MOCK_PORT" --config "$HERE/mock-scenario.json" & MOCK_PID=$!
+python3 "$HERE/cloudmock.py" --port "$MOCK_PORT" --config "$HERE/mock-scenario.json" ${MOCK_TLS[@]+"${MOCK_TLS[@]}"} & MOCK_PID=$!
 for _ in $(seq 60); do
   curl -fsS "127.0.0.1:$LS_PORT/_localstack/health" 2>/dev/null | grep -q '"iam": "available"' \
     && curl -fsS "127.0.0.1:$OIDC_PORT/workload/.well-known/openid-configuration" >/dev/null 2>&1 \
@@ -82,18 +103,28 @@ curl -fsS "127.0.0.1:$LS_PORT/_localstack/health" | grep -q '"edition": "communi
 echo "ok   LocalStack community, OIDC issuer and cloud mock are up"
 
 say "3. the fictional company's AWS account: the platform's role + deliberate misconfigurations (seeded as admin)"
-export SP_E2E_LS="http://127.0.0.1:$LS_PORT" SP_E2E_WORK=$WORK SP_E2E_OIDC="http://127.0.0.1:$OIDC_PORT"
+export SP_E2E_LS="http://127.0.0.1:$LS_PORT" SP_E2E_WORK=$WORK SP_E2E_OIDC="http://127.0.0.1:$OIDC_PORT" \
+  SP_CLOUD_E2E_IMPL=$IMPL SP_CLOUD_E2E_SP=$SP
 "$TPY" -I "$HERE/seed.py" seed
 
 say "4. instance config (JSON: no PyYAML needed) and the first scan"
 "$PY" -I "$HERE/make_instance.py" "$WORK" "$TOOLS" "$HERE" "$LS_PORT" "$OIDC_PORT" "$MOCK_PORT"
 DATA=$WORK/data
 mkdir -p "$DATA" "$WORK/home"
-scan() {   # $1 = run name; the collector runs as a scheduled job would, with an EMPTY home and no ambient cloud keys
-  local run=$WORK/runs/$1
-  ( cd "$ROOT" && env -i PATH="$PATH" HOME="$WORK/home" TMPDIR="$WORK/tmp" SP_INSTANCE="$WORK/instance.json" SP_RUN_DIR="$run" \
+collect() {   # $1 = implementation, $2 = run directory, $3 = instance; as a scheduled job: EMPTY home, no ambient cloud keys
+  local prog=("$PY" collectors/cloud/collector.py)
+  [[ $1 == go ]] && prog=("$SP" cloud collect)
+  ( cd "$ROOT" && env -i PATH="$PATH" HOME="$WORK/home" TMPDIR="$WORK/tmp" SP_INSTANCE="$3" SP_RUN_DIR="$2" \
       AWS_ACCESS_KEY_ID=ambient-admin-key-must-not-be-used AWS_SECRET_ACCESS_KEY=ambient \
-      "$PY" collectors/cloud/collector.py ) 2>&1 | tail -1
+      "${prog[@]}" ) 2>&1 | tail -1
+}
+scan() {   # $1 = run name
+  local run=$WORK/runs/$1
+  collect "$IMPL" "$run" "$WORK/instance.json"
+  if [[ $IMPL == go ]]; then   # the same scan with the Python implementation: identical output expected
+    collect python "$WORK/runs/$1-python" "$WORK/python/instance.json"
+    "$PY" -I "$HERE/compare_impls.py" "$WORK/runs/$1-python" "$run"
+  fi
   "$PY" "$ROOT/core/ledger.py" --run "$run" --data "$DATA" >/dev/null
   mkdir -p "$DATA/latest" && cp "$run"/cloud.findings.json "$DATA/latest/cloud.findings.json"
 }
@@ -121,12 +152,13 @@ say "8. no credential on disk; temporary directories removed"
 "$PY" -I "$HERE/assert_cloud.py" secrets "$WORK"
 
 DUR=$(( $(date +%s) - T_START ))
-"$PY" -I - "$HERE/last-pass.json" "$DUR" "$LS_IMAGE" "$OIDC_IMAGE" \
+"$PY" -I - "$HERE/last-pass.json" "$DUR" "$LS_IMAGE" "$OIDC_IMAGE" "$IMPL" \
   "$("$TPY" -c 'import importlib.metadata as m; print(m.version("prowler"))')" \
   "$("$TOOLS/tools/steampipe/current/bin/steampipe" --version | awk '{print $NF}' | tr -d v)" "$(python3 "$ROOT/cli/release.py" --repo "$ROOT" --dev)" <<'EOF'
 import json, sys, time
-p, dur, ls, oidc, prowler, steampipe, ref = sys.argv[1:]
+p, dur, ls, oidc, impl, prowler, steampipe, ref = sys.argv[1:]
 json.dump({"schema": "security-platform/e2e-result/v1", "test": "e2e/cloud-localstack/run.sh", "result": "pass",
+           "implementation": impl + (" (compared with python: identical)" if impl == "go" else ""),
            "passed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "installed": ref, "total_seconds": int(dur),
            "environment": {"aws": "LocalStack community " + ls.split("@")[0].split(":")[-1], "oidc_issuer": oidc.split("@")[0],
                            "gcp_azure": "cloudmock.py (token flows only)", "prowler": prowler, "steampipe": steampipe}},

@@ -30,7 +30,7 @@ pull request that makes its conformance suite run against the Go implementation.
 ## Layout
 
 ```
-go.mod                 module github.com/MIERAI/security-platform (no third-party dependencies)
+go.mod                 module github.com/MIERAI/security-platform (third-party: the cloud SDKs only, see Dependencies)
 cmd/sp/                the sp binary: wiring only (environment, streams, exit); end-to-end tests build it
 internal/shim/         dispatch: Go subcommands, delegation to Python, `sp version`
 internal/delegate/     running cli/sp.py: argument vector, execve on Unix, child process elsewhere
@@ -40,6 +40,8 @@ internal/components/   the product's components (<dir>/VERSION) and their implem
 internal/buildinfo/    the binary's release (link time), commit and toolchain
 internal/textsafe/     printing text read from files without terminal control characters
 internal/fakepython/   a stand-in interpreter for tests
+internal/cloud/        the cloud adapter (adapters/cloud.py): AWS, GCP, Azure on the official SDKs; discovery gcp
+internal/collectors/cloud/  the cloud collector (`sp cloud collect`) and its engines, imports, controls, merge
 internal/<component>/  added per component as it moves (core, runner, collectors/<name>, ...)
 ```
 
@@ -79,6 +81,39 @@ Enforced by CI (`.github/workflows/go.yml`, `.golangci.yml`) where a tool can ch
   their release before they are adopted.
 - **Toolchain**: the `toolchain` line of `go.mod` (currently go1.27.4) is the version CI and releases build with;
   `go` is the minimum language version.
+
+## Dependencies
+
+Only `internal/cloud` may import a third-party module, and only the packages listed in `.golangci.yml` (depguard rule
+`cloud-sdks`, package by package); everything else stays standard library + this module. Each direct module, what it
+replaces and why it is worth it (versions in `go.mod`; each was released at least two weeks before it was adopted,
+except `golang.org/x/crypto` v0.59.0, the first release with the fix for GO-2026-5932, taken on its 14th day):
+
+| module (direct) | packages used | replaces / why |
+|---|---|---|
+| `github.com/aws/aws-sdk-go-v2` (+ `config`, `credentials`, `service/sts`, `service/iam`) | `aws`, `aws/transport/http`, `config`, `credentials/stscreds`, `service/sts`, `service/iam(/types)` | our SigV4 signer, STS/IAM Query-API XML handling, endpoint/partition rules; adds paging (IAM lists were read as one page), retries, credential caching with an expiry window, and the SDK's SSO/shared-config profile resolution (`mode: profile` no longer needs the AWS CLI). Maintained by AWS. |
+| `github.com/aws/smithy-go` | `smithy-go` | the error model of the AWS SDK (`APIError`, operation errors): the coverage-gap reasons (`<service> <operation>: HTTP <status> <code>: <message>`). Maintained by AWS. |
+| `golang.org/x/oauth2` | `oauth2`, `google`, `google/externalaccount` | our STS token exchange, ADC refresh-token grant and `generateAccessToken` impersonation: Google's own external-account and impersonated-credential flows. Maintained by the Go team with Google. |
+| `github.com/Azure/azure-sdk-for-go/sdk/azcore`, `azidentity`, `resourcemanager/authorization/armauthorization/v2` | `azcore`, `azcore/arm`, `azcore/cloud`, `azcore/policy`, `azcore/runtime`, `azidentity`, `armauthorization/v2` | our Entra client-assertion token request and ARM role-assignment listing: MSAL's authority and token rules (https only, tenant discovery, token cache and refresh), ARM paging, retries. Maintained by Microsoft. |
+
+Indirect modules come with these (`go mod graph`): the AWS SDK's internal modules and `sso`/`ssooidc`/`signin` (profile
+resolution), MSAL for Go, `golang-jwt/jwt/v5`, `google/uuid`, `kylelemons/godebug`, `pkg/browser` (Azure SDK),
+`cloud.google.com/go/compute/metadata` (x/oauth2/google), `golang.org/x/{crypto,net,sync,sys,text}`.
+
+**Considered and not used: `google.golang.org/api`** (and `cloud.google.com/go/*`). After authentication the adapter
+makes three read-only Google calls (`getIamPolicy` with `requestedPolicyVersion: 3`, Cloud Asset
+`searchAllResources`, Compute `instances.aggregatedList`): plain JSON over HTTPS. The generated clients bring gRPC,
+protobuf, OpenTelemetry, S2A, the enterprise-certificate proxy and gax as transitive dependencies, and made `sp` 24 MB
+instead of 12.6 MB (linux/amd64, stripped; `compute/v1` alone is several megabytes). They would not carry the rule that
+started this rewrite either: the policy version is an explicit request option in the client too. The provider rules
+that do matter for GCP (token exchange, impersonation, ADC) come from `golang.org/x/oauth2/google`.
+
+Binary size of `sp` (linux/amd64, `-trimpath -ldflags="-s -w"`): 3.3 MB without the cloud code, 12.6 MB with it.
+Each SDK measured alone on a small program: AWS (sts, iam, stscreds, config) +2.8 MB, Azure (azidentity, armauthorization)
++3.1 MB, x/oauth2/google +2.5 MB (partly shared code such as x/net); the adapter and collector are the rest.
+
+Checks: `go mod verify`, `go mod tidy -diff` and govulncheck in CI (`.github/workflows/go.yml`); every parser of
+provider responses and engine output has a fuzz test.
 
 ## Working locally
 

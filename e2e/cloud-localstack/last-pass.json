@@ -2,9 +2,10 @@
  "schema": "security-platform/e2e-result/v1",
  "test": "e2e/cloud-localstack/run.sh",
  "result": "pass",
- "passed_at": "2026-11-25T03:06:26Z",
- "installed": "v0.2.0-4-g901e264",
- "total_seconds": 178,
+ "implementation": "go (compared with python: identical)",
+ "passed_at": "2026-11-25T10:07:58Z",
+ "installed": "dev-v0.3.0-3-gbf9b78b",
+ "total_seconds": 597,
  "environment": {
   "aws": "LocalStack community 4.14.0",
   "oidc_issuer": "ghcr.io/navikt/mock-oauth2-server:6.1.5",

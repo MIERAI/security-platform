@@ -18,7 +18,7 @@ import json
 import subprocess
 import urllib.parse
 
-VERSION = "0.5.0"
+VERSION = "0.6.0"
 
 
 def tailscale(cfg):

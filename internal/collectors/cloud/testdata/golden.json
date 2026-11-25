@@ -1,0 +1,2362 @@
+{
+ "cis_versions": {
+  "aws": "3.0",
+  "azure": "2.0",
+  "gcp": "2.0"
+ },
+ "controls": {
+  "cloud.access_key_old": [
+   "people",
+   "identity",
+   "long-lived access key / service-account key not rotated in 90 days",
+   "replace long-lived keys with federation/roles; otherwise rotate every 90 days",
+   {
+    "aws": [
+     "1.14"
+    ],
+    "gcp": [
+     "1.7"
+    ]
+   }
+  ],
+  "cloud.admin_privileges_broad": [
+   "people",
+   "identity",
+   "identity has administrative privileges it should not need",
+   "grant least privilege; no admin roles on workload identities",
+   {
+    "aws": [
+     "1.16"
+    ],
+    "azure": [
+     "1.23"
+    ],
+    "gcp": [
+     "1.5"
+    ]
+   }
+  ],
+  "cloud.audit_log_disabled": [
+   "software",
+   "detection",
+   "control-plane audit logging is not enabled everywhere",
+   "enable a multi-region/organisation audit trail (CloudTrail, Cloud Audit Logs, Activity Log export)",
+   {
+    "aws": [
+     "3.1"
+    ],
+    "azure": [
+     "5.1.1"
+    ],
+    "gcp": [
+     "2.1"
+    ]
+   }
+  ],
+  "cloud.credential_unused": [
+   "people",
+   "identity",
+   "credential unused for 45+ days",
+   "disable and delete unused credentials",
+   {
+    "aws": [
+     "1.12"
+    ]
+   }
+  ],
+  "cloud.firewall_admin_port_open": [
+   "network",
+   "network",
+   "firewall rule allows SSH/RDP (admin ports) from the internet",
+   "restrict the rule's source to known addresses or use a bastion/SSM/IAP instead of opening admin ports",
+   {
+    "aws": [
+     "5.1",
+     "5.2",
+     "5.3"
+    ],
+    "azure": [
+     "6.1",
+     "6.2"
+    ],
+    "gcp": [
+     "3.6",
+     "3.7"
+    ]
+   }
+  ],
+  "cloud.firewall_open_to_internet": [
+   "network",
+   "network",
+   "firewall rule allows all ports from the internet",
+   "allow only the ports the service needs, from the sources that need them",
+   {
+    "aws": [
+     "5.2"
+    ],
+    "azure": [
+     "6.1"
+    ],
+    "gcp": [
+     "3.6"
+    ]
+   }
+  ],
+  "cloud.instance_metadata_v1": [
+   "device",
+   "host",
+   "instance metadata service allows unauthenticated v1 requests",
+   "require IMDSv2 (http tokens required)",
+   {
+    "aws": [
+     "5.6"
+    ]
+   }
+  ],
+  "cloud.instance_unpatched": [
+   "device",
+   "host",
+   "instance is missing patches or is not under patch management",
+   "bring the instance under the provider's patch management and apply missing updates",
+   {}
+  ],
+  "cloud.password_policy_weak": [
+   "people",
+   "identity",
+   "account password policy is weaker than the benchmark",
+   "set a password policy (length >= 14, reuse prevention) or move humans to SSO",
+   {
+    "aws": [
+     "1.8",
+     "1.9"
+    ]
+   }
+  ],
+  "cloud.platform_credential_over_privileged": [
+   "people",
+   "identity",
+   "the security platform's own cloud credential can write (expected read-only)",
+   "detach every policy/role except the read-only audit ones (docs/cloud.md: permissions)",
+   {}
+  ],
+  "cloud.public_endpoint": [
+   "network",
+   "network",
+   "resource has a public endpoint/address",
+   "remove the public address or put the resource behind a load balancer / private endpoint",
+   {}
+  ],
+  "cloud.root_access_key": [
+   "people",
+   "identity",
+   "root account has access keys",
+   "delete root access keys",
+   {
+    "aws": [
+     "1.4"
+    ]
+   }
+  ],
+  "cloud.root_mfa_disabled": [
+   "people",
+   "identity",
+   "root / break-glass account has no MFA",
+   "enable hardware or passkey MFA on the root account",
+   {
+    "aws": [
+     "1.5",
+     "1.6"
+    ]
+   }
+  ],
+  "cloud.root_used": [
+   "people",
+   "identity",
+   "root account was used recently",
+   "use named, least-privilege identities; keep root for break-glass",
+   {
+    "aws": [
+     "1.7"
+    ]
+   }
+  ],
+  "cloud.service_account_key_user_managed": [
+   "people",
+   "identity",
+   "service account has user-managed (long-lived) keys",
+   "use workload identity federation / attached service accounts instead of keys",
+   {
+    "gcp": [
+     "1.4"
+    ]
+   }
+  ],
+  "cloud.snapshot_public": [
+   "software",
+   "data-secrets",
+   "snapshot or machine image is shared publicly",
+   "remove public sharing; block public sharing at account level",
+   {}
+  ],
+  "cloud.storage_insecure_transport": [
+   "software",
+   "data-secrets",
+   "storage accepts unencrypted (HTTP) requests",
+   "deny requests without TLS (aws:SecureTransport / secure transfer required)",
+   {
+    "aws": [
+     "2.1.1"
+    ],
+    "azure": [
+     "3.1"
+    ]
+   }
+  ],
+  "cloud.storage_public": [
+   "software",
+   "data-secrets",
+   "storage bucket/container is publicly accessible",
+   "block public access at account and bucket level; share through signed URLs or a CDN with origin access",
+   {
+    "aws": [
+     "2.1.4"
+    ],
+    "azure": [
+     "3.7"
+    ],
+    "gcp": [
+     "5.1"
+    ]
+   }
+  ],
+  "cloud.storage_unencrypted": [
+   "software",
+   "data-secrets",
+   "storage has no default encryption configured",
+   "enable default encryption (provider-managed or customer-managed keys)",
+   {
+    "azure": [
+     "3.2"
+    ]
+   }
+  ],
+  "cloud.user_without_mfa": [
+   "people",
+   "identity",
+   "user with console/password access has no MFA",
+   "enable MFA (phishing-resistant where possible) for every human user; enforce it by policy",
+   {
+    "aws": [
+     "1.10"
+    ],
+    "azure": [
+     "1.1.1",
+     "1.1.2"
+    ],
+    "gcp": [
+     "1.2"
+    ]
+   }
+  ],
+  "cloud.volume_unencrypted": [
+   "device",
+   "host",
+   "block volume or snapshot is not encrypted",
+   "enable encryption by default for new volumes; migrate data to encrypted volumes",
+   {
+    "aws": [
+     "2.2.1"
+    ],
+    "azure": [
+     "7.2"
+    ],
+    "gcp": [
+     "4.7"
+    ]
+   }
+  ]
+ },
+ "maps": {
+  "defender": {
+   "accounts with owner permissions on azure resources should be mfa enabled": "cloud.user_without_mfa",
+   "accounts with write permissions on azure resources should be mfa enabled": "cloud.user_without_mfa",
+   "internet-facing virtual machines should be protected with network security groups": "cloud.public_endpoint",
+   "machines should be configured to periodically check for missing system updates": "cloud.instance_unpatched",
+   "management ports should be closed on your virtual machines": "cloud.firewall_admin_port_open",
+   "secure transfer to storage accounts should be enabled": "cloud.storage_insecure_transport",
+   "storage account public access should be disallowed": "cloud.storage_public",
+   "system updates should be installed on your machines": "cloud.instance_unpatched",
+   "virtual machines should encrypt temp disks, caches, and data flows between compute and storage resources": "cloud.volume_unencrypted"
+  },
+  "prowler": {
+   "cloudstorage_bucket_public_access": "cloud.storage_public",
+   "cloudtrail_multi_region_enabled": "cloud.audit_log_disabled",
+   "cloudtrail_multi_region_enabled_logging_management_events": "cloud.audit_log_disabled",
+   "compute_firewall_rdp_access_from_the_internet_allowed": "cloud.firewall_admin_port_open",
+   "compute_firewall_ssh_access_from_the_internet_allowed": "cloud.firewall_admin_port_open",
+   "compute_instance_public_ip": "cloud.public_endpoint",
+   "defender_ensure_system_updates_are_applied": "cloud.instance_unpatched",
+   "ec2_ebs_default_encryption": "cloud.volume_unencrypted",
+   "ec2_ebs_public_snapshot": "cloud.snapshot_public",
+   "ec2_ebs_snapshots_encrypted": "cloud.volume_unencrypted",
+   "ec2_ebs_volume_encryption": "cloud.volume_unencrypted",
+   "ec2_instance_imdsv2_enabled": "cloud.instance_metadata_v1",
+   "ec2_instance_public_ip": "cloud.public_endpoint",
+   "ec2_networkacl_allow_ingress_any_port": "cloud.firewall_open_to_internet",
+   "ec2_networkacl_allow_ingress_tcp_port_22": "cloud.firewall_admin_port_open",
+   "ec2_networkacl_allow_ingress_tcp_port_3389": "cloud.firewall_admin_port_open",
+   "ec2_securitygroup_allow_ingress_from_internet_to_all_ports": "cloud.firewall_open_to_internet",
+   "ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_22": "cloud.firewall_admin_port_open",
+   "ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_3389": "cloud.firewall_admin_port_open",
+   "entra_non_privileged_user_has_mfa": "cloud.user_without_mfa",
+   "entra_privileged_user_has_mfa": "cloud.user_without_mfa",
+   "iam_audit_logs_enabled": "cloud.audit_log_disabled",
+   "iam_avoid_root_usage": "cloud.root_used",
+   "iam_no_root_access_key": "cloud.root_access_key",
+   "iam_password_policy_minimum_length_14": "cloud.password_policy_weak",
+   "iam_password_policy_reuse_24": "cloud.password_policy_weak",
+   "iam_root_hardware_mfa_enabled": "cloud.root_mfa_disabled",
+   "iam_root_mfa_enabled": "cloud.root_mfa_disabled",
+   "iam_rotate_access_key_90_days": "cloud.access_key_old",
+   "iam_sa_no_administrative_privileges": "cloud.admin_privileges_broad",
+   "iam_sa_no_user_managed_keys": "cloud.service_account_key_user_managed",
+   "iam_sa_user_managed_key_rotate_90_days": "cloud.access_key_old",
+   "iam_sa_user_managed_key_unused": "cloud.credential_unused",
+   "iam_user_accesskey_unused": "cloud.credential_unused",
+   "iam_user_console_access_unused": "cloud.credential_unused",
+   "iam_user_mfa_enabled_console_access": "cloud.user_without_mfa",
+   "logging_sink_created": "cloud.audit_log_disabled",
+   "monitor_diagnostic_settings_exists": "cloud.audit_log_disabled",
+   "network_rdp_internet_access_restricted": "cloud.firewall_admin_port_open",
+   "network_ssh_internet_access_restricted": "cloud.firewall_admin_port_open",
+   "rds_instance_no_public_access": "cloud.public_endpoint",
+   "rds_snapshots_public_access": "cloud.snapshot_public",
+   "s3_bucket_default_encryption": "cloud.storage_unencrypted",
+   "s3_bucket_policy_public_write_access": "cloud.storage_public",
+   "s3_bucket_public_access": "cloud.storage_public",
+   "s3_bucket_public_list_acl": "cloud.storage_public",
+   "s3_bucket_public_write_acl": "cloud.storage_public",
+   "s3_bucket_secure_transport_policy": "cloud.storage_insecure_transport",
+   "ssm_managed_compliant_patching": "cloud.instance_unpatched",
+   "storage_blob_public_access_level_is_disabled": "cloud.storage_public",
+   "storage_secure_transfer_required_is_enabled": "cloud.storage_insecure_transport"
+  },
+  "scc": {
+   "ADMIN_SERVICE_ACCOUNT": "cloud.admin_privileges_broad",
+   "AUDIT_LOGGING_DISABLED": "cloud.audit_log_disabled",
+   "MFA_NOT_ENFORCED": "cloud.user_without_mfa",
+   "OPEN_FIREWALL": "cloud.firewall_open_to_internet",
+   "OPEN_RDP_PORT": "cloud.firewall_admin_port_open",
+   "OPEN_SSH_PORT": "cloud.firewall_admin_port_open",
+   "OS_VULNERABILITY": "cloud.instance_unpatched",
+   "PUBLIC_BUCKET_ACL": "cloud.storage_public",
+   "PUBLIC_DATASET": "cloud.storage_public",
+   "PUBLIC_IP_ADDRESS": "cloud.public_endpoint",
+   "PUBLIC_SQL_INSTANCE": "cloud.public_endpoint",
+   "SERVICE_ACCOUNT_KEY_NOT_ROTATED": "cloud.access_key_old",
+   "USER_MANAGED_SERVICE_ACCOUNT_KEY": "cloud.service_account_key_user_managed"
+  },
+  "scoutsuite": {
+   "cloudstorage-bucket-allUsers": "cloud.storage_public",
+   "cloudtrail-not-configured": "cloud.audit_log_disabled",
+   "computeengine-firewall-rule-allows-port-range": "cloud.firewall_open_to_internet",
+   "ec2-ebs-snapshot-not-encrypted": "cloud.volume_unencrypted",
+   "ec2-ebs-snapshot-public": "cloud.snapshot_public",
+   "ec2-ebs-volume-not-encrypted": "cloud.volume_unencrypted",
+   "ec2-security-group-opens-RDP-port-to-all": "cloud.firewall_admin_port_open",
+   "ec2-security-group-opens-SSH-port-to-all": "cloud.firewall_admin_port_open",
+   "ec2-security-group-opens-all-ports-to-all": "cloud.firewall_open_to_internet",
+   "iam-password-policy-minimum-length": "cloud.password_policy_weak",
+   "iam-password-policy-reuse-enabled": "cloud.password_policy_weak",
+   "iam-root-account-no-mfa": "cloud.root_mfa_disabled",
+   "iam-root-account-used-recently": "cloud.root_used",
+   "iam-root-account-with-active-keys": "cloud.root_access_key",
+   "iam-user-no-Active-key-rotation": "cloud.access_key_old",
+   "iam-user-unused-access-key-initial-setup": "cloud.credential_unused",
+   "iam-user-without-mfa": "cloud.user_without_mfa",
+   "network-security-group-ssh-port-open-to-all": "cloud.firewall_admin_port_open",
+   "s3-bucket-AllUsers-read": "cloud.storage_public",
+   "s3-bucket-AllUsers-write": "cloud.storage_public",
+   "s3-bucket-allowing-cleartext": "cloud.storage_insecure_transport",
+   "s3-bucket-no-default-encryption": "cloud.storage_unencrypted",
+   "s3-bucket-world-Get-policy": "cloud.storage_public",
+   "s3-bucket-world-List-policy": "cloud.storage_public",
+   "s3-bucket-world-Policy-Star": "cloud.storage_public",
+   "s3-bucket-world-Put-policy": "cloud.storage_public",
+   "storageaccount-public-blob-container": "cloud.storage_public"
+  },
+  "securityhub": {
+   "CloudTrail.1": "cloud.audit_log_disabled",
+   "CloudTrail.3": "cloud.audit_log_disabled",
+   "EC2.1": "cloud.snapshot_public",
+   "EC2.13": "cloud.firewall_admin_port_open",
+   "EC2.14": "cloud.firewall_admin_port_open",
+   "EC2.19": "cloud.firewall_open_to_internet",
+   "EC2.21": "cloud.firewall_admin_port_open",
+   "EC2.3": "cloud.volume_unencrypted",
+   "EC2.7": "cloud.volume_unencrypted",
+   "EC2.8": "cloud.instance_metadata_v1",
+   "EC2.9": "cloud.public_endpoint",
+   "IAM.15": "cloud.password_policy_weak",
+   "IAM.16": "cloud.password_policy_weak",
+   "IAM.19": "cloud.user_without_mfa",
+   "IAM.22": "cloud.credential_unused",
+   "IAM.3": "cloud.access_key_old",
+   "IAM.4": "cloud.root_access_key",
+   "IAM.5": "cloud.user_without_mfa",
+   "IAM.6": "cloud.root_mfa_disabled",
+   "IAM.7": "cloud.password_policy_weak",
+   "IAM.8": "cloud.credential_unused",
+   "IAM.9": "cloud.root_mfa_disabled",
+   "RDS.1": "cloud.snapshot_public",
+   "RDS.2": "cloud.public_endpoint",
+   "S3.2": "cloud.storage_public",
+   "S3.3": "cloud.storage_public",
+   "S3.4": "cloud.storage_unencrypted",
+   "S3.5": "cloud.storage_insecure_transport",
+   "SSM.2": "cloud.instance_unpatched"
+  }
+ },
+ "parsers": {
+  "defender": [
+   {
+    "account": "33333333-3333-4333-8333-333333333333",
+    "check": "Management ports should be closed on your virtual machines",
+    "control": "cloud.firewall_admin_port_open",
+    "coverage_only": false,
+    "detail": "SSH open",
+    "name": "vm-legacy",
+    "provider": "azure",
+    "refs": [],
+    "region": "global",
+    "remediation": "",
+    "resource": "/subscriptions/33333333-3333-4333-8333-333333333333/resourceGroups/rg-web/providers/Microsoft.Compute/virtualMachines/vm-legacy",
+    "service": "compute",
+    "severity": "medium",
+    "source": "defender",
+    "status": "FAIL",
+    "title": "Management ports should be closed on your virtual machines"
+   },
+   {
+    "account": "33333333-3333-4333-8333-333333333333",
+    "check": "Storage account public access should be disallowed",
+    "control": "cloud.storage_public",
+    "coverage_only": false,
+    "detail": "",
+    "name": "acmepublicsa",
+    "provider": "azure",
+    "refs": [],
+    "region": "global",
+    "remediation": "",
+    "resource": "/subscriptions/33333333-3333-4333-8333-333333333333/resourceGroups/rg-web/providers/Microsoft.Storage/storageAccounts/acmepublicsa",
+    "service": "storage",
+    "severity": "medium",
+    "source": "defender",
+    "status": "FAIL",
+    "title": "Storage account public access should be disallowed"
+   },
+   {
+    "account": "33333333-3333-4333-8333-333333333333",
+    "check": "System updates should be installed on your machines",
+    "control": "cloud.instance_unpatched",
+    "coverage_only": false,
+    "detail": "",
+    "name": "vm-legacy",
+    "provider": "azure",
+    "refs": [],
+    "region": "global",
+    "remediation": "",
+    "resource": "/subscriptions/33333333-3333-4333-8333-333333333333/resourceGroups/rg-web/providers/Microsoft.Compute/virtualMachines/vm-legacy",
+    "service": "compute",
+    "severity": "high",
+    "source": "defender",
+    "status": "FAIL",
+    "title": "System updates should be installed on your machines"
+   },
+   {
+    "account": "33333333-3333-4333-8333-333333333333",
+    "check": "Secure transfer to storage accounts should be enabled",
+    "control": "cloud.storage_insecure_transport",
+    "coverage_only": false,
+    "detail": "",
+    "name": "acmepublicsa",
+    "provider": "azure",
+    "refs": [],
+    "region": "global",
+    "remediation": "",
+    "resource": "/subscriptions/33333333-3333-4333-8333-333333333333/resourceGroups/rg-web/providers/Microsoft.Storage/storageAccounts/acmepublicsa",
+    "service": "storage",
+    "severity": "high",
+    "source": "defender",
+    "status": "PASS",
+    "title": "Secure transfer to storage accounts should be enabled"
+   }
+  ],
+  "prowler-aws": [
+   {
+    "account": "000000000000",
+    "check": "cloudtrail_multi_region_enabled",
+    "control": "cloud.audit_log_disabled",
+    "coverage_only": false,
+    "detail": "No CloudTrail trails enabled with logging were found.",
+    "name": "000000000000",
+    "provider": "aws",
+    "refs": [
+     "cis-aws:1.4/3.1",
+     "cis-aws:1.5/3.1",
+     "cis-aws:2.0/3.1",
+     "cis-aws:3.0/3.1",
+     "cis-aws:4.0.1/3.1",
+     "cis-aws:5.0/3.1",
+     "cis-aws:6.0/4.1",
+     "cis-aws:7.0/4.1"
+    ],
+    "region": "us-east-1",
+    "remediation": "Use a **multi-region CloudTrail trail** or per-region trails so `logging` is active in every region, including unused ones.\n\nCentralize logs, enforce **least privilege** to log stores, and add **defen",
+    "resource": "arn:aws:cloudtrail:us-east-1:000000000000:trail",
+    "service": "cloudtrail",
+    "severity": "high",
+    "source": "prowler",
+    "status": "FAIL",
+    "title": "Region has at least one CloudTrail trail logging"
+   },
+   {
+    "account": "000000000000",
+    "check": "ec2_ebs_public_snapshot",
+    "control": "cloud.snapshot_public",
+    "coverage_only": false,
+    "detail": "EBS Snapshot snap-52ba098bdb16a4da9 is not Public.",
+    "name": "snap-52ba098bdb16a4da9",
+    "provider": "aws",
+    "refs": [],
+    "region": "us-east-1",
+    "remediation": "Keep snapshots **private** and share only with specific accounts under **least privilege**. Enable `Block public access for Amazon EBS snapshots` regionally. Prefer **CMEK encryption** and avoid shari",
+    "resource": "arn:aws:ec2:us-east-1:000000000000:snapshot/snap-52ba098bdb16a4da9",
+    "service": "ec2",
+    "severity": "critical",
+    "source": "prowler",
+    "status": "PASS",
+    "title": "EBS snapshot is not public"
+   },
+   {
+    "account": "000000000000",
+    "check": "ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_22",
+    "control": "cloud.firewall_admin_port_open",
+    "coverage_only": false,
+    "detail": "Security group default (sg-9c6bd115a41f31b8f) does not have SSH port 22 open to the Internet.",
+    "name": "sg-9c6bd115a41f31b8f",
+    "provider": "aws",
+    "refs": [
+     "cis-aws:1.4/5.2",
+     "cis-aws:1.5/5.2",
+     "cis-aws:1.5/5.3",
+     "cis-aws:2.0/5.2",
+     "cis-aws:2.0/5.3",
+     "cis-aws:3.0/5.2",
+     "cis-aws:3.0/5.3",
+     "cis-aws:4.0.1/5.3",
+     "cis-aws:4.0.1/5.4",
+     "cis-aws:5.0/5.3",
+     "cis-aws:5.0/5.4",
+     "cis-aws:6.0/6.3",
+     "cis-aws:6.0/6.4",
+     "cis-aws:7.0/6.3",
+     "cis-aws:7.0/6.4"
+    ],
+    "region": "us-east-1",
+    "remediation": "Apply **least privilege** to SSH:\n- Disallow `0.0.0.0/0` and `::/0`; allow only trusted IPs or VPN ranges\n- Prefer **private access** via bastion hosts or AWS Systems Manager Session Manager\n- Enforce",
+    "resource": "arn:aws:ec2:us-east-1:000000000000:security-group/sg-9c6bd115a41f31b8f",
+    "service": "ec2",
+    "severity": "high",
+    "source": "prowler",
+    "status": "PASS",
+    "title": "Security group does not allow ingress from 0.0.0.0/0 or ::/0 to TCP port 22 (SSH)"
+   },
+   {
+    "account": "000000000000",
+    "check": "ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_22",
+    "control": "cloud.firewall_admin_port_open",
+    "coverage_only": false,
+    "detail": "Security group legacy-ssh (sg-b56c0e193ea8cb744) has SSH port 22 open to the Internet.",
+    "name": "sg-b56c0e193ea8cb744",
+    "provider": "aws",
+    "refs": [
+     "cis-aws:1.4/5.2",
+     "cis-aws:1.5/5.2",
+     "cis-aws:1.5/5.3",
+     "cis-aws:2.0/5.2",
+     "cis-aws:2.0/5.3",
+     "cis-aws:3.0/5.2",
+     "cis-aws:3.0/5.3",
+     "cis-aws:4.0.1/5.3",
+     "cis-aws:4.0.1/5.4",
+     "cis-aws:5.0/5.3",
+     "cis-aws:5.0/5.4",
+     "cis-aws:6.0/6.3",
+     "cis-aws:6.0/6.4",
+     "cis-aws:7.0/6.3",
+     "cis-aws:7.0/6.4"
+    ],
+    "region": "us-east-1",
+    "remediation": "Apply **least privilege** to SSH:\n- Disallow `0.0.0.0/0` and `::/0`; allow only trusted IPs or VPN ranges\n- Prefer **private access** via bastion hosts or AWS Systems Manager Session Manager\n- Enforce",
+    "resource": "arn:aws:ec2:us-east-1:000000000000:security-group/sg-b56c0e193ea8cb744",
+    "service": "ec2",
+    "severity": "high",
+    "source": "prowler",
+    "status": "FAIL",
+    "title": "Security group does not allow ingress from 0.0.0.0/0 or ::/0 to TCP port 22 (SSH)"
+   },
+   {
+    "account": "000000000000",
+    "check": "iam_rotate_access_key_90_days",
+    "control": "cloud.access_key_old",
+    "coverage_only": false,
+    "detail": "User legacy-deployer does not have access keys older than 90 days.",
+    "name": "legacy-deployer",
+    "provider": "aws",
+    "refs": [
+     "cis-aws:1.4/1.14",
+     "cis-aws:1.5/1.14",
+     "cis-aws:2.0/1.14",
+     "cis-aws:3.0/1.14",
+     "cis-aws:4.0.1/1.14",
+     "cis-aws:5.0/1.13",
+     "cis-aws:6.0/2.13",
+     "cis-aws:7.0/2.12"
+    ],
+    "region": "us-east-1",
+    "remediation": "Apply **least privilege** and limit static credentials:\n- Rotate active access keys at or before `90 days`\n- Prefer **IAM roles** with short-lived tokens\n- Maintain only one active key during rotation",
+    "resource": "arn:aws:iam::000000000000:user/legacy-deployer",
+    "service": "iam",
+    "severity": "medium",
+    "source": "prowler",
+    "status": "PASS",
+    "title": "IAM user does not have active access keys older than 90 days"
+   },
+   {
+    "account": "000000000000",
+    "check": "iam_user_accesskey_unused",
+    "control": "cloud.credential_unused",
+    "coverage_only": false,
+    "detail": "User legacy-deployer does not have unused access keys for 45 days.",
+    "name": "legacy-deployer",
+    "provider": "aws",
+    "refs": [
+     "cis-aws:1.4/1.12",
+     "cis-aws:1.5/1.12",
+     "cis-aws:2.0/1.12",
+     "cis-aws:3.0/1.12",
+     "cis-aws:4.0.1/1.12",
+     "cis-aws:5.0/1.11",
+     "cis-aws:6.0/2.11",
+     "cis-aws:7.0/2.11"
+    ],
+    "region": "us-east-1",
+    "remediation": "Disable or delete **unused access keys** promptly and prefer **IAM roles** with temporary credentials. Enforce **least privilege**, rotation, and time-bounded access. Monitor `last-used` metadata and ",
+    "resource": "arn:aws:iam::000000000000:user/legacy-deployer",
+    "service": "iam",
+    "severity": "medium",
+    "source": "prowler",
+    "status": "PASS",
+    "title": "IAM user does not have unused access keys older than 45 days"
+   },
+   {
+    "account": "000000000000",
+    "check": "iam_user_mfa_enabled_console_access",
+    "control": "cloud.user_without_mfa",
+    "coverage_only": false,
+    "detail": "User legacy-deployer has Console Password enabled but MFA disabled.",
+    "name": "legacy-deployer",
+    "provider": "aws",
+    "refs": [
+     "cis-aws:1.4/1.10",
+     "cis-aws:1.5/1.10",
+     "cis-aws:2.0/1.10",
+     "cis-aws:3.0/1.10",
+     "cis-aws:4.0.1/1.10",
+     "cis-aws:5.0/1.9",
+     "cis-aws:6.0/2.9",
+     "cis-aws:7.0/2.10"
+    ],
+    "region": "us-east-1",
+    "remediation": "Enforce **MFA** for all console-capable IAM users; prefer **phishing-resistant** authenticators (FIDO2/security keys) and register backups. Remove console passwords for users that don't need them and ",
+    "resource": "arn:aws:iam::000000000000:user/legacy-deployer",
+    "service": "iam",
+    "severity": "high",
+    "source": "prowler",
+    "status": "FAIL",
+    "title": "IAM user has MFA enabled for console access or no console password is set"
+   },
+   {
+    "account": "000000000000",
+    "check": "s3_bucket_default_encryption",
+    "control": "cloud.storage_unencrypted",
+    "coverage_only": false,
+    "detail": "S3 Bucket acme-public-assets has Server Side Encryption with AES256.",
+    "name": "acme-public-assets",
+    "provider": "aws",
+    "refs": [
+     "cis-aws:1.4/2.1.1",
+     "cis-aws:1.5/2.1.1"
+    ],
+    "region": "us-east-1",
+    "remediation": "Enable default encryption on all buckets, preferring `SSE-KMS` for sensitive data to retain key control and auditing. Enforce encryption with restrictive bucket policies, apply **least privilege** to ",
+    "resource": "arn:aws:s3:::acme-public-assets",
+    "service": "s3",
+    "severity": "medium",
+    "source": "prowler",
+    "status": "PASS",
+    "title": "[DEPRECATED] S3 bucket has default server-side encryption (SSE) enabled"
+   },
+   {
+    "account": "000000000000",
+    "check": "s3_bucket_default_encryption",
+    "control": "cloud.storage_unencrypted",
+    "coverage_only": false,
+    "detail": "S3 Bucket acme-unencrypted-logs does not have Server Side Encryption enabled.",
+    "name": "acme-unencrypted-logs",
+    "provider": "aws",
+    "refs": [
+     "cis-aws:1.4/2.1.1",
+     "cis-aws:1.5/2.1.1"
+    ],
+    "region": "us-east-1",
+    "remediation": "Enable default encryption on all buckets, preferring `SSE-KMS` for sensitive data to retain key control and auditing. Enforce encryption with restrictive bucket policies, apply **least privilege** to ",
+    "resource": "arn:aws:s3:::acme-unencrypted-logs",
+    "service": "s3",
+    "severity": "medium",
+    "source": "prowler",
+    "status": "FAIL",
+    "title": "[DEPRECATED] S3 bucket has default server-side encryption (SSE) enabled"
+   },
+   {
+    "account": "000000000000",
+    "check": "s3_bucket_public_access",
+    "control": "cloud.storage_public",
+    "coverage_only": false,
+    "detail": "S3 Bucket acme-public-assets has public access due to bucket policy.",
+    "name": "acme-public-assets",
+    "provider": "aws",
+    "refs": [],
+    "region": "us-east-1",
+    "remediation": "Enforce defense in depth: enable **S3 Block Public Access** at org/account and bucket levels (`BlockPublicAcls`, `IgnorePublicAcls`, `BlockPublicPolicy`, `RestrictPublicBuckets`). Apply **least privil",
+    "resource": "arn:aws:s3:::acme-public-assets",
+    "service": "s3",
+    "severity": "critical",
+    "source": "prowler",
+    "status": "FAIL",
+    "title": "S3 bucket is not publicly accessible to Everyone or Authenticated Users"
+   },
+   {
+    "account": "000000000000",
+    "check": "s3_bucket_public_access",
+    "control": "cloud.storage_public",
+    "coverage_only": false,
+    "detail": "S3 Bucket acme-unencrypted-logs is not public.",
+    "name": "acme-unencrypted-logs",
+    "provider": "aws",
+    "refs": [],
+    "region": "us-east-1",
+    "remediation": "Enforce defense in depth: enable **S3 Block Public Access** at org/account and bucket levels (`BlockPublicAcls`, `IgnorePublicAcls`, `BlockPublicPolicy`, `RestrictPublicBuckets`). Apply **least privil",
+    "resource": "arn:aws:s3:::acme-unencrypted-logs",
+    "service": "s3",
+    "severity": "critical",
+    "source": "prowler",
+    "status": "PASS",
+    "title": "S3 bucket is not publicly accessible to Everyone or Authenticated Users"
+   }
+  ],
+  "prowler-azure": [
+   {
+    "account": "33333333-3333-4333-8333-333333333333",
+    "check": "network_ssh_internet_access_restricted",
+    "control": "cloud.firewall_admin_port_open",
+    "coverage_only": false,
+    "detail": "NSG nsg-web allows SSH from the internet.",
+    "name": "nsg-web",
+    "provider": "azure",
+    "refs": [
+     "cis-azure:2.0/6.2",
+     "cis-azure:3.0/7.2"
+    ],
+    "region": "westeurope",
+    "remediation": "See the check's documentation.",
+    "resource": "/subscriptions/33333333-3333-4333-8333-333333333333/resourceGroups/rg-web/providers/Microsoft.Network/networkSecurityGroups/nsg-web",
+    "service": "network",
+    "severity": "high",
+    "source": "prowler",
+    "status": "FAIL",
+    "title": "Ensure that SSH access from the Internet is evaluated and restricted"
+   },
+   {
+    "account": "33333333-3333-4333-8333-333333333333",
+    "check": "storage_blob_public_access_level_is_disabled",
+    "control": "cloud.storage_public",
+    "coverage_only": false,
+    "detail": "Storage account acmepublicsa allows public blob access.",
+    "name": "acmepublicsa",
+    "provider": "azure",
+    "refs": [
+     "cis-azure:2.0/3.7"
+    ],
+    "region": "westeurope",
+    "remediation": "See the check's documentation.",
+    "resource": "/subscriptions/33333333-3333-4333-8333-333333333333/resourceGroups/rg-web/providers/Microsoft.Storage/storageAccounts/acmepublicsa",
+    "service": "storage",
+    "severity": "high",
+    "source": "prowler",
+    "status": "FAIL",
+    "title": "Ensure that 'Public access level' is disabled for storage accounts with blob containers"
+   },
+   {
+    "account": "33333333-3333-4333-8333-333333333333",
+    "check": "entra_non_privileged_user_has_mfa",
+    "control": "cloud.user_without_mfa",
+    "coverage_only": false,
+    "detail": "User contractor has no MFA.",
+    "name": "contractor@acme.example",
+    "provider": "azure",
+    "refs": [
+     "cis-azure:2.0/1.1.2"
+    ],
+    "region": "global",
+    "remediation": "See the check's documentation.",
+    "resource": "55555555-5555-4555-8555-555555555555",
+    "service": "entra",
+    "severity": "high",
+    "source": "prowler",
+    "status": "FAIL",
+    "title": "Ensure that 'Multi-Factor Auth Status' is 'Enabled' for all Non-Privileged Users"
+   },
+   {
+    "account": "33333333-3333-4333-8333-333333333333",
+    "check": "monitor_diagnostic_settings_exists",
+    "control": "cloud.audit_log_disabled",
+    "coverage_only": false,
+    "detail": "No diagnostic setting exports the activity log.",
+    "name": "33333333-3333-4333-8333-333333333333",
+    "provider": "azure",
+    "refs": [
+     "cis-azure:2.0/5.1.1"
+    ],
+    "region": "global",
+    "remediation": "See the check's documentation.",
+    "resource": "/subscriptions/33333333-3333-4333-8333-333333333333",
+    "service": "monitor",
+    "severity": "medium",
+    "source": "prowler",
+    "status": "FAIL",
+    "title": "Ensure that a 'Diagnostic Setting' exists for Subscription Activity Logs"
+   },
+   {
+    "account": "33333333-3333-4333-8333-333333333333",
+    "check": "defender_ensure_system_updates_are_applied",
+    "control": "cloud.instance_unpatched",
+    "coverage_only": false,
+    "detail": "vm-legacy is missing system updates.",
+    "name": "vm-legacy",
+    "provider": "azure",
+    "refs": [
+     "cis-azure:2.0/2.1.13"
+    ],
+    "region": "westeurope",
+    "remediation": "See the check's documentation.",
+    "resource": "/subscriptions/33333333-3333-4333-8333-333333333333/resourceGroups/rg-web/providers/Microsoft.Compute/virtualMachines/vm-legacy",
+    "service": "defender",
+    "severity": "high",
+    "source": "prowler",
+    "status": "FAIL",
+    "title": "Ensure that 'System updates' are applied"
+   },
+   {
+    "account": "33333333-3333-4333-8333-333333333333",
+    "check": "vm_ensure_using_managed_disks",
+    "control": "",
+    "coverage_only": false,
+    "detail": "vm-legacy uses unmanaged disks.",
+    "name": "vm-legacy",
+    "provider": "azure",
+    "refs": [
+     "cis-azure:2.0/7.2"
+    ],
+    "region": "westeurope",
+    "remediation": "See the check's documentation.",
+    "resource": "/subscriptions/33333333-3333-4333-8333-333333333333/resourceGroups/rg-web/providers/Microsoft.Compute/virtualMachines/vm-legacy",
+    "service": "vm",
+    "severity": "medium",
+    "source": "prowler",
+    "status": "FAIL",
+    "title": "Ensure Virtual Machines are utilizing Managed Disks"
+   }
+  ],
+  "prowler-gcp": [
+   {
+    "account": "acme-readonly",
+    "check": "compute_firewall_ssh_access_from_the_internet_allowed",
+    "control": "cloud.firewall_admin_port_open",
+    "coverage_only": false,
+    "detail": "Firewall allow-ssh-anywhere exposes port 22 (SSH) to the internet.",
+    "name": "allow-ssh-anywhere",
+    "provider": "gcp",
+    "refs": [
+     "cis-gcp:2.0/3.6",
+     "cis-gcp:3.0/3.6"
+    ],
+    "region": "global",
+    "remediation": "See the check's documentation.",
+    "resource": "1234567890123",
+    "service": "compute",
+    "severity": "critical",
+    "source": "prowler",
+    "status": "FAIL",
+    "title": "Ensure That SSH Access Is Restricted From the Internet"
+   },
+   {
+    "account": "acme-readonly",
+    "check": "cloudstorage_bucket_public_access",
+    "control": "cloud.storage_public",
+    "coverage_only": false,
+    "detail": "Bucket acme-public-data is publicly accessible.",
+    "name": "acme-public-data",
+    "provider": "gcp",
+    "refs": [
+     "cis-gcp:2.0/5.1",
+     "cis-gcp:3.0/5.1"
+    ],
+    "region": "US",
+    "remediation": "See the check's documentation.",
+    "resource": "acme-public-data",
+    "service": "cloudstorage",
+    "severity": "high",
+    "source": "prowler",
+    "status": "FAIL",
+    "title": "Ensure That Cloud Storage Bucket Is Not Anonymously or Publicly Accessible"
+   },
+   {
+    "account": "acme-readonly",
+    "check": "iam_sa_user_managed_key_rotate_90_days",
+    "control": "cloud.access_key_old",
+    "coverage_only": false,
+    "detail": "User-managed key for deployer is 400 days old.",
+    "name": "deployer@acme-readonly.iam.gserviceaccount.com",
+    "provider": "gcp",
+    "refs": [
+     "cis-gcp:2.0/1.7",
+     "cis-gcp:3.0/1.7"
+    ],
+    "region": "global",
+    "remediation": "See the check's documentation.",
+    "resource": "0123456789abcdef0123456789abcdef01234567",
+    "service": "iam",
+    "severity": "medium",
+    "source": "prowler",
+    "status": "FAIL",
+    "title": "Ensure User-Managed/External Keys for Service Accounts Are Rotated Every 90 Days or Fewer"
+   },
+   {
+    "account": "acme-readonly",
+    "check": "iam_sa_no_user_managed_keys",
+    "control": "cloud.service_account_key_user_managed",
+    "coverage_only": false,
+    "detail": "Service account deployer has user-managed keys.",
+    "name": "deployer@acme-readonly.iam.gserviceaccount.com",
+    "provider": "gcp",
+    "refs": [
+     "cis-gcp:2.0/1.4"
+    ],
+    "region": "global",
+    "remediation": "See the check's documentation.",
+    "resource": "deployer@acme-readonly.iam.gserviceaccount.com",
+    "service": "iam",
+    "severity": "medium",
+    "source": "prowler",
+    "status": "FAIL",
+    "title": "Ensure That There Are Only GCP-Managed Service Account Keys for Each Service Account"
+   },
+   {
+    "account": "acme-readonly",
+    "check": "logging_sink_created",
+    "control": "cloud.audit_log_disabled",
+    "coverage_only": false,
+    "detail": "No logging sink exports all log entries.",
+    "name": "acme-readonly",
+    "provider": "gcp",
+    "refs": [
+     "cis-gcp:2.0/2.2"
+    ],
+    "region": "global",
+    "remediation": "See the check's documentation.",
+    "resource": "acme-readonly",
+    "service": "logging",
+    "severity": "medium",
+    "source": "prowler",
+    "status": "FAIL",
+    "title": "Ensure that sinks are configured for all log entries"
+   },
+   {
+    "account": "acme-readonly",
+    "check": "compute_instance_public_ip",
+    "control": "cloud.public_endpoint",
+    "coverage_only": false,
+    "detail": "VM web-1 has no public IP.",
+    "name": "web-1",
+    "provider": "gcp",
+    "refs": [
+     "cis-gcp:2.0/4.9"
+    ],
+    "region": "europe-west1-b",
+    "remediation": "See the check's documentation.",
+    "resource": "9876543210",
+    "service": "compute",
+    "severity": "medium",
+    "source": "prowler",
+    "status": "PASS",
+    "title": "Ensure That Compute Instances Do Not Have Public IP Addresses"
+   },
+   {
+    "account": "acme-readonly",
+    "check": "compute_instance_shielded_vm_enabled",
+    "control": "",
+    "coverage_only": false,
+    "detail": "VM legacy-vm is not a Shielded VM.",
+    "name": "legacy-vm",
+    "provider": "gcp",
+    "refs": [
+     "cis-gcp:2.0/4.8"
+    ],
+    "region": "europe-west1-b",
+    "remediation": "See the check's documentation.",
+    "resource": "5555555555",
+    "service": "compute",
+    "severity": "medium",
+    "source": "prowler",
+    "status": "FAIL",
+    "title": "Ensure Compute Instances Are Launched With Shielded VM Enabled"
+   }
+  ],
+  "scc": [
+   {
+    "account": "acme-readonly",
+    "check": "OPEN_SSH_PORT",
+    "control": "cloud.firewall_admin_port_open",
+    "coverage_only": false,
+    "detail": "//compute.googleapis.com/projects/acme-readonly/global/firewalls/allow-ssh-anywhere",
+    "name": "allow-ssh-anywhere",
+    "provider": "gcp",
+    "refs": [
+     "cis-gcp:2.0/3.6"
+    ],
+    "region": "global",
+    "remediation": "Restrict the firewall rule's source ranges.",
+    "resource": "allow-ssh-anywhere",
+    "service": "compute",
+    "severity": "high",
+    "source": "scc",
+    "status": "FAIL",
+    "title": "open ssh port"
+   },
+   {
+    "account": "acme-readonly",
+    "check": "PUBLIC_BUCKET_ACL",
+    "control": "cloud.storage_public",
+    "coverage_only": false,
+    "detail": "//storage.googleapis.com/acme-public-data",
+    "name": "acme-public-data",
+    "provider": "gcp",
+    "refs": [
+     "cis-gcp:2.0/5.1"
+    ],
+    "region": "global",
+    "remediation": "",
+    "resource": "acme-public-data",
+    "service": "storage",
+    "severity": "high",
+    "source": "scc",
+    "status": "FAIL",
+    "title": "public bucket acl"
+   }
+  ],
+  "scoutsuite-aws": [
+   {
+    "account": "000000000000",
+    "check": "ec2-security-group-opens-SSH-port-to-all",
+    "control": "cloud.firewall_admin_port_open",
+    "coverage_only": false,
+    "detail": "ec2.regions.us-east-1.vpcs.vpc-1a2b3c.security_groups.sg-b56c0e193ea8cb744.rules.ingress.protocols.TCP.ports.22.cidrs.0.CIDR",
+    "name": "legacy-ssh",
+    "provider": "aws",
+    "refs": [
+     "cis-aws:1.2.0/4.1"
+    ],
+    "region": "us-east-1",
+    "remediation": "",
+    "resource": "arn:aws:ec2:us-east-1:000000000000:security-group/sg-b56c0e193ea8cb744",
+    "service": "ec2",
+    "severity": "high",
+    "source": "scoutsuite",
+    "status": "FAIL",
+    "title": "SSH Port Open to All"
+   },
+   {
+    "account": "000000000000",
+    "check": "iam-password-policy-expiration-threshold",
+    "control": "",
+    "coverage_only": false,
+    "detail": "iam.password_policy.MaxPasswordAge",
+    "name": "MaxPasswordAge",
+    "provider": "aws",
+    "refs": [
+     "cis-aws:1.0.0/1.11",
+     "cis-aws:1.1.0/1.11",
+     "cis-aws:1.2.0/1.11"
+    ],
+    "region": "global",
+    "remediation": "",
+    "resource": "MaxPasswordAge",
+    "service": "iam",
+    "severity": "high",
+    "source": "scoutsuite",
+    "status": "FAIL",
+    "title": "Passwords Expire after 90 Days"
+   },
+   {
+    "account": "000000000000",
+    "check": "iam-password-policy-minimum-length",
+    "control": "cloud.password_policy_weak",
+    "coverage_only": false,
+    "detail": "iam.password_policy.MinimumPasswordLength",
+    "name": "MinimumPasswordLength",
+    "provider": "aws",
+    "refs": [
+     "cis-aws:1.0.0/1.9",
+     "cis-aws:1.1.0/1.9",
+     "cis-aws:1.2.0/1.9"
+    ],
+    "region": "global",
+    "remediation": "",
+    "resource": "MinimumPasswordLength",
+    "service": "iam",
+    "severity": "high",
+    "source": "scoutsuite",
+    "status": "FAIL",
+    "title": "Minimum Password Length Too Short"
+   },
+   {
+    "account": "000000000000",
+    "check": "iam-password-policy-no-expiration",
+    "control": "",
+    "coverage_only": false,
+    "detail": "iam.password_policy.ExpirePasswords",
+    "name": "ExpirePasswords",
+    "provider": "aws",
+    "refs": [],
+    "region": "global",
+    "remediation": "",
+    "resource": "ExpirePasswords",
+    "service": "iam",
+    "severity": "high",
+    "source": "scoutsuite",
+    "status": "FAIL",
+    "title": "Password Expiration Disabled"
+   },
+   {
+    "account": "000000000000",
+    "check": "iam-password-policy-reuse-enabled",
+    "control": "cloud.password_policy_weak",
+    "coverage_only": false,
+    "detail": "iam.password_policy.PasswordReusePrevention",
+    "name": "PasswordReusePrevention",
+    "provider": "aws",
+    "refs": [
+     "cis-aws:1.0.0/1.10",
+     "cis-aws:1.1.0/1.10",
+     "cis-aws:1.2.0/1.10"
+    ],
+    "region": "global",
+    "remediation": "",
+    "resource": "PasswordReusePrevention",
+    "service": "iam",
+    "severity": "high",
+    "source": "scoutsuite",
+    "status": "FAIL",
+    "title": "Password Policy Allows the Reuse of Passwords"
+   },
+   {
+    "account": "000000000000",
+    "check": "iam-root-account-no-mfa",
+    "control": "cloud.root_mfa_disabled",
+    "coverage_only": true,
+    "detail": "",
+    "name": "",
+    "provider": "aws",
+    "refs": [
+     "cis-aws:1.1.0/1.13",
+     "cis-aws:1.2.0/1.13"
+    ],
+    "region": "global",
+    "remediation": "",
+    "resource": "",
+    "service": "iam",
+    "severity": "info",
+    "source": "scoutsuite",
+    "status": "PASS",
+    "title": "Root Account without MFA"
+   },
+   {
+    "account": "000000000000",
+    "check": "iam-user-without-mfa",
+    "control": "cloud.user_without_mfa",
+    "coverage_only": false,
+    "detail": "iam.users.qd49rf8m6ypf72j8klpp.mfa_enabled",
+    "name": "legacy-deployer",
+    "provider": "aws",
+    "refs": [
+     "cis-aws:1.0.0/1.2",
+     "cis-aws:1.1.0/1.2",
+     "cis-aws:1.2.0/1.2"
+    ],
+    "region": "global",
+    "remediation": "",
+    "resource": "arn:aws:iam::000000000000:user/legacy-deployer",
+    "service": "iam",
+    "severity": "high",
+    "source": "scoutsuite",
+    "status": "FAIL",
+    "title": "User without MFA"
+   },
+   {
+    "account": "000000000000",
+    "check": "s3-bucket-allowing-cleartext",
+    "control": "cloud.storage_insecure_transport",
+    "coverage_only": false,
+    "detail": "s3.buckets.scoutid-a787dc4be4279995da6712bcb2ce68a578a62a93.secure_transport_enabled",
+    "name": "acme-public-assets",
+    "provider": "aws",
+    "refs": [],
+    "region": "global",
+    "remediation": "",
+    "resource": "arn:aws:s3:::acme-public-assets",
+    "service": "s3",
+    "severity": "medium",
+    "source": "scoutsuite",
+    "status": "FAIL",
+    "title": "Bucket Allowing Clear Text (HTTP) Communication"
+   },
+   {
+    "account": "000000000000",
+    "check": "s3-bucket-no-default-encryption",
+    "control": "cloud.storage_unencrypted",
+    "coverage_only": true,
+    "detail": "",
+    "name": "",
+    "provider": "aws",
+    "refs": [],
+    "region": "global",
+    "remediation": "",
+    "resource": "",
+    "service": "s3",
+    "severity": "info",
+    "source": "scoutsuite",
+    "status": "PASS",
+    "title": "Bucket without Default Encryption Enabled"
+   },
+   {
+    "account": "000000000000",
+    "check": "s3-bucket-no-logging",
+    "control": "",
+    "coverage_only": false,
+    "detail": "s3.buckets.scoutid-a787dc4be4279995da6712bcb2ce68a578a62a93.logging",
+    "name": "acme-public-assets",
+    "provider": "aws",
+    "refs": [
+     "cis-aws:1.0.0/2.6",
+     "cis-aws:1.1.0/2.6",
+     "cis-aws:1.2.0/2.6"
+    ],
+    "region": "global",
+    "remediation": "",
+    "resource": "arn:aws:s3:::acme-public-assets",
+    "service": "s3",
+    "severity": "medium",
+    "source": "scoutsuite",
+    "status": "FAIL",
+    "title": "Bucket Access Logging Disabled"
+   },
+   {
+    "account": "000000000000",
+    "check": "s3-bucket-no-mfa-delete",
+    "control": "",
+    "coverage_only": false,
+    "detail": "s3.buckets.scoutid-a787dc4be4279995da6712bcb2ce68a578a62a93.mfa_delete",
+    "name": "acme-public-assets",
+    "provider": "aws",
+    "refs": [],
+    "region": "global",
+    "remediation": "",
+    "resource": "arn:aws:s3:::acme-public-assets",
+    "service": "s3",
+    "severity": "medium",
+    "source": "scoutsuite",
+    "status": "FAIL",
+    "title": "Bucket without MFA Delete"
+   },
+   {
+    "account": "000000000000",
+    "check": "s3-bucket-no-versioning",
+    "control": "",
+    "coverage_only": false,
+    "detail": "s3.buckets.scoutid-a787dc4be4279995da6712bcb2ce68a578a62a93.versioning",
+    "name": "acme-public-assets",
+    "provider": "aws",
+    "refs": [],
+    "region": "global",
+    "remediation": "",
+    "resource": "arn:aws:s3:::acme-public-assets",
+    "service": "s3",
+    "severity": "medium",
+    "source": "scoutsuite",
+    "status": "FAIL",
+    "title": "Bucket without Versioning"
+   },
+   {
+    "account": "000000000000",
+    "check": "s3-bucket-world-Get-policy",
+    "control": "cloud.storage_public",
+    "coverage_only": false,
+    "detail": "s3.buckets.scoutid-a787dc4be4279995da6712bcb2ce68a578a62a93.policy.Statement.0",
+    "name": "acme-public-assets",
+    "provider": "aws",
+    "refs": [],
+    "region": "global",
+    "remediation": "",
+    "resource": "arn:aws:s3:::acme-public-assets",
+    "service": "s3",
+    "severity": "high",
+    "source": "scoutsuite",
+    "status": "FAIL",
+    "title": "Get Actions Authorized to All Principals"
+   }
+  ],
+  "securityhub": [
+   {
+    "account": "000000000000",
+    "check": "EC2.13",
+    "control": "cloud.firewall_admin_port_open",
+    "coverage_only": false,
+    "detail": "Checks whether security groups allow unrestricted incoming traffic on port 22.",
+    "name": "",
+    "provider": "aws",
+    "refs": [
+     "cis-aws:1.2.0/4.1"
+    ],
+    "region": "us-east-1",
+    "remediation": "Remove the rule that allows 0.0.0.0/0 on port 22.",
+    "resource": "arn:aws:ec2:us-east-1:000000000000:security-group/sg-b56c0e193ea8cb744",
+    "service": "ec2",
+    "severity": "high",
+    "source": "securityhub",
+    "status": "FAIL",
+    "title": "Security groups should not allow ingress from 0.0.0.0/0 or ::/0 to port 22"
+   },
+   {
+    "account": "000000000000",
+    "check": "S3.2",
+    "control": "cloud.storage_public",
+    "coverage_only": false,
+    "detail": "",
+    "name": "",
+    "provider": "aws",
+    "refs": [],
+    "region": "us-east-1",
+    "remediation": "",
+    "resource": "arn:aws:s3:::acme-public-assets",
+    "service": "s3",
+    "severity": "high",
+    "source": "securityhub",
+    "status": "FAIL",
+    "title": "S3 general purpose buckets should block public read access"
+   },
+   {
+    "account": "000000000000",
+    "check": "IAM.6",
+    "control": "cloud.root_mfa_disabled",
+    "coverage_only": false,
+    "detail": "",
+    "name": "",
+    "provider": "aws",
+    "refs": [],
+    "region": "us-east-1",
+    "remediation": "",
+    "resource": "AWS::::Account:000000000000",
+    "service": "account",
+    "severity": "critical",
+    "source": "securityhub",
+    "status": "PASS",
+    "title": "Hardware MFA should be enabled for the root user"
+   }
+  ]
+ },
+ "pillar_by_prefix": [
+  [
+   "ec2_securitygroup",
+   "network"
+  ],
+  [
+   "ec2_networkacl",
+   "network"
+  ],
+  [
+   "ec2_elastic_ip",
+   "network"
+  ],
+  [
+   "vpc",
+   "network"
+  ],
+  [
+   "elb",
+   "network"
+  ],
+  [
+   "cloudfront",
+   "network"
+  ],
+  [
+   "apigateway",
+   "network"
+  ],
+  [
+   "route53",
+   "network"
+  ],
+  [
+   "compute_firewall",
+   "network"
+  ],
+  [
+   "compute_network",
+   "network"
+  ],
+  [
+   "network",
+   "network"
+  ],
+  [
+   "dns",
+   "network"
+  ],
+  [
+   "ec2_instance",
+   "device"
+  ],
+  [
+   "ec2_ebs",
+   "device"
+  ],
+  [
+   "ec2_ami",
+   "software"
+  ],
+  [
+   "ssm",
+   "device"
+  ],
+  [
+   "autoscaling",
+   "device"
+  ],
+  [
+   "compute_instance",
+   "device"
+  ],
+  [
+   "vm",
+   "device"
+  ],
+  [
+   "gke",
+   "device"
+  ],
+  [
+   "eks",
+   "device"
+  ],
+  [
+   "aks",
+   "device"
+  ],
+  [
+   "iam",
+   "people"
+  ],
+  [
+   "organizations",
+   "people"
+  ],
+  [
+   "sso",
+   "people"
+  ],
+  [
+   "accessanalyzer",
+   "people"
+  ],
+  [
+   "entra",
+   "people"
+  ],
+  [
+   "account",
+   "people"
+  ]
+ ],
+ "pools": {
+  "aws": [
+   {
+    "account": "000000000000",
+    "asset": "cloud:aws/000000000000/cloudtrail/us-east-1/trail",
+    "check": "cloud.audit_log_disabled",
+    "cis_benchmark": {
+     "aws": [
+      "3.0/3.1"
+     ]
+    },
+    "layer": "detection",
+    "pillar": "software",
+    "provider": "aws",
+    "refs": [
+     "cis-aws:1.4/3.1",
+     "cis-aws:1.5/3.1",
+     "cis-aws:2.0/3.1",
+     "cis-aws:3.0/3.1",
+     "cis-aws:4.0.1/3.1",
+     "cis-aws:5.0/3.1",
+     "cis-aws:6.0/4.1",
+     "cis-aws:7.0/4.1"
+    ],
+    "remediation": "enable a multi-region/organisation audit trail (CloudTrail, Cloud Audit Logs, Activity Log export)",
+    "resource": "arn:aws:cloudtrail:us-east-1:000000000000:trail",
+    "severity": "high",
+    "sources": [
+     {
+      "check": "cloudtrail_multi_region_enabled",
+      "detail": "No CloudTrail trails enabled with logging were found.",
+      "source": "prowler"
+     }
+    ],
+    "title": "control-plane audit logging is not enabled everywhere"
+   },
+   {
+    "account": "000000000000",
+    "asset": "cloud:aws/000000000000/ec2/us-east-1/security-group/sg-b56c0e193ea8cb744",
+    "check": "cloud.firewall_admin_port_open",
+    "cis_benchmark": {
+     "aws": [
+      "3.0/5.1",
+      "3.0/5.2",
+      "3.0/5.3"
+     ]
+    },
+    "layer": "network",
+    "pillar": "network",
+    "provider": "aws",
+    "refs": [
+     "cis-aws:1.2.0/4.1",
+     "cis-aws:1.4/5.2",
+     "cis-aws:1.5/5.2",
+     "cis-aws:1.5/5.3",
+     "cis-aws:2.0/5.2",
+     "cis-aws:2.0/5.3",
+     "cis-aws:3.0/5.2",
+     "cis-aws:3.0/5.3",
+     "cis-aws:4.0.1/5.3",
+     "cis-aws:4.0.1/5.4",
+     "cis-aws:5.0/5.3",
+     "cis-aws:5.0/5.4",
+     "cis-aws:6.0/6.3",
+     "cis-aws:6.0/6.4",
+     "cis-aws:7.0/6.3",
+     "cis-aws:7.0/6.4"
+    ],
+    "remediation": "restrict the rule's source to known addresses or use a bastion/SSM/IAP instead of opening admin ports",
+    "resource": "arn:aws:ec2:us-east-1:000000000000:security-group/sg-b56c0e193ea8cb744",
+    "severity": "high",
+    "sources": [
+     {
+      "check": "ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_22",
+      "detail": "Security group legacy-ssh (sg-b56c0e193ea8cb744) has SSH port 22 open to the Internet.",
+      "source": "prowler"
+     },
+     {
+      "check": "ec2-security-group-opens-SSH-port-to-all",
+      "detail": "ec2.regions.us-east-1.vpcs.vpc-1a2b3c.security_groups.sg-b56c0e193ea8cb744.rules.ingress.protocols.TCP.ports.22.cidrs.0.CIDR",
+      "source": "scoutsuite"
+     },
+     {
+      "check": "EC2.13",
+      "detail": "Checks whether security groups allow unrestricted incoming traffic on port 22.",
+      "source": "securityhub"
+     }
+    ],
+    "title": "firewall rule allows SSH/RDP (admin ports) from the internet"
+   },
+   {
+    "account": "000000000000",
+    "asset": "cloud:aws/000000000000/iam/global/user/legacy-deployer",
+    "check": "cloud.user_without_mfa",
+    "cis_benchmark": {
+     "aws": [
+      "3.0/1.10"
+     ]
+    },
+    "layer": "identity",
+    "pillar": "people",
+    "provider": "aws",
+    "refs": [
+     "cis-aws:1.0.0/1.2",
+     "cis-aws:1.1.0/1.2",
+     "cis-aws:1.2.0/1.2",
+     "cis-aws:1.4/1.10",
+     "cis-aws:1.5/1.10",
+     "cis-aws:2.0/1.10",
+     "cis-aws:3.0/1.10",
+     "cis-aws:4.0.1/1.10",
+     "cis-aws:5.0/1.9",
+     "cis-aws:6.0/2.9",
+     "cis-aws:7.0/2.10"
+    ],
+    "remediation": "enable MFA (phishing-resistant where possible) for every human user; enforce it by policy",
+    "resource": "arn:aws:iam::000000000000:user/legacy-deployer",
+    "severity": "high",
+    "sources": [
+     {
+      "check": "iam_user_mfa_enabled_console_access",
+      "detail": "User legacy-deployer has Console Password enabled but MFA disabled.",
+      "source": "prowler"
+     },
+     {
+      "check": "iam-user-without-mfa",
+      "detail": "iam.users.qd49rf8m6ypf72j8klpp.mfa_enabled",
+      "source": "scoutsuite"
+     }
+    ],
+    "title": "user with console/password access has no MFA"
+   },
+   {
+    "account": "000000000000",
+    "asset": "cloud:aws/000000000000/s3/global/acme-unencrypted-logs",
+    "check": "cloud.storage_unencrypted",
+    "cis_benchmark": {},
+    "layer": "data-secrets",
+    "pillar": "software",
+    "provider": "aws",
+    "refs": [
+     "cis-aws:1.4/2.1.1",
+     "cis-aws:1.5/2.1.1"
+    ],
+    "remediation": "enable default encryption (provider-managed or customer-managed keys)",
+    "resource": "arn:aws:s3:::acme-unencrypted-logs",
+    "severity": "medium",
+    "sources": [
+     {
+      "check": "s3_bucket_default_encryption",
+      "detail": "S3 Bucket acme-unencrypted-logs does not have Server Side Encryption enabled.",
+      "source": "prowler"
+     }
+    ],
+    "title": "storage has no default encryption configured"
+   },
+   {
+    "account": "000000000000",
+    "asset": "cloud:aws/000000000000/s3/global/acme-public-assets",
+    "check": "cloud.storage_public",
+    "cis_benchmark": {
+     "aws": [
+      "3.0/2.1.4"
+     ]
+    },
+    "layer": "data-secrets",
+    "pillar": "software",
+    "provider": "aws",
+    "refs": [],
+    "remediation": "block public access at account and bucket level; share through signed URLs or a CDN with origin access",
+    "resource": "arn:aws:s3:::acme-public-assets",
+    "severity": "critical",
+    "sources": [
+     {
+      "check": "s3_bucket_public_access",
+      "detail": "S3 Bucket acme-public-assets has public access due to bucket policy.",
+      "source": "prowler"
+     },
+     {
+      "check": "s3-bucket-world-Get-policy",
+      "detail": "s3.buckets.scoutid-a787dc4be4279995da6712bcb2ce68a578a62a93.policy.Statement.0",
+      "source": "scoutsuite"
+     },
+     {
+      "check": "S3.2",
+      "detail": "",
+      "source": "securityhub"
+     }
+    ],
+    "title": "storage bucket/container is publicly accessible"
+   },
+   {
+    "account": "000000000000",
+    "asset": "cloud:aws/000000000000/iam/global/MaxPasswordAge",
+    "check": "cloud.aws.iam-password-policy-expiration-threshold",
+    "cis_benchmark": {},
+    "layer": "identity",
+    "pillar": "people",
+    "provider": "aws",
+    "refs": [
+     "cis-aws:1.0.0/1.11",
+     "cis-aws:1.1.0/1.11",
+     "cis-aws:1.2.0/1.11"
+    ],
+    "remediation": "",
+    "resource": "MaxPasswordAge",
+    "severity": "high",
+    "sources": [
+     {
+      "check": "iam-password-policy-expiration-threshold",
+      "detail": "iam.password_policy.MaxPasswordAge",
+      "source": "scoutsuite"
+     }
+    ],
+    "title": "Passwords Expire after 90 Days"
+   },
+   {
+    "account": "000000000000",
+    "asset": "cloud:aws/000000000000/iam/global/MinimumPasswordLength",
+    "check": "cloud.password_policy_weak",
+    "cis_benchmark": {
+     "aws": [
+      "3.0/1.8",
+      "3.0/1.9"
+     ]
+    },
+    "layer": "identity",
+    "pillar": "people",
+    "provider": "aws",
+    "refs": [
+     "cis-aws:1.0.0/1.9",
+     "cis-aws:1.1.0/1.9",
+     "cis-aws:1.2.0/1.9"
+    ],
+    "remediation": "set a password policy (length >= 14, reuse prevention) or move humans to SSO",
+    "resource": "MinimumPasswordLength",
+    "severity": "high",
+    "sources": [
+     {
+      "check": "iam-password-policy-minimum-length",
+      "detail": "iam.password_policy.MinimumPasswordLength",
+      "source": "scoutsuite"
+     }
+    ],
+    "title": "account password policy is weaker than the benchmark"
+   },
+   {
+    "account": "000000000000",
+    "asset": "cloud:aws/000000000000/iam/global/ExpirePasswords",
+    "check": "cloud.aws.iam-password-policy-no-expiration",
+    "cis_benchmark": {},
+    "layer": "identity",
+    "pillar": "people",
+    "provider": "aws",
+    "refs": [],
+    "remediation": "",
+    "resource": "ExpirePasswords",
+    "severity": "high",
+    "sources": [
+     {
+      "check": "iam-password-policy-no-expiration",
+      "detail": "iam.password_policy.ExpirePasswords",
+      "source": "scoutsuite"
+     }
+    ],
+    "title": "Password Expiration Disabled"
+   },
+   {
+    "account": "000000000000",
+    "asset": "cloud:aws/000000000000/iam/global/PasswordReusePrevention",
+    "check": "cloud.password_policy_weak",
+    "cis_benchmark": {
+     "aws": [
+      "3.0/1.8",
+      "3.0/1.9"
+     ]
+    },
+    "layer": "identity",
+    "pillar": "people",
+    "provider": "aws",
+    "refs": [
+     "cis-aws:1.0.0/1.10",
+     "cis-aws:1.1.0/1.10",
+     "cis-aws:1.2.0/1.10"
+    ],
+    "remediation": "set a password policy (length >= 14, reuse prevention) or move humans to SSO",
+    "resource": "PasswordReusePrevention",
+    "severity": "high",
+    "sources": [
+     {
+      "check": "iam-password-policy-reuse-enabled",
+      "detail": "iam.password_policy.PasswordReusePrevention",
+      "source": "scoutsuite"
+     }
+    ],
+    "title": "account password policy is weaker than the benchmark"
+   },
+   {
+    "account": "000000000000",
+    "asset": "cloud:aws/000000000000/s3/global/acme-public-assets",
+    "check": "cloud.storage_insecure_transport",
+    "cis_benchmark": {
+     "aws": [
+      "3.0/2.1.1"
+     ]
+    },
+    "layer": "data-secrets",
+    "pillar": "software",
+    "provider": "aws",
+    "refs": [],
+    "remediation": "deny requests without TLS (aws:SecureTransport / secure transfer required)",
+    "resource": "arn:aws:s3:::acme-public-assets",
+    "severity": "medium",
+    "sources": [
+     {
+      "check": "s3-bucket-allowing-cleartext",
+      "detail": "s3.buckets.scoutid-a787dc4be4279995da6712bcb2ce68a578a62a93.secure_transport_enabled",
+      "source": "scoutsuite"
+     }
+    ],
+    "title": "storage accepts unencrypted (HTTP) requests"
+   },
+   {
+    "account": "000000000000",
+    "asset": "cloud:aws/000000000000/s3/global/acme-public-assets",
+    "check": "cloud.aws.s3-bucket-no-logging",
+    "cis_benchmark": {},
+    "layer": "data-secrets",
+    "pillar": "software",
+    "provider": "aws",
+    "refs": [
+     "cis-aws:1.0.0/2.6",
+     "cis-aws:1.1.0/2.6",
+     "cis-aws:1.2.0/2.6"
+    ],
+    "remediation": "",
+    "resource": "arn:aws:s3:::acme-public-assets",
+    "severity": "medium",
+    "sources": [
+     {
+      "check": "s3-bucket-no-logging",
+      "detail": "s3.buckets.scoutid-a787dc4be4279995da6712bcb2ce68a578a62a93.logging",
+      "source": "scoutsuite"
+     }
+    ],
+    "title": "Bucket Access Logging Disabled"
+   },
+   {
+    "account": "000000000000",
+    "asset": "cloud:aws/000000000000/s3/global/acme-public-assets",
+    "check": "cloud.aws.s3-bucket-no-mfa-delete",
+    "cis_benchmark": {},
+    "layer": "data-secrets",
+    "pillar": "software",
+    "provider": "aws",
+    "refs": [],
+    "remediation": "",
+    "resource": "arn:aws:s3:::acme-public-assets",
+    "severity": "medium",
+    "sources": [
+     {
+      "check": "s3-bucket-no-mfa-delete",
+      "detail": "s3.buckets.scoutid-a787dc4be4279995da6712bcb2ce68a578a62a93.mfa_delete",
+      "source": "scoutsuite"
+     }
+    ],
+    "title": "Bucket without MFA Delete"
+   },
+   {
+    "account": "000000000000",
+    "asset": "cloud:aws/000000000000/s3/global/acme-public-assets",
+    "check": "cloud.aws.s3-bucket-no-versioning",
+    "cis_benchmark": {},
+    "layer": "data-secrets",
+    "pillar": "software",
+    "provider": "aws",
+    "refs": [],
+    "remediation": "",
+    "resource": "arn:aws:s3:::acme-public-assets",
+    "severity": "medium",
+    "sources": [
+     {
+      "check": "s3-bucket-no-versioning",
+      "detail": "s3.buckets.scoutid-a787dc4be4279995da6712bcb2ce68a578a62a93.versioning",
+      "source": "scoutsuite"
+     }
+    ],
+    "title": "Bucket without Versioning"
+   }
+  ],
+  "azure": [
+   {
+    "account": "33333333-3333-4333-8333-333333333333",
+    "asset": "cloud:azure/33333333-3333-4333-8333-333333333333/network/resourcegroups/rg-web/providers/microsoft.network/networksecuritygroups/nsg-web",
+    "check": "cloud.firewall_admin_port_open",
+    "cis_benchmark": {
+     "azure": [
+      "2.0/6.1",
+      "2.0/6.2"
+     ]
+    },
+    "layer": "network",
+    "pillar": "network",
+    "provider": "azure",
+    "refs": [
+     "cis-azure:2.0/6.2",
+     "cis-azure:3.0/7.2"
+    ],
+    "remediation": "restrict the rule's source to known addresses or use a bastion/SSM/IAP instead of opening admin ports",
+    "resource": "/subscriptions/33333333-3333-4333-8333-333333333333/resourceGroups/rg-web/providers/Microsoft.Network/networkSecurityGroups/nsg-web",
+    "severity": "high",
+    "sources": [
+     {
+      "check": "network_ssh_internet_access_restricted",
+      "detail": "NSG nsg-web allows SSH from the internet.",
+      "source": "prowler"
+     }
+    ],
+    "title": "firewall rule allows SSH/RDP (admin ports) from the internet"
+   },
+   {
+    "account": "33333333-3333-4333-8333-333333333333",
+    "asset": "cloud:azure/33333333-3333-4333-8333-333333333333/storage/resourcegroups/rg-web/providers/microsoft.storage/storageaccounts/acmepublicsa",
+    "check": "cloud.storage_public",
+    "cis_benchmark": {
+     "azure": [
+      "2.0/3.7"
+     ]
+    },
+    "layer": "data-secrets",
+    "pillar": "software",
+    "provider": "azure",
+    "refs": [
+     "cis-azure:2.0/3.7"
+    ],
+    "remediation": "block public access at account and bucket level; share through signed URLs or a CDN with origin access",
+    "resource": "/subscriptions/33333333-3333-4333-8333-333333333333/resourceGroups/rg-web/providers/Microsoft.Storage/storageAccounts/acmepublicsa",
+    "severity": "high",
+    "sources": [
+     {
+      "check": "storage_blob_public_access_level_is_disabled",
+      "detail": "Storage account acmepublicsa allows public blob access.",
+      "source": "prowler"
+     },
+     {
+      "check": "Storage account public access should be disallowed",
+      "detail": "",
+      "source": "defender"
+     }
+    ],
+    "title": "storage bucket/container is publicly accessible"
+   },
+   {
+    "account": "33333333-3333-4333-8333-333333333333",
+    "asset": "cloud:azure/33333333-3333-4333-8333-333333333333/entra/55555555-5555-4555-8555-555555555555",
+    "check": "cloud.user_without_mfa",
+    "cis_benchmark": {
+     "azure": [
+      "2.0/1.1.1",
+      "2.0/1.1.2"
+     ]
+    },
+    "layer": "identity",
+    "pillar": "people",
+    "provider": "azure",
+    "refs": [
+     "cis-azure:2.0/1.1.2"
+    ],
+    "remediation": "enable MFA (phishing-resistant where possible) for every human user; enforce it by policy",
+    "resource": "55555555-5555-4555-8555-555555555555",
+    "severity": "high",
+    "sources": [
+     {
+      "check": "entra_non_privileged_user_has_mfa",
+      "detail": "User contractor has no MFA.",
+      "source": "prowler"
+     }
+    ],
+    "title": "user with console/password access has no MFA"
+   },
+   {
+    "account": "33333333-3333-4333-8333-333333333333",
+    "asset": "cloud:azure/33333333-3333-4333-8333-333333333333/insights/",
+    "check": "cloud.audit_log_disabled",
+    "cis_benchmark": {
+     "azure": [
+      "2.0/5.1.1"
+     ]
+    },
+    "layer": "detection",
+    "pillar": "software",
+    "provider": "azure",
+    "refs": [
+     "cis-azure:2.0/5.1.1"
+    ],
+    "remediation": "enable a multi-region/organisation audit trail (CloudTrail, Cloud Audit Logs, Activity Log export)",
+    "resource": "/subscriptions/33333333-3333-4333-8333-333333333333",
+    "severity": "medium",
+    "sources": [
+     {
+      "check": "monitor_diagnostic_settings_exists",
+      "detail": "No diagnostic setting exports the activity log.",
+      "source": "prowler"
+     }
+    ],
+    "title": "control-plane audit logging is not enabled everywhere"
+   },
+   {
+    "account": "33333333-3333-4333-8333-333333333333",
+    "asset": "cloud:azure/33333333-3333-4333-8333-333333333333/compute/resourcegroups/rg-web/providers/microsoft.compute/virtualmachines/vm-legacy",
+    "check": "cloud.instance_unpatched",
+    "cis_benchmark": {},
+    "layer": "host",
+    "pillar": "device",
+    "provider": "azure",
+    "refs": [
+     "cis-azure:2.0/2.1.13"
+    ],
+    "remediation": "bring the instance under the provider's patch management and apply missing updates",
+    "resource": "/subscriptions/33333333-3333-4333-8333-333333333333/resourceGroups/rg-web/providers/Microsoft.Compute/virtualMachines/vm-legacy",
+    "severity": "high",
+    "sources": [
+     {
+      "check": "defender_ensure_system_updates_are_applied",
+      "detail": "vm-legacy is missing system updates.",
+      "source": "prowler"
+     },
+     {
+      "check": "System updates should be installed on your machines",
+      "detail": "",
+      "source": "defender"
+     }
+    ],
+    "title": "instance is missing patches or is not under patch management"
+   },
+   {
+    "account": "33333333-3333-4333-8333-333333333333",
+    "asset": "cloud:azure/33333333-3333-4333-8333-333333333333/compute/resourcegroups/rg-web/providers/microsoft.compute/virtualmachines/vm-legacy",
+    "check": "cloud.azure.vm_ensure_using_managed_disks",
+    "cis_benchmark": {},
+    "layer": "host",
+    "pillar": "device",
+    "provider": "azure",
+    "refs": [
+     "cis-azure:2.0/7.2"
+    ],
+    "remediation": "See the check's documentation.",
+    "resource": "/subscriptions/33333333-3333-4333-8333-333333333333/resourceGroups/rg-web/providers/Microsoft.Compute/virtualMachines/vm-legacy",
+    "severity": "medium",
+    "sources": [
+     {
+      "check": "vm_ensure_using_managed_disks",
+      "detail": "vm-legacy uses unmanaged disks.",
+      "source": "prowler"
+     }
+    ],
+    "title": "Ensure Virtual Machines are utilizing Managed Disks"
+   },
+   {
+    "account": "33333333-3333-4333-8333-333333333333",
+    "asset": "cloud:azure/33333333-3333-4333-8333-333333333333/compute/resourcegroups/rg-web/providers/microsoft.compute/virtualmachines/vm-legacy",
+    "check": "cloud.firewall_admin_port_open",
+    "cis_benchmark": {
+     "azure": [
+      "2.0/6.1",
+      "2.0/6.2"
+     ]
+    },
+    "layer": "network",
+    "pillar": "network",
+    "provider": "azure",
+    "refs": [],
+    "remediation": "restrict the rule's source to known addresses or use a bastion/SSM/IAP instead of opening admin ports",
+    "resource": "/subscriptions/33333333-3333-4333-8333-333333333333/resourceGroups/rg-web/providers/Microsoft.Compute/virtualMachines/vm-legacy",
+    "severity": "medium",
+    "sources": [
+     {
+      "check": "Management ports should be closed on your virtual machines",
+      "detail": "SSH open",
+      "source": "defender"
+     }
+    ],
+    "title": "firewall rule allows SSH/RDP (admin ports) from the internet"
+   }
+  ],
+  "gcp": [
+   {
+    "account": "acme-readonly",
+    "asset": "cloud:gcp/acme-readonly/compute/allow-ssh-anywhere",
+    "check": "cloud.firewall_admin_port_open",
+    "cis_benchmark": {
+     "gcp": [
+      "2.0/3.6",
+      "2.0/3.7"
+     ]
+    },
+    "layer": "network",
+    "pillar": "network",
+    "provider": "gcp",
+    "refs": [
+     "cis-gcp:2.0/3.6",
+     "cis-gcp:3.0/3.6"
+    ],
+    "remediation": "restrict the rule's source to known addresses or use a bastion/SSM/IAP instead of opening admin ports",
+    "resource": "1234567890123",
+    "severity": "critical",
+    "sources": [
+     {
+      "check": "compute_firewall_ssh_access_from_the_internet_allowed",
+      "detail": "Firewall allow-ssh-anywhere exposes port 22 (SSH) to the internet.",
+      "source": "prowler"
+     },
+     {
+      "check": "OPEN_SSH_PORT",
+      "detail": "//compute.googleapis.com/projects/acme-readonly/global/firewalls/allow-ssh-anywhere",
+      "source": "scc"
+     }
+    ],
+    "title": "firewall rule allows SSH/RDP (admin ports) from the internet"
+   },
+   {
+    "account": "acme-readonly",
+    "asset": "cloud:gcp/acme-readonly/storage/acme-public-data",
+    "check": "cloud.storage_public",
+    "cis_benchmark": {
+     "gcp": [
+      "2.0/5.1"
+     ]
+    },
+    "layer": "data-secrets",
+    "pillar": "software",
+    "provider": "gcp",
+    "refs": [
+     "cis-gcp:2.0/5.1",
+     "cis-gcp:3.0/5.1"
+    ],
+    "remediation": "block public access at account and bucket level; share through signed URLs or a CDN with origin access",
+    "resource": "acme-public-data",
+    "severity": "high",
+    "sources": [
+     {
+      "check": "cloudstorage_bucket_public_access",
+      "detail": "Bucket acme-public-data is publicly accessible.",
+      "source": "prowler"
+     },
+     {
+      "check": "PUBLIC_BUCKET_ACL",
+      "detail": "//storage.googleapis.com/acme-public-data",
+      "source": "scc"
+     }
+    ],
+    "title": "storage bucket/container is publicly accessible"
+   },
+   {
+    "account": "acme-readonly",
+    "asset": "cloud:gcp/acme-readonly/iam/deployer@acme-readonly.iam.gserviceaccount.com",
+    "check": "cloud.access_key_old",
+    "cis_benchmark": {
+     "gcp": [
+      "2.0/1.7"
+     ]
+    },
+    "layer": "identity",
+    "pillar": "people",
+    "provider": "gcp",
+    "refs": [
+     "cis-gcp:2.0/1.7",
+     "cis-gcp:3.0/1.7"
+    ],
+    "remediation": "replace long-lived keys with federation/roles; otherwise rotate every 90 days",
+    "resource": "0123456789abcdef0123456789abcdef01234567",
+    "severity": "medium",
+    "sources": [
+     {
+      "check": "iam_sa_user_managed_key_rotate_90_days",
+      "detail": "User-managed key for deployer is 400 days old.",
+      "source": "prowler"
+     }
+    ],
+    "title": "long-lived access key / service-account key not rotated in 90 days"
+   },
+   {
+    "account": "acme-readonly",
+    "asset": "cloud:gcp/acme-readonly/iam/deployer@acme-readonly.iam.gserviceaccount.com",
+    "check": "cloud.service_account_key_user_managed",
+    "cis_benchmark": {
+     "gcp": [
+      "2.0/1.4"
+     ]
+    },
+    "layer": "identity",
+    "pillar": "people",
+    "provider": "gcp",
+    "refs": [
+     "cis-gcp:2.0/1.4"
+    ],
+    "remediation": "use workload identity federation / attached service accounts instead of keys",
+    "resource": "deployer@acme-readonly.iam.gserviceaccount.com",
+    "severity": "medium",
+    "sources": [
+     {
+      "check": "iam_sa_no_user_managed_keys",
+      "detail": "Service account deployer has user-managed keys.",
+      "source": "prowler"
+     }
+    ],
+    "title": "service account has user-managed (long-lived) keys"
+   },
+   {
+    "account": "acme-readonly",
+    "asset": "cloud:gcp/acme-readonly/logging/acme-readonly",
+    "check": "cloud.audit_log_disabled",
+    "cis_benchmark": {
+     "gcp": [
+      "2.0/2.1"
+     ]
+    },
+    "layer": "detection",
+    "pillar": "software",
+    "provider": "gcp",
+    "refs": [
+     "cis-gcp:2.0/2.2"
+    ],
+    "remediation": "enable a multi-region/organisation audit trail (CloudTrail, Cloud Audit Logs, Activity Log export)",
+    "resource": "acme-readonly",
+    "severity": "medium",
+    "sources": [
+     {
+      "check": "logging_sink_created",
+      "detail": "No logging sink exports all log entries.",
+      "source": "prowler"
+     }
+    ],
+    "title": "control-plane audit logging is not enabled everywhere"
+   },
+   {
+    "account": "acme-readonly",
+    "asset": "cloud:gcp/acme-readonly/compute/legacy-vm",
+    "check": "cloud.gcp.compute_instance_shielded_vm_enabled",
+    "cis_benchmark": {},
+    "layer": "host",
+    "pillar": "device",
+    "provider": "gcp",
+    "refs": [
+     "cis-gcp:2.0/4.8"
+    ],
+    "remediation": "See the check's documentation.",
+    "resource": "5555555555",
+    "severity": "medium",
+    "sources": [
+     {
+      "check": "compute_instance_shielded_vm_enabled",
+      "detail": "VM legacy-vm is not a Shielded VM.",
+      "source": "prowler"
+     }
+    ],
+    "title": "Ensure Compute Instances Are Launched With Shielded VM Enabled"
+   }
+  ]
+ },
+ "prowler_log": {
+  "errors": {
+   "ec2": [
+    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   ],
+   "inspector2": [
+    "AccessDenied when calling"
+   ]
+  },
+  "text": "{\"level\": \"ERROR\", \"module\": \"inspector2_service\", \"message\": \"AccessDenied  when\\ncalling\"}\n{\"level\": \"WARNING\", \"module\": \"s3_service\", \"message\": \"slow\"}\nnot json\n{\"level\": \"CRITICAL\", \"module\": \"ec2_service\", \"message\": \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}\n{\"level\": \"ERROR\", \"module\": \"lib\", \"message\": \"not a service\"}"
+ },
+ "scoutsuite_blind": [
+  "cloudtrail"
+ ],
+ "steampipe": {
+  "aws": [
+   {
+    "control": "cloud.storage_public",
+    "id": "s3_bucket_public",
+    "service": "s3",
+    "severity": "critical",
+    "sql": "\nselect arn, region, account_id, 'bucket policy or ACL grants access to everyone' as detail\nfrom aws_s3_bucket\nwhere not (coalesce(block_public_policy, false) and coalesce(restrict_public_buckets, false))\n  and (exists (select 1 from jsonb_array_elements(coalesce(policy_std -> 'Statement', '[]'::jsonb)) s\n               where s ->> 'Effect' = 'Allow' and (s -> 'Principal' -> 'AWS') ? '*')\n       or exists (select 1 from jsonb_array_elements(coalesce(acl -> 'Grants', '[]'::jsonb)) g\n                  where g -> 'Grantee' ->> 'URI' like '%/global/AllUsers'))"
+   },
+   {
+    "control": "cloud.storage_unencrypted",
+    "id": "s3_bucket_unencrypted",
+    "service": "s3",
+    "severity": "medium",
+    "sql": "\nselect arn, region, account_id, 'no default encryption configuration' as detail\nfrom aws_s3_bucket where server_side_encryption_configuration is null\n   or jsonb_array_length(coalesce(server_side_encryption_configuration -> 'Rules', '[]'::jsonb)) = 0"
+   },
+   {
+    "control": "cloud.firewall_admin_port_open",
+    "id": "sg_admin_port_open",
+    "service": "ec2",
+    "severity": "high",
+    "sql": "\nselect distinct 'arn:aws:ec2:' || region || ':' || account_id || ':security-group/' || group_id as arn, region, account_id,\n       'ingress ' || ip_protocol || ' ' || coalesce(from_port::text, '*') || '-' || coalesce(to_port::text, '*') || ' from '\n       || coalesce(cidr_ipv4::text, cidr_ipv6::text) as detail\nfrom aws_vpc_security_group_rule\nwhere not is_egress and (cidr_ipv4 = '0.0.0.0/0' or cidr_ipv6 = '::/0')\n  and (ip_protocol = '-1' or (ip_protocol = 'tcp' and ((from_port <= 22 and to_port >= 22) or (from_port <= 3389 and to_port >= 3389))))"
+   },
+   {
+    "control": "cloud.user_without_mfa",
+    "id": "iam_user_console_without_mfa",
+    "service": "iam",
+    "severity": "high",
+    "sql": "\nselect arn, 'global' as region, account_id, 'console password without MFA' as detail\nfrom aws_iam_user where login_profile is not null and not mfa_enabled"
+   },
+   {
+    "control": "cloud.access_key_old",
+    "id": "iam_access_key_older_than_90_days",
+    "service": "iam",
+    "severity": "medium",
+    "sql": "\nselect 'arn:aws:iam::' || account_id || ':user/' || user_name as arn, 'global' as region, account_id,\n       'active access key created ' || create_date::date as detail\nfrom aws_iam_access_key where status = 'Active' and create_date < now() - interval '90 days'"
+   },
+   {
+    "control": "cloud.root_mfa_disabled",
+    "id": "iam_root_without_mfa",
+    "service": "iam",
+    "severity": "critical",
+    "sql": "\nselect 'arn:aws:iam::' || account_id || ':root' as arn, 'global' as region, account_id, 'root account MFA disabled' as detail\nfrom aws_iam_account_summary where not account_mfa_enabled"
+   },
+   {
+    "control": "cloud.root_access_key",
+    "id": "iam_root_access_keys",
+    "service": "iam",
+    "severity": "critical",
+    "sql": "\nselect 'arn:aws:iam::' || account_id || ':root' as arn, 'global' as region, account_id, 'root access keys present' as detail\nfrom aws_iam_account_summary where account_access_keys_present > 0"
+   },
+   {
+    "control": "cloud.audit_log_disabled",
+    "id": "cloudtrail_no_multi_region_trail",
+    "service": "cloudtrail",
+    "severity": "high",
+    "sql": "\nselect 'arn:aws:cloudtrail:{region}:' || account_id || ':trail' as arn, '{region}' as region, account_id,\n       'no logging multi-region trail' as detail\nfrom aws_account\nwhere not exists (select 1 from aws_cloudtrail_trail t where t.is_multi_region_trail and t.is_logging)"
+   },
+   {
+    "control": "cloud.volume_unencrypted",
+    "id": "ebs_volume_unencrypted",
+    "service": "ec2",
+    "severity": "medium",
+    "sql": "\nselect arn, region, account_id, 'volume not encrypted' as detail from aws_ebs_volume where not encrypted"
+   },
+   {
+    "control": "cloud.snapshot_public",
+    "id": "ebs_snapshot_public",
+    "service": "ec2",
+    "severity": "critical",
+    "sql": "\nselect arn, region, account_id, 'snapshot shared with all accounts' as detail\nfrom aws_ebs_snapshot where create_volume_permissions @> '[{\"Group\": \"all\"}]'"
+   }
+  ]
+ },
+ "version": "0.3.0"
+}
