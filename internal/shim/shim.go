@@ -60,6 +60,9 @@ func goCommands() map[string]command {
 		"runner":            runRunner,
 		"scorecard":         runScorecard,
 		"vuln-intel":        runVulnIntel,
+		"host":              runHost,
+		"host-sbom":         runHostSBOM,
+		"secrets-files":     runSecretsFiles,
 	}
 }
 

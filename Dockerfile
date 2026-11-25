@@ -22,6 +22,11 @@ COPY go.mod go.sum ./
 RUN GOTOOLCHAIN=local GOFLAGS=-mod=readonly go mod download && GOTOOLCHAIN=local go mod verify
 COPY cmd cmd
 COPY internal internal
+# the scripts the exec-adapter collectors send to their targets, embedded in sp (collectors/scripts.go)
+COPY collectors/scripts.go collectors/
+COPY collectors/host/profiles collectors/host/profiles
+COPY collectors/host-sbom/profiles collectors/host-sbom/profiles
+COPY collectors/secrets-files/remote/scan.py collectors/secrets-files/remote/
 # no .git in the build: VCS facts come from the RELEASE file instead; GOTOOLCHAIN=local: the image's Go, no download
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GOTOOLCHAIN=local GOFLAGS=-mod=readonly \
     go build -trimpath -buildvcs=false \

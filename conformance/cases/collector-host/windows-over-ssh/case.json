@@ -1,0 +1,154 @@
+{
+ "component": "collector-host",
+ "title": "The Windows profile runs through PowerShell over ssh to a cmd.exe login shell: a fixed -EncodedCommand bootstrap reads the script (probe limits in front) from stdin; CRLF output is read as lines, bytes that are not UTF-8 are replaced, not fatal; firewall profiles, Defender, BitLocker, SMB1, hotfix age and listeners become findings",
+ "contract": "collector-protocol/1.0 / findings/1.2",
+ "origin": "adapters/exec.py powershell(); collectors/host/profiles/windows.ps1",
+ "files": {
+  "bin/ssh": {
+   "raw": "fake_exec.sh",
+   "mode": "0755"
+  },
+  "instance.json": {
+   "json": {
+    "name": "conformance",
+    "hosts": [
+     {
+      "name": "win",
+      "profile": "windows",
+      "exec": {
+       "type": "ssh",
+       "host": "win.test",
+       "shell": "windows"
+      }
+     }
+    ]
+   }
+  },
+  "replay/win.test.out": {
+   "raw": "win.out"
+  }
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-host",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance",
+     "PATH": "{sandbox}/bin:/usr/bin:/bin",
+     "FAKE_EXEC": "{sandbox}"
+    },
+    "writes_only_under": [
+     "run",
+     "trace"
+    ]
+   },
+   "expect": [
+    {
+     "json": "run/host.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "host"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "json": "run/host.findings.json",
+     "subset": {
+      "coverage": [
+       {
+        "asset": "host:win",
+        "status": "ok"
+       }
+      ],
+      "findings": {
+       "$unordered": [
+        {
+         "asset": "host:win",
+         "check": "ssh.password_auth_enabled",
+         "severity": "high"
+        },
+        {
+         "asset": "host:win",
+         "check": "win.fw_profile_private",
+         "severity": "high",
+         "title": "Windows firewall profile private is off"
+        },
+        {
+         "asset": "host:win",
+         "check": "win.fw_profile_public",
+         "severity": "high",
+         "layer": "network"
+        },
+        {
+         "asset": "host:win",
+         "check": "win.av_realtime_off",
+         "severity": "high"
+        },
+        {
+         "asset": "host:win",
+         "check": "win.av_signatures_stale",
+         "severity": "medium",
+         "title": "AV signatures 12 days old"
+        },
+        {
+         "asset": "host:win",
+         "check": "win.disk_unencrypted",
+         "severity": "medium",
+         "needs_human": true
+        },
+        {
+         "asset": "host:win",
+         "check": "win.smb1_enabled",
+         "severity": "high"
+        },
+        {
+         "asset": "host:win",
+         "check": "patch.windows_stale",
+         "severity": "medium",
+         "title": "last Windows update installed 2020-01-14"
+        },
+        {
+         "asset": "host:win",
+         "check": "listen.db_wildcard.3306",
+         "severity": "medium"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/raw/host/win.json",
+     "subset": {
+      "kv": {
+       "os.name": "Microsoft Windows 11 Pro �dition 10.0.26100",
+       "smb.v1": "True"
+      }
+     }
+    },
+    {
+     "file": "trace/win.test.argv",
+     "regex": [
+      "^powershell -NoProfile -NonInteractive -EncodedCommand [A-Za-z0-9+/]+=*\\n\\Z"
+     ]
+    },
+    {
+     "file": "trace/win.test.stdin",
+     "regex": [
+      "\\A\\$SpProbeTimeout = 20\\n\\$SpProbeSlowTimeout = 90\\n",
+      "\\n'probe\\.end=1'\\n\\Z"
+     ]
+    }
+   ]
+  }
+ ]
+}

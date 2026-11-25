@@ -1,0 +1,269 @@
+{
+ "component": "collector-secrets-files",
+ "title": "Scan results from remote POSIX and Windows targets (the last output line is the result): ~ for the home, / separators, ages from mtime, severities from mode bits and properties (encrypted lowers, world-readable raises), host keys exempt from the passphrase finding, unreadable permissions a narrow gap, an unreachable target or one without exec adapter a host gap; argv quoted for the remote POSIX shell or cmd.exe",
+ "contract": "collector-protocol/1.0 / findings/1.2",
+ "origin": "collectors/secrets-files/collector.py; adapters/exec.py SSH quoting",
+ "files": {
+  "bin/ssh": {
+   "raw": "fake_exec.sh",
+   "mode": "0755"
+  },
+  "instance.json": {
+   "json": {
+    "name": "conformance",
+    "scope": [
+     {
+      "names": [
+       "elsewhere"
+      ],
+      "scope": [
+       "host"
+      ]
+     }
+    ],
+    "secrets_files": [
+     {
+      "host": "srv",
+      "exec": {
+       "type": "ssh",
+       "host": "srv.test"
+      },
+      "roots": [
+       "~",
+       "/etc/ssh"
+      ],
+      "exclude": [
+       "~/old"
+      ],
+      "sudo": true
+     },
+     {
+      "host": "win",
+      "exec": {
+       "type": "ssh",
+       "host": "win.test",
+       "shell": "windows"
+      },
+      "roots": [
+       "~"
+      ],
+      "python": "C:\\Python312\\python.exe"
+     },
+     {
+      "host": "down",
+      "exec": {
+       "type": "ssh",
+       "host": "down.test"
+      },
+      "roots": [
+       "~"
+      ]
+     },
+     {
+      "host": "nox",
+      "exec": null,
+      "roots": [
+       "~"
+      ]
+     },
+     {
+      "host": "elsewhere",
+      "exec": {
+       "type": "ssh",
+       "host": "elsewhere.test"
+      },
+      "roots": [
+       "~"
+      ]
+     }
+    ]
+   }
+  },
+  "replay/srv.test.sudo.out": {
+   "text": "warning: one line of noise before the result\n{\"home\": \"/home/u\", \"items\": [{\"path\": \"/home/u/.ssh/id_ed25519\", \"kind\": \"private-key\", \"mode\": \"0o600\", \"uid\": 1000, \"size\": 100, \"mtime\": {epoch:-8640000}, \"format\": \"openssh\", \"passphrase\": false, \"type\": \"ssh-ed25519\"}, {\"path\": \"/etc/ssh/ssh_host_ed25519_key\", \"kind\": \"private-key\", \"mode\": \"0o600\", \"uid\": 0, \"size\": 100, \"mtime\": {epoch:-34560000}, \"format\": \"openssh\", \"passphrase\": false, \"type\": \"ssh-ed25519\"}, {\"path\": \"/home/u/.kube/config\", \"kind\": \"kubeconfig\", \"mode\": \"0o644\", \"uid\": 1000, \"size\": 100, \"mtime\": {epoch:-86400}, \"embedded_client_key\": false, \"token_auth\": false}, {\"path\": \"/home/u/.kube/admin.yaml\", \"kind\": \"kubeconfig\", \"mode\": \"0o644\", \"uid\": 1000, \"size\": 100, \"mtime\": {epoch:-86400}, \"embedded_client_key\": false, \"token_auth\": true}, {\"path\": \"/home/u/.config/rclone/rclone.conf\", \"kind\": \"rclone-config\", \"mode\": \"0o600\", \"uid\": 1000, \"size\": 100, \"mtime\": {epoch:-86400}, \"encrypted\": true}, {\"path\": \"/home/u/backup/.env.prod\", \"kind\": \"dotenv\", \"mode\": \"0o604\", \"uid\": 1000, \"size\": 100, \"mtime\": {epoch:-17280000}, \"vars\": 3}, {\"path\": \"/home/u/age/keys.txt\", \"kind\": \"age-key\", \"mode\": \"0o640\", \"uid\": 1000, \"size\": 100, \"mtime\": {epoch:-86400}}, {\"path\": \"/home/u/x.pem\", \"kind\": \"private-key\", \"mode\": \"0o640\", \"uid\": 1000, \"size\": 100, \"mtime\": {epoch:-86400}, \"format\": \"pem\", \"passphrase\": true}, {\"path\": \"/home/u/infra/prod.tfstate\", \"kind\": \"tf-state\", \"mode\": \"0o644\", \"uid\": 1000, \"size\": 100, \"mtime\": {epoch:-86400}, \"encrypted\": true}]}\n"
+  },
+  "replay/win.test.out": {
+   "text": "warning: one line of noise before the result\n{\"home\": \"C:\\\\Users\\\\u\", \"items\": [{\"path\": \"C:\\\\Users\\\\u\\\\.ssh\\\\id_rsa\", \"kind\": \"private-key\", \"mode\": \"unknown\", \"uid\": 1000, \"size\": 100, \"mtime\": {epoch:-86400}, \"format\": \"openssh\", \"passphrase\": true}, {\"path\": \"C:\\\\Users\\\\u\\\\.aws\\\\deploy.token\", \"kind\": \"secret-file\", \"mode\": \"0o644\", \"uid\": 1000, \"size\": 100, \"mtime\": {epoch:-86400}, \"acl\": [\"S-1-5-32-545\"]}]}\n"
+  },
+  "replay/down.test.err": {
+   "text": "ssh: connect to host down.test port 22: Connection refused\n"
+  },
+  "replay/down.test.rc": {
+   "text": "255\n"
+  }
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-secrets-files",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance",
+     "PATH": "{sandbox}/bin:/usr/bin:/bin",
+     "FAKE_EXEC": "{sandbox}"
+    },
+    "writes_only_under": [
+     "run",
+     "trace"
+    ]
+   },
+   "expect": [
+    {
+     "json": "run/secrets-files.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "secrets-files"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "json": "run/secrets-files.findings.json",
+     "subset": {
+      "coverage": [
+       {
+        "asset": "host:srv",
+        "status": "ok"
+       },
+       {
+        "asset": "host:win",
+        "status": "ok"
+       },
+       {
+        "asset": "secret-file:win:~/.ssh/id_rsa/permissions",
+        "status": "gap",
+        "reason": "file permissions could not be read"
+       },
+       {
+        "asset": "host:down",
+        "status": "gap",
+        "reason": "scan failed rc=255: ssh: connect to host down.test port 22: Connection refused"
+       },
+       {
+        "asset": "host:nox",
+        "status": "gap",
+        "reason": "no exec adapter"
+       }
+      ],
+      "findings": {
+       "$unordered": [
+        {
+         "asset": "secret-file:srv:~/.ssh/id_ed25519",
+         "check": "secret.ssh_key_no_passphrase",
+         "severity": "medium",
+         "title": "private key without passphrase (ssh-ed25519, 100d old)",
+         "needs_human": true
+        },
+        {
+         "asset": "secret-file:srv:~/.ssh/id_ed25519",
+         "check": "secret.age_over_90d",
+         "severity": "low",
+         "title": "private-key unchanged for 100 days (rotation unknown)"
+        },
+        {
+         "asset": "secret-file:srv:/etc/ssh/ssh_host_ed25519_key",
+         "check": "secret.age_over_90d",
+         "severity": "medium"
+        },
+        {
+         "asset": "secret-file:srv:~/.kube/admin.yaml",
+         "check": "secret.permissions_too_open",
+         "severity": "high"
+        },
+        {
+         "asset": "secret-file:srv:~/backup/.env.prod",
+         "check": "secret.permissions_too_open",
+         "severity": "high"
+        },
+        {
+         "asset": "secret-file:srv:~/backup/.env.prod",
+         "check": "secret.age_over_90d",
+         "severity": "low"
+        },
+        {
+         "asset": "secret-file:srv:~/age/keys.txt",
+         "check": "secret.permissions_too_open",
+         "severity": "medium"
+        },
+        {
+         "asset": "secret-file:srv:~/x.pem",
+         "check": "secret.permissions_too_open",
+         "severity": "medium"
+        },
+        {
+         "asset": "secret-file:srv:~/infra/prod.tfstate",
+         "check": "secret.permissions_too_open",
+         "severity": "low",
+         "title": "tf-state (encrypted) readable by group/others (mode 0o644)"
+        },
+        {
+         "asset": "secret-file:win:~/.aws/deploy.token",
+         "check": "secret.permissions_too_open",
+         "severity": "high",
+         "evidence": "raw/secrets-files/win.json#~/.aws/deploy.token"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "prom": "run/secrets-files.prom",
+     "has": [
+      {
+       "name": "security_secrets_total",
+       "labels": {
+        "store": "files:srv"
+       },
+       "value": 9
+      },
+      {
+       "name": "security_secrets_older_than_90d",
+       "labels": {
+        "store": "files:srv"
+       },
+       "value": 3
+      },
+      {
+       "name": "security_secrets_total",
+       "labels": {
+        "store": "files:win"
+       },
+       "value": 2
+      }
+     ],
+     "absent": [
+      {
+       "name": "security_secrets_total",
+       "labels": {
+        "store": "files:down"
+       }
+      }
+     ]
+    },
+    {
+     "file": "trace/srv.test.sudo.argv",
+     "regex": [
+      "\\A\\-o\\nBatchMode=yes\\n\\-o\\nConnectTimeout=10\\n\\-o\\nPasswordAuthentication=no\\n\\-o\\nKbdInteractiveAuthentication=no\\n\\-o\\nStrictHostKeyChecking=yes\\nsrv\\.test\\nsudo\\ \\-n\\ python3\\ \\-c\\ 'import\\ sys;exec\\(sys\\.stdin\\.buffer\\.read\\(\\)\\.decode\\('\"'\"'utf\\-8'\"'\"'\\)\\)'\\ '\\{\"roots\":\\ \\[\"\\~\",\\ \"/etc/ssh\"\\],\\ \"exclude\":\\ \\[\"\\~/old\"\\],\\ \"maxdepth\":\\ 5\\}'\\n\\Z"
+     ]
+    },
+    {
+     "file": "trace/win.test.argv",
+     "regex": [
+      "\\A\\-o\\nBatchMode=yes\\n\\-o\\nConnectTimeout=10\\n\\-o\\nPasswordAuthentication=no\\n\\-o\\nKbdInteractiveAuthentication=no\\n\\-o\\nStrictHostKeyChecking=yes\\nwin\\.test\\nC:\\\\Python312\\\\python\\.exe\\ \\-c\\ \"import\\ sys;exec\\(sys\\.stdin\\.buffer\\.read\\(\\)\\.decode\\('utf\\-8'\\)\\)\"\\ \"\\{\\\\\"roots\\\\\":\\ \\[\\\\\"\\~\\\\\"\\],\\ \\\\\"exclude\\\\\":\\ \\[\\],\\ \\\\\"maxdepth\\\\\":\\ 5\\}\"\\n\\Z"
+     ]
+    },
+    {
+     "absent": "trace/elsewhere.test.argv"
+    }
+   ]
+  }
+ ]
+}

@@ -4,6 +4,26 @@ Components are versioned independently (docs/design.md §5). Entries name the co
 
 ## Unreleased
 
+- **collectors/host 0.4.0, collectors/host-sbom 0.2.0, collectors/secrets-files 0.3.0 — Go implementations**
+  (`sp host|host-sbom|secrets-files collect`, internal/collectors/{host,hostsbom,secretsfiles}): the orchestration,
+  output parsing, exec adapters (`local`, `ssh`; internal/collectors/execadapter), findings and coverage logic in Go;
+  the probes stay shell/PowerShell/Python on the targets (the profiles and `scan.py`, embedded unchanged in `sp`).
+  Documents, evidence, inventories and metrics are byte-identical to the Python collectors' apart from times
+  (pinned per conformance case by internal/collectors/parity, compared on a real macOS host as well). Hardening:
+  argument vectors only, the fixed ssh options before the instance's (host-key checking cannot be weakened), an ssh
+  host that would read as an option refused, profile names restricted to the embedded profiles, host names that
+  would leave the run directory refused, relative `PATH` entries never searched, output read through size limits,
+  every output file 0600. Targets of the new known deviations: one host never fails the run (COLLECTOR-D2, D3, D4),
+  `~` only for a leading home directory (COLLECTOR-D5; asset names of such files change once), evidence pointers
+  follow `SP_COLLECTOR_NAME` (COLLECTOR-D6). Probe dates are compared in UTC (the reference uses local midnight: at
+  most a day's difference at the 45/90-day thresholds). The Python collectors are unchanged and stay the default;
+  a `command` job selects the Go ones (docs/runner.md).
+- **conformance**: 13 cases for the exec-adapter collectors (`collector-host`, `collector-host-sbom`,
+  `collector-secrets-files`) against a fake exec target (`conformance/tools/fake_exec.sh` as `ssh`/`sh`/`sudo`:
+  records argument vectors and scripts, replays outputs: timed-out probes, partial output, script timeout,
+  unreachable host, `sudo -n` refused, CRLF and non-UTF-8 PowerShell output) and a fixture home whose file contents
+  are canaries that must never reach any output; COLLECTOR-D2…D6 recorded in contracts/collector-protocol;
+  `conformance/impl/go/run.sh` runs them against `sp <name> collect`.
 - **Go collectors, wave 3: collectors/exposure 0.5.0, collectors/codehost-github 0.2.0, collectors/codehost-gitea
   0.2.0, collectors/agent-claude-code 0.3.0, collectors/detection 0.2.0, events 0.2.0**: Go implementations
   (`sp exposure collect|probe`, `sp codehost-github collect`, `sp codehost-gitea collect`, `sp agent-claude-code

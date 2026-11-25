@@ -1,0 +1,22 @@
+{
+ "kv": {
+  "disk.filevault": "off",
+  "fw.app_firewall": "off",
+  "fw.stealth": "on",
+  "os.name": "macOS 26.1 (25B78)",
+  "sip": "on"
+ },
+ "listen": [],
+ "profile": "macos",
+ "rc": 124,
+ "unread": {
+  "gatekeeper": "not reached: the script was stopped (rc=124)",
+  "listen": "not reached: the script was stopped (rc=124)",
+  "pkg.auto_install_os": "not reached: the script was stopped (rc=124)",
+  "pkg.auto_security": "not reached: the script was stopped (rc=124)",
+  "pkg.brew_outdated": "not reached: the script was stopped (rc=124)",
+  "pkg.os_updates_pending": "not reached: the script was stopped (rc=124)",
+  "ssh.remote_login": "not reached: the script was stopped (rc=124)",
+  "uptime_days": "not reached: the script was stopped (rc=124)"
+ }
+}

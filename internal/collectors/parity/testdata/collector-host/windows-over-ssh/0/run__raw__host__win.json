@@ -1,0 +1,25 @@
+{
+ "kv": {
+  "av.realtime": "off",
+  "av.signature_age_days": "12",
+  "disk.bitlocker": "Off",
+  "fw.profile_domain": "on",
+  "fw.profile_private": "off",
+  "fw.profile_public": "off",
+  "os.name": "Microsoft Windows 11 Pro \ufffddition 10.0.26100",
+  "pkg.last_hotfix": "2020-01-14",
+  "probe.end": "1",
+  "reboot_required": "no",
+  "smb.v1": "True",
+  "sshd.passwordauthentication": "yes(default)",
+  "sshd.permitrootlogin": "n/a",
+  "uptime_days": "2"
+ },
+ "listen": [
+  "0.0.0.0:3306 mysqld",
+  "127.0.0.1:5432 postgres"
+ ],
+ "profile": "windows",
+ "rc": 0,
+ "unread": {}
+}

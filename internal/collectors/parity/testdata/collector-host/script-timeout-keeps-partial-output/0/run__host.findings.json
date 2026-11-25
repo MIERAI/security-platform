@@ -1,0 +1,87 @@
+{
+ "collector": {
+  "name": "host",
+  "tools": {},
+  "version": "0.4.0"
+ },
+ "coverage": [
+  {
+   "asset": "host:local",
+   "status": "ok"
+  },
+  {
+   "asset": "host:local/brew",
+   "checks": [
+    "patch.brew_outdated"
+   ],
+   "reason": "local brew: could not check (pkg.brew_outdated: not reached: the script was stopped (rc=124))",
+   "status": "gap"
+  },
+  {
+   "asset": "host:local/gatekeeper",
+   "checks": [
+    "macos.gatekeeper_off"
+   ],
+   "reason": "local gatekeeper: could not check (gatekeeper: not reached: the script was stopped (rc=124))",
+   "status": "gap"
+  },
+  {
+   "asset": "host:local/listeners",
+   "checks": [
+    "listen.db_wildcard.*"
+   ],
+   "reason": "local listeners: could not check (listen: not reached: the script was stopped (rc=124))",
+   "status": "gap"
+  },
+  {
+   "asset": "host:local/os-updates",
+   "checks": [
+    "patch.os_updates_pending"
+   ],
+   "reason": "local os-updates: could not check (pkg.os_updates_pending: not reached: the script was stopped (rc=124))",
+   "status": "gap"
+  },
+  {
+   "asset": "host:silent",
+   "reason": "exec failed rc=124: timeout",
+   "status": "gap"
+  }
+ ],
+ "findings": [
+  {
+   "asset": "host:local",
+   "check": "macos.disk_filevault_off",
+   "evidence": "raw/host/local.json",
+   "id": "ceee52ff7d19",
+   "kind": "compliance",
+   "layer": "host",
+   "needs_human": true,
+   "observed_at": "T",
+   "owner": "human",
+   "remediation": "enable FileVault",
+   "severity": "high",
+   "title": "FileVault disk encryption is off"
+  },
+  {
+   "asset": "host:local",
+   "check": "macos.fw_app_firewall_off",
+   "evidence": "raw/host/local.json",
+   "id": "12e5bbfc7664",
+   "kind": "compliance",
+   "layer": "host",
+   "needs_human": false,
+   "observed_at": "T",
+   "owner": "platform",
+   "remediation": "enable the firewall",
+   "severity": "medium",
+   "title": "macOS application firewall is off"
+  }
+ ],
+ "metrics": [],
+ "run": {
+  "finished_at": "T",
+  "instance": "conformance",
+  "started_at": "T"
+ },
+ "schema_version": "1.2"
+}

@@ -49,3 +49,10 @@ collector-identity/unreadable-listings-are-gaps    IDENTITY-D2  members / outsid
 collector-identity/rate-limit-is-a-gap-until-reset IDENTITY-D3  a rate-limited listing read as empty; calls continue
 collector-identity/org-members-without-2fa         IDENTITY-D4  members' 2FA never read
 collector-identity/overlay-network-api             IDENTITY-D5  overlay-network API base fixed to the vendor's host
+
+# ---- exec-adapter collectors host, host-sbom, secrets-files (contracts/collector-protocol/SPEC.md, COLLECTOR-D2..D6) ----
+collector-host/one-host-never-fails-the-run          COLLECTOR-D2  unparsable date / missing exec program -> exception, exit 1
+collector-host-sbom/missing-tool-is-a-gap            COLLECTOR-D3  trivy / powershell not installed -> FileNotFoundError, exit 1
+collector-secrets-files/unreadable-scan-output-is-a-gap COLLECTOR-D4 scan output not JSON / missing interpreter -> exit 1
+collector-secrets-files/home-replaced-only-as-prefix COLLECTOR-D5  home replaced as a substring anywhere in the path
+collector-host-sbom/evidence-follows-collector-name COLLECTOR-D6  sbom.no_packages evidence hard-codes raw/host-sbom/

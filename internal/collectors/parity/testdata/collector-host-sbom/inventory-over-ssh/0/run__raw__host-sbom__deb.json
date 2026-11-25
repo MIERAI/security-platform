@@ -1,0 +1,26 @@
+{
+ "packages": 3,
+ "platform": {
+  "arch": "x86_64",
+  "device": "",
+  "exposed": false,
+  "firmware": null,
+  "fs_sbom": null,
+  "host": "deb",
+  "kernel_running": "6.12.0-1-amd64",
+  "os_build": "",
+  "os_codename": "trixie",
+  "os_edition": "",
+  "os_family": "debian",
+  "os_name": "Debian GNU/Linux 13 (trixie)",
+  "os_product": "",
+  "os_version": "13",
+  "package_count": 3,
+  "patch_level": "",
+  "prod": true,
+  "profile": "linux",
+  "rsr": "",
+  "vendor_patch_level": ""
+ },
+ "rc": 0
+}

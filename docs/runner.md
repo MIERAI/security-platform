@@ -145,6 +145,18 @@ job's `PATH`): an `identity_token: {type: env, name: X}` source reads `X` from t
 `env_passthrough` (file sources such as `{type: file, path: …}` and the default `~/.config/gcloud` need nothing).
 Ambient cloud keys (`AWS_ACCESS_KEY_ID`, …) are never needed: the cloud adapter refuses them anyway (docs/cloud.md).
 
+The exec-adapter collectors `host`, `host-sbom` and `secrets-files` have a Go implementation too: a `command` job with
+`argv: [sp, host, collect]` (or `host-sbom`, `secrets-files` in place of `host`) instead of the `collector` job, same instance sections,
+same documents, evidence and metrics. The probes that run on the targets are unchanged (the profiles under
+`collectors/*/profiles` and `collectors/secrets-files/remote/scan.py`, embedded in `sp`). `ssh` and `sudo` are looked up on
+the job's `PATH`; `ssh` keeps its key and `known_hosts` setup (`~/.ssh/config`), so `HOME` must be the operator's.
+
+```yaml
+runner:
+  jobs:
+    host: {type: command, collector: host, argv: [~/.local/bin/sp, host, collect], schedule: "15 * * * *", timeout: 30m}
+```
+
 Each tick the Go runner logs the *names* of credential-like variables it withholds (`environment: not passed to jobs
 …`): an empty line there means nothing is missing; values are never logged.
 

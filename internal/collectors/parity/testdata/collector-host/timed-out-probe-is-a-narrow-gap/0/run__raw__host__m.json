@@ -1,0 +1,24 @@
+{
+ "kv": {
+  "disk.filevault": "off",
+  "fw.app_firewall": "on",
+  "fw.stealth": "on",
+  "gatekeeper": "on",
+  "os.name": "macOS 26.1 (25B78)",
+  "pkg.auto_install_os": "unset",
+  "pkg.auto_security": "1",
+  "pkg.brew_outdated": "2",
+  "probe.end": "1",
+  "sip": "on",
+  "ssh.remote_login": "off",
+  "uptime_days": "3"
+ },
+ "listen": [
+  "127.0.0.1:5432 postgres"
+ ],
+ "profile": "macos",
+ "rc": 0,
+ "unread": {
+  "pkg.os_updates_pending": "did not finish within its time limit"
+ }
+}

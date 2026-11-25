@@ -1,0 +1,83 @@
+{
+ "component": "collector-host-sbom",
+ "title": "Under SP_COLLECTOR_NAME the evidence is stored as raw/<that name>/... and every finding points there",
+ "contract": "collector-protocol/1.0 / inventory/v1",
+ "deviation": "COLLECTOR-D6",
+ "origin": "collectors/host-sbom/collector.py: sbom.no_packages points to raw/host-sbom/<host>.json whatever the name",
+ "files": {
+  "bin/ssh": {
+   "raw": "fake_exec.sh",
+   "mode": "0755"
+  },
+  "instance.json": {
+   "json": {
+    "name": "conformance",
+    "hosts": [
+     {
+      "name": "phone",
+      "profile": "termux",
+      "exec": {
+       "type": "ssh",
+       "host": "phone.test"
+      }
+     }
+    ]
+   }
+  },
+  "replay/phone.test.out": {
+   "text": "os.family=android\nos.version=14\nos.name=Android 14\nplatform.patch_level=2025-10-01\nplatform.vendor_patch_level=2025-09-01\ndevice.manufacturer=Acme\ndevice.model=P1\nos.build=AP1A.2510\nkernel.running=5.15.0\narch=aarch64\n"
+  }
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-host-sbom",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance",
+     "PATH": "{sandbox}/bin:/usr/bin:/bin",
+     "FAKE_EXEC": "{sandbox}",
+     "SP_COLLECTOR_NAME": "sbom-b"
+    },
+    "writes_only_under": [
+     "run",
+     "trace"
+    ]
+   },
+   "expect": [
+    {
+     "json": "run/sbom-b.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "sbom-b"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "exists": "run/raw/sbom-b/phone.json"
+    },
+    {
+     "json": "run/sbom-b.findings.json",
+     "subset": {
+      "findings": [
+       {
+        "check": "sbom.no_packages",
+        "asset": "host:phone",
+        "evidence": "raw/sbom-b/phone.json"
+       }
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}

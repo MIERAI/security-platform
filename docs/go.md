@@ -72,6 +72,13 @@ internal/events/       the events shipper (`sp events ship`, contracts/events)
 internal/collectors/k8s/    the k8s collector (`sp k8s collect`): kubectl, read verbs only; image inventory
 internal/collectors/vulnintel/  the vuln-intel collector (`sp vuln-intel collect`): feeds, trivy, image/host matching
 internal/collectors/identity/   the identity collector (`sp identity collect`): code host, overlay network, local credentials
+internal/collectors/host/, hostsbom/, secretsfiles/  the exec-adapter collectors (`sp host|host-sbom|secrets-files collect`)
+  collkit/             the collector frame: environment, instance (pyvalue), scope, exit statuses
+  spdoc/               the findings document, evidence, inventories and metrics text as sdk/spsdk writes them
+  execadapter/         adapters/exec.py: `local` and `ssh` (argument vectors, process groups, time limits, PowerShell)
+  pytext/              Python text rules the outputs depend on (decoding, splitlines/strip, shlex.quote, list2cmdline)
+  parity/              the test pinning their outputs to the Python reference's on the conformance fixtures
+collectors/scripts.go  the target-side scripts (host and inventory profiles, the secrets scan), embedded unchanged
 internal/<component>/  added per component as it moves (collectors/<name>, ...)
 ```
 

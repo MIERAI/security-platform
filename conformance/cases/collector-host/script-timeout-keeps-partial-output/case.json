@@ -1,0 +1,175 @@
+{
+ "component": "collector-host",
+ "title": "A profile script stopped by its whole-script limit (script_timeout) keeps the lines it printed: their checks report, every probe it never reached is a narrow gap (not reached: rc=124), the job is not held up; a host that printed nothing before the limit is a host gap",
+ "contract": "collector-protocol/1.0 / findings/1.2",
+ "origin": "tests/test_host_probes.py::test_script_stopped_keeps_partial_output; adapters/exec.py partial",
+ "files": {
+  "bin/ssh": {
+   "raw": "fake_exec.sh",
+   "mode": "0755"
+  },
+  "bin/sh": {
+   "raw": "fake_exec.sh",
+   "mode": "0755"
+  },
+  "instance.json": {
+   "json": {
+    "name": "conformance",
+    "hosts": [
+     {
+      "name": "local",
+      "profile": "macos",
+      "script_timeout": 5,
+      "exec": {
+       "type": "local"
+      }
+     },
+     {
+      "name": "silent",
+      "profile": "linux",
+      "script_timeout": 5,
+      "exec": {
+       "type": "ssh",
+       "host": "silent.test"
+      }
+     }
+    ]
+   }
+  },
+  "replay/local-sh.out": {
+   "text": "os.name=macOS 26.1 (25B78)\ndisk.filevault=off\nfw.app_firewall=off\nfw.stealth=on\nsip=on\n"
+  },
+  "replay/local-sh.sleep": {
+   "text": "30\n"
+  },
+  "replay/silent.test.sleep": {
+   "text": "30\n"
+  }
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-host",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance",
+     "PATH": "{sandbox}/bin:/usr/bin:/bin",
+     "FAKE_EXEC": "{sandbox}"
+    },
+    "writes_only_under": [
+     "run",
+     "trace"
+    ],
+    "timeout": 60
+   },
+   "expect": [
+    {
+     "json": "run/host.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "host"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "duration_max": 25
+    },
+    {
+     "json": "run/host.findings.json",
+     "subset": {
+      "coverage": [
+       {
+        "asset": "host:local",
+        "status": "ok"
+       },
+       {
+        "asset": "host:local/brew",
+        "status": "gap",
+        "checks": [
+         "patch.brew_outdated"
+        ]
+       },
+       {
+        "asset": "host:local/gatekeeper",
+        "status": "gap",
+        "checks": [
+         "macos.gatekeeper_off"
+        ],
+        "reason": {
+         "$regex": "gatekeeper: not reached: the script was stopped \\(rc=124\\)"
+        }
+       },
+       {
+        "asset": "host:local/listeners",
+        "status": "gap",
+        "checks": [
+         "listen.db_wildcard.*"
+        ]
+       },
+       {
+        "asset": "host:local/os-updates",
+        "status": "gap",
+        "checks": [
+         "patch.os_updates_pending"
+        ]
+       },
+       {
+        "asset": "host:silent",
+        "status": "gap",
+        "reason": {
+         "$regex": "^exec failed rc=124: timeout"
+        }
+       }
+      ],
+      "findings": {
+       "$unordered": [
+        {
+         "asset": "host:local",
+         "check": "macos.disk_filevault_off",
+         "severity": "high"
+        },
+        {
+         "asset": "host:local",
+         "check": "macos.fw_app_firewall_off",
+         "severity": "medium"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/raw/host/local.json",
+     "subset": {
+      "rc": 124,
+      "unread": {
+       "$len": 8
+      }
+     }
+    },
+    {
+     "file": "trace/local-sh.argv",
+     "regex": [
+      "\\A\\-s\\n\\Z"
+     ]
+    },
+    {
+     "prom": "run/host.prom",
+     "absent": [
+      {
+       "name": "security_host_wildcard_listeners"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

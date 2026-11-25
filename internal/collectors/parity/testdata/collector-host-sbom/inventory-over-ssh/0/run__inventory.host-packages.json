@@ -1,0 +1,79 @@
+{
+"schema": "security-platform/inventory/v1",
+"kind": "host-package",
+"generated_at": "T",
+"items": [
+{
+"ecosystem": "deb",
+"name": "openssl",
+"version": "3.5.1-1",
+"source_name": "openssl",
+"source_version": "3.5.1-1",
+"arch": "amd64",
+"host": "deb"
+},
+{
+"ecosystem": "deb",
+"name": "libssl3t64",
+"version": "3.5.1-1",
+"source_name": "openssl",
+"source_version": "3.5.1-1",
+"arch": "amd64",
+"host": "deb"
+},
+{
+"ecosystem": "deb",
+"name": "bash",
+"version": "5.2.37-2",
+"source_name": "bash",
+"source_version": "5.2.37-2",
+"arch": "amd64",
+"host": "deb"
+},
+{
+"ecosystem": "brew",
+"name": "git",
+"version": "2.51.0",
+"source_name": "git",
+"source_version": "2.51.0",
+"arch": "",
+"host": "mac"
+},
+{
+"ecosystem": "brew-cask",
+"name": "firefox",
+"version": "145.0",
+"source_name": "firefox",
+"source_version": "145.0",
+"arch": "",
+"host": "mac"
+},
+{
+"ecosystem": "opkg",
+"name": "dropbear",
+"version": "2024.86-r1",
+"source_name": "dropbear",
+"source_version": "2024.86-r1",
+"arch": "",
+"host": "rtr"
+},
+{
+"ecosystem": "windows-kb",
+"name": "KB5062553",
+"version": "2025-07-08",
+"source_name": "Security Update",
+"source_version": "2025-07-08",
+"arch": "",
+"host": "win"
+},
+{
+"ecosystem": "windows-program",
+"name": "\u00c9diteur Example",
+"version": "1.2.3",
+"source_name": "Example Corp",
+"source_version": "1.2.3",
+"arch": "",
+"host": "win"
+}
+]
+}

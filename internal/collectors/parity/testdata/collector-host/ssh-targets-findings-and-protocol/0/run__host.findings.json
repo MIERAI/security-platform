@@ -1,0 +1,408 @@
+{
+ "collector": {
+  "name": "host",
+  "tools": {},
+  "version": "0.4.0"
+ },
+ "coverage": [
+  {
+   "asset": "host:lin",
+   "status": "ok"
+  },
+  {
+   "asset": "host:mac",
+   "status": "ok"
+  },
+  {
+   "asset": "host:router",
+   "status": "ok"
+  },
+  {
+   "asset": "host:phone",
+   "status": "ok"
+  },
+  {
+   "asset": "host:dormant",
+   "reason": "powered off by design",
+   "status": "gap"
+  }
+ ],
+ "findings": [
+  {
+   "asset": "host:lin",
+   "check": "ssh.password_auth_enabled",
+   "evidence": "raw/host/lin.json",
+   "id": "41b2e73eddda",
+   "kind": "compliance",
+   "layer": "identity",
+   "needs_human": false,
+   "observed_at": "T",
+   "owner": "platform",
+   "remediation": "PasswordAuthentication no (keys only)",
+   "severity": "high",
+   "title": "SSH password authentication is enabled"
+  },
+  {
+   "asset": "host:lin",
+   "check": "ssh.root_login_password",
+   "evidence": "raw/host/lin.json",
+   "id": "adc8a8f90df4",
+   "kind": "compliance",
+   "layer": "identity",
+   "needs_human": false,
+   "observed_at": "T",
+   "owner": "platform",
+   "remediation": "PermitRootLogin prohibit-password/no",
+   "severity": "high",
+   "title": "SSH root login with password allowed"
+  },
+  {
+   "asset": "host:lin",
+   "check": "ssh.x11_forwarding",
+   "evidence": "raw/host/lin.json",
+   "id": "47bc89120641",
+   "kind": "compliance",
+   "layer": "host",
+   "needs_human": false,
+   "observed_at": "T",
+   "owner": "platform",
+   "remediation": "X11Forwarding no",
+   "severity": "low",
+   "title": "SSH X11Forwarding enabled"
+  },
+  {
+   "asset": "host:lin",
+   "check": "patch.security_pending",
+   "evidence": "raw/host/lin.json",
+   "id": "d5c091864e22",
+   "kind": "compliance",
+   "layer": "host",
+   "needs_human": false,
+   "observed_at": "T",
+   "owner": "platform",
+   "remediation": "apply updates",
+   "severity": "medium",
+   "title": "3 security updates pending"
+  },
+  {
+   "asset": "host:lin",
+   "check": "patch.metadata_stale",
+   "evidence": "raw/host/lin.json",
+   "id": "511152f3f1dd",
+   "kind": "compliance",
+   "layer": "host",
+   "needs_human": false,
+   "observed_at": "T",
+   "owner": "platform",
+   "remediation": "enable periodic metadata refresh",
+   "severity": "low",
+   "title": "package metadata 10 days old: pending-update count is unreliable"
+  },
+  {
+   "asset": "host:lin",
+   "check": "patch.reboot_required",
+   "evidence": "raw/host/lin.json",
+   "id": "c9af45173007",
+   "kind": "compliance",
+   "layer": "host",
+   "needs_human": false,
+   "observed_at": "T",
+   "owner": "platform",
+   "remediation": "schedule a reboot (planned maintenance)",
+   "severity": "medium",
+   "title": "reboot required to activate installed updates (uptime 40d)"
+  },
+  {
+   "asset": "host:lin",
+   "check": "patch.auto_updates_off",
+   "evidence": "raw/host/lin.json",
+   "id": "c62fb7d32d1e",
+   "kind": "compliance",
+   "layer": "host",
+   "needs_human": false,
+   "observed_at": "T",
+   "owner": "platform",
+   "remediation": "enable unattended-upgrades",
+   "severity": "low",
+   "title": "automatic security updates are off"
+  },
+  {
+   "asset": "host:lin",
+   "check": "fw.host_firewall_off",
+   "evidence": "raw/host/lin.json",
+   "id": "a80f4f3233c7",
+   "kind": "compliance",
+   "layer": "network",
+   "needs_human": false,
+   "observed_at": "T",
+   "owner": "platform",
+   "remediation": "default-deny INPUT except ssh/needed ports (tailnet/LAN only)",
+   "severity": "medium",
+   "title": "no host firewall: INPUT default-accept, ufw inactive"
+  },
+  {
+   "asset": "host:lin",
+   "check": "listen.db_wildcard.5432",
+   "evidence": "raw/host/lin.json",
+   "id": "0fb0b15ab87c",
+   "kind": "compliance",
+   "layer": "network",
+   "needs_human": false,
+   "observed_at": "T",
+   "owner": "platform",
+   "remediation": "bind to localhost/bridge only",
+   "severity": "medium",
+   "title": "database-like port 5432 listens on all interfaces (0.0.0.0:5432 postgres)"
+  },
+  {
+   "asset": "host:lin",
+   "check": "listen.db_wildcard.9200",
+   "evidence": "raw/host/lin.json",
+   "id": "b5fe91a42005",
+   "kind": "compliance",
+   "layer": "network",
+   "needs_human": false,
+   "observed_at": "T",
+   "owner": "platform",
+   "remediation": "bind to localhost/bridge only",
+   "severity": "medium",
+   "title": "database-like port 9200 listens on all interfaces (*:9200 java)"
+  },
+  {
+   "asset": "host:mac",
+   "check": "macos.disk_filevault_off",
+   "evidence": "raw/host/mac.json",
+   "id": "c3c78abf7215",
+   "kind": "compliance",
+   "layer": "host",
+   "needs_human": true,
+   "observed_at": "T",
+   "owner": "human",
+   "remediation": "enable FileVault",
+   "severity": "high",
+   "title": "FileVault disk encryption is off"
+  },
+  {
+   "asset": "host:mac",
+   "check": "macos.fw_app_firewall_off",
+   "evidence": "raw/host/mac.json",
+   "id": "bfc2bdc4d519",
+   "kind": "compliance",
+   "layer": "host",
+   "needs_human": false,
+   "observed_at": "T",
+   "owner": "platform",
+   "remediation": "enable the firewall",
+   "severity": "medium",
+   "title": "macOS application firewall is off"
+  },
+  {
+   "asset": "host:mac",
+   "check": "macos.gatekeeper_off",
+   "evidence": "raw/host/mac.json",
+   "id": "cf781ccf20aa",
+   "kind": "compliance",
+   "layer": "host",
+   "needs_human": true,
+   "observed_at": "T",
+   "owner": "human",
+   "remediation": "spctl --master-enable",
+   "severity": "high",
+   "title": "Gatekeeper is off"
+  },
+  {
+   "asset": "host:mac",
+   "check": "macos.fw_stealth_off",
+   "evidence": "raw/host/mac.json",
+   "id": "ebe4cf1982b1",
+   "kind": "compliance",
+   "layer": "host",
+   "needs_human": false,
+   "observed_at": "T",
+   "owner": "platform",
+   "remediation": "enable stealth mode",
+   "severity": "low",
+   "title": "macOS firewall stealth mode is off"
+  },
+  {
+   "asset": "host:mac",
+   "check": "patch.os_updates_pending",
+   "evidence": "raw/host/mac.json",
+   "id": "7c175507d70c",
+   "kind": "compliance",
+   "layer": "host",
+   "needs_human": true,
+   "observed_at": "T",
+   "owner": "human",
+   "remediation": "install macOS updates",
+   "severity": "medium",
+   "title": "2 OS updates pending"
+  },
+  {
+   "asset": "host:mac",
+   "check": "patch.brew_outdated",
+   "evidence": "raw/host/mac.json",
+   "id": "89e5c64aab6d",
+   "kind": "compliance",
+   "layer": "host",
+   "needs_human": false,
+   "observed_at": "T",
+   "owner": "platform",
+   "remediation": "brew upgrade",
+   "severity": "low",
+   "title": "25 Homebrew packages outdated"
+  },
+  {
+   "asset": "host:router",
+   "check": "ssh.password_auth_enabled",
+   "evidence": "raw/host/router.json",
+   "id": "11c8d679f8a3",
+   "kind": "compliance",
+   "layer": "identity",
+   "needs_human": false,
+   "observed_at": "T",
+   "owner": "platform",
+   "remediation": "PasswordAuthentication no (keys only)",
+   "severity": "high",
+   "title": "SSH password authentication is enabled"
+  },
+  {
+   "asset": "host:router",
+   "check": "ssh.root_login_password",
+   "evidence": "raw/host/router.json",
+   "id": "c7a748db8ca1",
+   "kind": "compliance",
+   "layer": "identity",
+   "needs_human": false,
+   "observed_at": "T",
+   "owner": "platform",
+   "remediation": "PermitRootLogin prohibit-password/no",
+   "severity": "high",
+   "title": "SSH root login with password allowed"
+  },
+  {
+   "asset": "host:router",
+   "check": "telnet.daemon_running",
+   "evidence": "raw/host/router.json",
+   "id": "f2c33f228c03",
+   "kind": "compliance",
+   "layer": "network",
+   "needs_human": false,
+   "observed_at": "T",
+   "owner": "platform",
+   "remediation": "disable telnetd",
+   "severity": "high",
+   "title": "telnetd is running"
+  },
+  {
+   "asset": "host:router",
+   "check": "listen.db_wildcard.6379",
+   "evidence": "raw/host/router.json",
+   "id": "36f23d3a720e",
+   "kind": "compliance",
+   "layer": "network",
+   "needs_human": false,
+   "observed_at": "T",
+   "owner": "platform",
+   "remediation": "bind to localhost/bridge only",
+   "severity": "medium",
+   "title": "database-like port 6379 listens on all interfaces (0.0.0.0:6379)"
+  },
+  {
+   "asset": "host:phone",
+   "check": "patch.pending",
+   "evidence": "raw/host/phone.json",
+   "id": "d284ab44ef37",
+   "kind": "compliance",
+   "layer": "host",
+   "needs_human": false,
+   "observed_at": "T",
+   "owner": "platform",
+   "remediation": "apply updates",
+   "severity": "low",
+   "title": "4 package updates pending"
+  },
+  {
+   "asset": "host:phone",
+   "check": "patch.android_security_patch_old",
+   "evidence": "raw/host/phone.json",
+   "id": "86822f466eb2",
+   "kind": "compliance",
+   "layer": "host",
+   "needs_human": true,
+   "observed_at": "T",
+   "owner": "human",
+   "remediation": "install the vendor OTA (vendor may have stopped updates)",
+   "severity": "medium",
+   "title": "Android security patch level 2020-01-05 (> 90 days)"
+  },
+  {
+   "asset": "host:phone",
+   "check": "secret.in_process_argv",
+   "evidence": "raw/host/phone.json",
+   "id": "f0d7efdecc6c",
+   "kind": "compliance",
+   "layer": "data-secrets",
+   "needs_human": false,
+   "observed_at": "T",
+   "owner": "platform",
+   "remediation": "pass it via a 0600 file or env instead of argv",
+   "severity": "medium",
+   "title": "a process carries a credential on its command line (visible to ps)"
+  },
+  {
+   "asset": "host:phone",
+   "check": "listen.db_wildcard.27017",
+   "evidence": "raw/host/phone.json",
+   "id": "07e8ce7b2966",
+   "kind": "compliance",
+   "layer": "network",
+   "needs_human": false,
+   "observed_at": "T",
+   "owner": "platform",
+   "remediation": "bind to localhost/bridge only",
+   "severity": "medium",
+   "title": "database-like port 27017 listens on all interfaces (00000000:27017)"
+  }
+ ],
+ "metrics": [
+  {
+   "help": "Sockets listening on all interfaces",
+   "labels": {
+    "host": "lin"
+   },
+   "name": "security_host_wildcard_listeners",
+   "value": 3.0
+  },
+  {
+   "help": "Sockets listening on all interfaces",
+   "labels": {
+    "host": "mac"
+   },
+   "name": "security_host_wildcard_listeners",
+   "value": 0.0
+  },
+  {
+   "help": "Sockets listening on all interfaces",
+   "labels": {
+    "host": "router"
+   },
+   "name": "security_host_wildcard_listeners",
+   "value": 2.0
+  },
+  {
+   "help": "Sockets listening on all interfaces",
+   "labels": {
+    "host": "phone"
+   },
+   "name": "security_host_wildcard_listeners",
+   "value": 2.0
+  }
+ ],
+ "run": {
+  "finished_at": "T",
+  "instance": "conformance",
+  "started_at": "T"
+ },
+ "schema_version": "1.2"
+}

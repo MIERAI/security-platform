@@ -1,0 +1,24 @@
+# HELP security_collector_findings Findings reported by the latest run of a collector
+# TYPE security_collector_findings gauge
+security_collector_findings{collector="host",layer="data-secrets",severity="medium"} 1
+security_collector_findings{collector="host",layer="host",severity="high"} 2
+security_collector_findings{collector="host",layer="host",severity="low"} 6
+security_collector_findings{collector="host",layer="host",severity="medium"} 5
+security_collector_findings{collector="host",layer="identity",severity="high"} 4
+security_collector_findings{collector="host",layer="network",severity="high"} 1
+security_collector_findings{collector="host",layer="network",severity="medium"} 5
+# HELP security_collector_gaps Assets the collector could not cover
+# TYPE security_collector_gaps gauge
+security_collector_gaps{collector="host"} 1
+# HELP security_collector_assets Assets in scope of the run
+# TYPE security_collector_assets gauge
+security_collector_assets{collector="host"} 5
+# HELP security_collector_last_run_timestamp_seconds Heartbeat: when the collector last finished (no findings != secure)
+# TYPE security_collector_last_run_timestamp_seconds gauge
+security_collector_last_run_timestamp_seconds{collector="host"} T
+# HELP security_host_wildcard_listeners Sockets listening on all interfaces
+# TYPE security_host_wildcard_listeners gauge
+security_host_wildcard_listeners{collector="host",host="lin"} 3
+security_host_wildcard_listeners{collector="host",host="mac"} 0
+security_host_wildcard_listeners{collector="host",host="router"} 2
+security_host_wildcard_listeners{collector="host",host="phone"} 2

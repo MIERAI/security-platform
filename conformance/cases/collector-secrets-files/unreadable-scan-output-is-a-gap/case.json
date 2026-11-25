@@ -1,0 +1,141 @@
+{
+ "component": "collector-secrets-files",
+ "title": "A target whose scan cannot be read never fails the run (collector-protocol §5): output that is not the scan result, no output at all, or an interpreter that does not exist is a gap for that host; the other hosts report",
+ "contract": "collector-protocol/1.0 / findings/1.2",
+ "deviation": "COLLECTOR-D4",
+ "origin": "collectors/secrets-files/collector.py: json.loads / IndexError / FileNotFoundError end the whole run (exit 1)",
+ "files": {
+  "bin/ssh": {
+   "raw": "fake_exec.sh",
+   "mode": "0755"
+  },
+  "instance.json": {
+   "json": {
+    "name": "conformance",
+    "secrets_files": [
+     {
+      "host": "bad",
+      "exec": {
+       "type": "ssh",
+       "host": "bad.test"
+      },
+      "roots": [
+       "~"
+      ]
+     },
+     {
+      "host": "empty",
+      "exec": {
+       "type": "ssh",
+       "host": "empty.test"
+      },
+      "roots": [
+       "~"
+      ]
+     },
+     {
+      "host": "nopy",
+      "exec": {
+       "type": "local"
+      },
+      "roots": [
+       "~"
+      ],
+      "python": "{sandbox}/missing/python3"
+     },
+     {
+      "host": "good",
+      "exec": {
+       "type": "ssh",
+       "host": "good.test"
+      },
+      "roots": [
+       "~"
+      ]
+     }
+    ]
+   }
+  },
+  "replay/bad.test.out": {
+   "text": "Traceback (most recent call last):\nSyntaxError: invalid syntax\n"
+  },
+  "replay/good.test.out": {
+   "text": "warning: one line of noise before the result\n{\"home\": \"/home/u\", \"items\": [{\"path\": \"/home/u/.ssh/id_rsa\", \"kind\": \"private-key\", \"mode\": \"0o644\", \"uid\": 1000, \"size\": 100, \"mtime\": {epoch:-86400}, \"format\": \"pem\", \"passphrase\": true}]}\n"
+  }
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-secrets-files",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance",
+     "PATH": "{sandbox}/bin:/usr/bin:/bin",
+     "FAKE_EXEC": "{sandbox}"
+    },
+    "writes_only_under": [
+     "run",
+     "trace"
+    ]
+   },
+   "expect": [
+    {
+     "json": "run/secrets-files.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "secrets-files"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "json": "run/secrets-files.findings.json",
+     "subset": {
+      "coverage": [
+       {
+        "asset": "host:bad",
+        "status": "gap",
+        "reason": {
+         "$regex": "^scan output unreadable"
+        }
+       },
+       {
+        "asset": "host:empty",
+        "status": "gap",
+        "reason": {
+         "$regex": "^scan output unreadable"
+        }
+       },
+       {
+        "asset": "host:nopy",
+        "status": "gap",
+        "reason": {
+         "$regex": "^scan failed"
+        }
+       },
+       {
+        "asset": "host:good",
+        "status": "ok"
+       }
+      ],
+      "findings": [
+       {
+        "asset": "secret-file:good:~/.ssh/id_rsa",
+        "check": "secret.permissions_too_open",
+        "severity": "high"
+       }
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}

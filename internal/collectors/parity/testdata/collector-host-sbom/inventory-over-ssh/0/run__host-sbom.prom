@@ -1,0 +1,23 @@
+# HELP security_collector_findings Findings reported by the latest run of a collector
+# TYPE security_collector_findings gauge
+security_collector_findings{collector="host-sbom",layer="host",severity="info"} 1
+# HELP security_collector_gaps Assets the collector could not cover
+# TYPE security_collector_gaps gauge
+security_collector_gaps{collector="host-sbom"} 3
+# HELP security_collector_assets Assets in scope of the run
+# TYPE security_collector_assets gauge
+security_collector_assets{collector="host-sbom"} 8
+# HELP security_collector_last_run_timestamp_seconds Heartbeat: when the collector last finished (no findings != secure)
+# TYPE security_collector_last_run_timestamp_seconds gauge
+security_collector_last_run_timestamp_seconds{collector="host-sbom"} T
+# HELP security_sbom_host_packages Installed packages inventoried on hosts
+# TYPE security_sbom_host_packages gauge
+security_sbom_host_packages{collector="host-sbom",kind="brew"} 1
+security_sbom_host_packages{collector="host-sbom",kind="brew-cask"} 1
+security_sbom_host_packages{collector="host-sbom",kind="deb"} 3
+security_sbom_host_packages{collector="host-sbom",kind="opkg"} 1
+security_sbom_host_packages{collector="host-sbom",kind="windows-kb"} 1
+security_sbom_host_packages{collector="host-sbom",kind="windows-program"} 1
+# HELP security_sbom_hosts Hosts with a software inventory
+# TYPE security_sbom_hosts gauge
+security_sbom_hosts{collector="host-sbom"} 5

@@ -63,7 +63,7 @@ def write_case(component, name, case, files=None):
     for rel, content in (files or {}).items():
         p = os.path.join(d, rel)
         os.makedirs(os.path.dirname(p), exist_ok=True)
-        if isinstance(content, bytes):     # binary fixtures (archives): staged with {"raw": ...}
+        if isinstance(content, bytes):      # byte-exact fixtures (CRLF, legacy code pages, archives): {"raw": ...}
             with open(p, "wb") as f:
                 f.write(content)
             continue
@@ -2195,6 +2195,601 @@ def collector_cases():
                        "findings": [{"check": "example.world_writable_file", "asset": {"$regex": "open.conf$"}}]}}]}]})
 
 
+# ==================================================================================================================
+# exec-adapter collectors: host, host-sbom, secrets-files (collector-protocol/1.0). Targets are FAKE: fake_exec.sh,
+# installed as {sandbox}/bin/ssh|sh|sudo, records argv + stdin under trace/ and replays replay/<target>.* (no real
+# host, no network). PATH is fixed, so a program the case does not provide (powershell, trivy) is missing.
+# ==================================================================================================================
+FAKE_EXEC = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "fake_exec.sh")).read()
+SSH_BASE = ["-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "-o", "PasswordAuthentication=no",
+            "-o", "KbdInteractiveAuthentication=no", "-o", "StrictHostKeyChecking=yes"]
+
+
+def exec_env(extra=None):
+    return collector_env(dict({"PATH": "{sandbox}/bin:/usr/bin:/bin", "FAKE_EXEC": "{sandbox}"}, **(extra or {})))
+
+
+def fakes(*programs):
+    """Case files: the fake installed under the given program names."""
+    return {f"bin/{p}": {"raw": "fake_exec.sh", "mode": "0755"} for p in programs}
+
+
+def replay(target, out=None, err=None, rc=None, sleep=None, raw=None):
+    """Case files replaying one target. `raw`: the name of a byte-exact case file for stdout."""
+    f = {}
+    if raw:
+        f[f"replay/{target}.out"] = {"raw": raw}
+    elif out is not None:
+        f[f"replay/{target}.out"] = {"text": out}
+    for ext, v in (("err", err), ("rc", rc), ("sleep", sleep)):
+        if v is not None:
+            f[f"replay/{target}.{ext}"] = {"text": f"{v}\n" if ext != "err" else v}
+    return f
+
+
+def argv_regex(*argv):
+    """A `file` regex: the trace holds exactly this argument vector, one argument per line."""
+    import re
+    return r"\A" + "".join(re.escape(a) + r"\n" for a in argv) + r"\Z"
+
+
+def lines(*ls):
+    return "".join(x + "\n" for x in ls)
+
+
+def ssh(host, **kw):
+    return dict({"type": "ssh", "host": host}, **kw)
+
+
+def F(asset, check, severity, **kw):
+    return dict({"asset": asset, "check": check, "severity": severity}, **kw)
+
+
+def host_cases():
+    C = "collector-protocol/1.0 / findings/1.2"
+    files = {"fake_exec.sh": FAKE_EXEC}
+    lin = lines("sshd.passwordauthentication=yes", "sshd.permitrootlogin=yes", "sshd.x11forwarding=yes",
+                "sshd.pubkeyauthentication=yes", "os.name=Debian GNU/Linux 13 (trixie)", "os.kernel=6.12.0",
+                "reboot_required=yes", "uptime_days=40", "fw.ufw=inactive", "fw.nft_input_policy=",
+                "fw.iptables_input_policy=ACCEPT", "disk.crypt_devices=0", "audit.auditd=inactive",
+                "listen=0.0.0.0:5432 postgres", "listen=127.0.0.1:6379 redis-server", "listen=[::]:22 sshd",
+                "listen=*:9200 java", "pkg.auto_updates=no", "pkg.cache_mtime={epoch:-864000}", "pkg.count=512",
+                "pkg.upgradable=12", "pkg.security_upgradable=3", "probe.end=1")
+    mac = lines("os.name=macOS 26.1 (25B78)", "disk.filevault=off", "fw.app_firewall=off", "fw.stealth=off", "sip=on",
+                "gatekeeper=off", "ssh.remote_login=off", "pkg.auto_install_os=unset", "pkg.auto_security=1",
+                "uptime_days=3", "listen=127.0.0.1:5432 postgres", "pkg.brew_outdated=25", "pkg.os_updates_pending=2",
+                "probe.end=1")
+    router = lines("sshd.passwordauthentication=yes", "sshd.permitrootlogin=yes", "os.name=OpenWrt 24.10",
+                   "os.kernel=6.6.0", "telnetd=1", "uptime_days=120", "fw.iptables_input_policy=ACCEPT",
+                   "listen=0.0.0.0:53", "listen=0.0.0.0:6379", "probe.end=1")
+    phone = lines("sshd.passwordauthentication=no", "os.name=Android 14 (patch 2020-01-05)", "os.security_patch=2020-01-05",
+                  "uptime_days=9", "listen=00000000:8022", "listen=00000000:27017", "proc.secret_in_argv_suspects=1",
+                  "pkg.cache_mtime=", "pkg.upgradable=4", "probe.end=1")
+    inst = {"name": "conformance", "scope": [{"names": ["elsewhere"], "scope": ["k8s"]}], "hosts": [
+        {"name": "lin", "profile": "linux", "probe_timeout": 7, "slow_probe_timeout": 30,
+         "exec": ssh("lin.test", options=["-o", "StrictHostKeyChecking=no", "-F", "/dev/null"])},
+        {"name": "mac", "profile": "macos", "exec": ssh("mac.test")},
+        {"name": "router", "profile": "busybox", "exec": ssh("router.test")},
+        {"name": "phone", "profile": "termux", "exec": ssh("phone.test")},
+        {"name": "dormant", "profile": "linux", "exec": None, "gap": "powered off by design"},
+        {"name": "elsewhere", "profile": "linux", "exec": ssh("elsewhere.test")}]}
+    findings = [
+        F("host:lin", "ssh.password_auth_enabled", "high", layer="identity", remediation="PasswordAuthentication no (keys only)"),
+        F("host:lin", "ssh.root_login_password", "high", layer="identity"),
+        F("host:lin", "ssh.x11_forwarding", "low", layer="host"),
+        F("host:lin", "patch.security_pending", "medium", title="3 security updates pending"),
+        F("host:lin", "patch.metadata_stale", "low", title={"$regex": "^package metadata 10 days old"}),
+        F("host:lin", "patch.reboot_required", "medium", title={"$regex": r"\(uptime 40d\)$"}),
+        F("host:lin", "patch.auto_updates_off", "low"),
+        F("host:lin", "fw.host_firewall_off", "medium", layer="network"),
+        F("host:lin", "listen.db_wildcard.5432", "medium", layer="network", evidence="raw/host/lin.json"),
+        F("host:lin", "listen.db_wildcard.9200", "medium", title={"$regex": r"\(\*:9200 java\)$"}),
+        F("host:mac", "macos.disk_filevault_off", "high", needs_human=True, owner="human"),
+        F("host:mac", "macos.fw_app_firewall_off", "medium", needs_human=False, owner="platform"),
+        F("host:mac", "macos.gatekeeper_off", "high", needs_human=True),
+        F("host:mac", "macos.fw_stealth_off", "low"),
+        F("host:mac", "patch.os_updates_pending", "medium", title="2 OS updates pending", needs_human=True),
+        F("host:mac", "patch.brew_outdated", "low", title="25 Homebrew packages outdated"),
+        F("host:router", "ssh.password_auth_enabled", "high"),
+        F("host:router", "ssh.root_login_password", "high"),
+        F("host:router", "telnet.daemon_running", "high", layer="network"),
+        F("host:router", "listen.db_wildcard.6379", "medium"),
+        F("host:phone", "patch.pending", "low", title="4 package updates pending"),
+        F("host:phone", "patch.android_security_patch_old", "medium", needs_human=True),
+        F("host:phone", "secret.in_process_argv", "medium", layer="data-secrets"),
+        F("host:phone", "listen.db_wildcard.27017", "medium")]
+    trace = {"file": "trace/lin.test.argv", "regex": [argv_regex(*SSH_BASE, "-o", "StrictHostKeyChecking=no", "-F", "/dev/null",
+                                                                 "lin.test", "sh -s")]}
+    write_case("collector-host", "ssh-targets-findings-and-protocol", {
+        "title": "Probe output of linux, macOS, busybox and Termux hosts over ssh becomes the documented findings, "
+                 "one coverage entry per configured host (a host without exec adapter is a gap with its configured "
+                 "reason, a host scoped to another collector is skipped), ids from (layer, asset, check), the "
+                 "wildcard-listener metric; ssh runs non-interactively with host-key checking that instance options "
+                 "cannot weaken (first value wins) and the probe limits from the instance in the script",
+        "contract": C, "origin": "collectors/host/collector.py; adapters/exec.py SSH.BASE; tests/test_host_probes.py",
+        "files": dict(fakes("ssh"), **{"instance.json": {"json": inst}, "data/.keep": {"text": ""}},
+                      **replay("lin.test", lin), **replay("mac.test", mac), **replay("router.test", router),
+                      **replay("phone.test", phone)),
+        "steps": [{"name": "collect", "exec": {"impl": "collector-host", "env": exec_env(), "writes_only_under": ["run", "trace"]},
+                   "expect": protocol_checks("host") + [
+                       {"json": "run/host.findings.json", "subset": {
+                           "coverage": [{"asset": "host:lin", "status": "ok"}, {"asset": "host:mac", "status": "ok"},
+                                        {"asset": "host:router", "status": "ok"}, {"asset": "host:phone", "status": "ok"},
+                                        {"asset": "host:dormant", "status": "gap", "reason": "powered off by design"}],
+                           "findings": {"$unordered": findings}}},
+                       {"prom": "run/host.prom", "has": [
+                           {"name": "security_host_wildcard_listeners", "labels": {"host": "lin"}, "value": 3},
+                           {"name": "security_host_wildcard_listeners", "labels": {"host": "mac"}, "value": 0},
+                           {"name": "security_host_wildcard_listeners", "labels": {"host": "phone"}, "value": 2},
+                           {"name": "security_collector_findings", "labels": {"collector": "host", "layer": "network", "severity": "medium"},
+                            "value": 5},
+                           {"name": "security_collector_gaps", "labels": {"collector": "host"}, "value": 1}]},
+                       {"json": "run/raw/host/lin.json", "subset": {"profile": "linux", "rc": 0, "unread": {},
+                                                                   "listen": {"$len": 4}, "kv": {"pkg.count": "512"}}},
+                       trace,
+                       {"file": "trace/lin.test.stdin", "regex": [r"\ASP_PROBE_TIMEOUT=7\nSP_PROBE_SLOW_TIMEOUT=30\n",
+                                                                  r"^sp_probe\(\) \{$", r"\necho probe\.end=1\n\Z"]},
+                       {"file": "trace/mac.test.stdin", "regex": [r"\ASP_PROBE_TIMEOUT=20\nSP_PROBE_SLOW_TIMEOUT=90\n",
+                                                                  "^# host profile: macOS"]},
+                       {"absent": "trace/elsewhere.test.argv"}]},
+                  {"name": "collect as another name (SP_COLLECTOR_NAME): document, evidence and pointers follow it",
+                   "remove": ["run", "trace"],
+                   "exec": {"impl": "collector-host", "env": exec_env({"SP_COLLECTOR_NAME": "host-b"})},
+                   "expect": [{"json": "run/host-b.findings.json", "schema": "findings", "subset": {
+                                  "collector": {"name": "host-b"},
+                                  "findings": {"$contains": [{"asset": "host:lin", "check": "listen.db_wildcard.5432",
+                                                              "evidence": "raw/host-b/lin.json"}]}}},
+                              {"exists": "run/raw/host-b/lin.json"}, {"absent": "run/host.findings.json"}]}]}, files)
+
+    mac_t = mac.replace("pkg.os_updates_pending=2\n", "pkg.os_updates_pending=unknown\nprobe.timeout=pkg.os_updates_pending\n") \
+        .replace("fw.app_firewall=off", "fw.app_firewall=on").replace("fw.stealth=off", "fw.stealth=on") \
+        .replace("gatekeeper=off", "gatekeeper=on").replace("pkg.brew_outdated=25", "pkg.brew_outdated=2")
+    lin_t = lines("sshd.passwordauthentication=yes", "os.name=Debian", "reboot_required=no", "fw.ufw=inactive",
+                  "fw.nft_input_policy=unknown", "probe.timeout=fw.nft_input_policy", "fw.iptables_input_policy=ACCEPT",
+                  "probe.timeout=listen", "pkg.auto_updates=yes", "pkg.upgradable=0", "pkg.security_upgradable=0",
+                  "probe.end=1")
+    write_case("collector-host", "timed-out-probe-is-a-narrow-gap", {
+        "title": "A probe that did not finish (probe.timeout=KEY) makes only the checks reading KEY unknown: a narrow gap "
+                 "host:<name>/<part> listing those checks, the host itself stays covered and every other check reports; a "
+                 "finding of a part with one unread key is dropped (a guess is not an observation); a timed-out listener "
+                 "probe drops the wildcard-listener metric",
+        "contract": C, "origin": "tests/test_host_probes.py::Collector; contracts/collector-protocol §5 (narrow gaps)",
+        "files": dict(fakes("ssh"), **{"instance.json": {"json": {"name": "conformance", "hosts": [
+            {"name": "m", "profile": "macos", "exec": ssh("m.test")},
+            {"name": "l", "profile": "linux", "exec": ssh("l.test")}]}}}, **replay("m.test", mac_t), **replay("l.test", lin_t)),
+        "steps": [{"name": "collect", "exec": {"impl": "collector-host", "env": exec_env(), "writes_only_under": ["run", "trace"]},
+                   "expect": protocol_checks("host") + [
+                       {"json": "run/host.findings.json", "subset": {
+                           "coverage": [{"asset": "host:m", "status": "ok"},
+                                        {"asset": "host:m/os-updates", "status": "gap", "checks": ["patch.os_updates_pending"],
+                                         "reason": {"$regex": r"^m os-updates: could not check \(pkg\.os_updates_pending: did not finish"}},
+                                        {"asset": "host:l", "status": "ok"},
+                                        {"asset": "host:l/firewall", "status": "gap", "checks": ["fw.host_firewall_off"]},
+                                        {"asset": "host:l/listeners", "status": "gap", "checks": ["listen.db_wildcard.*"]}],
+                           "findings": {"$unordered": [F("host:m", "macos.disk_filevault_off", "high"),
+                                                       F("host:l", "ssh.password_auth_enabled", "high")]}}},
+                       {"json": "run/raw/host/m.json", "subset": {"unread": {"pkg.os_updates_pending": "did not finish within its time limit"},
+                                                                 "kv": {"pkg.os_updates_pending": {"$absent": True}}}},
+                       {"prom": "run/host.prom", "has": [{"name": "security_host_wildcard_listeners", "labels": {"host": "m"}, "value": 0}],
+                        "absent": [{"name": "security_host_wildcard_listeners", "labels": {"host": "l"}}]}]}]}, files)
+
+    partial = lines("os.name=macOS 26.1 (25B78)", "disk.filevault=off", "fw.app_firewall=off", "fw.stealth=on", "sip=on")
+    write_case("collector-host", "script-timeout-keeps-partial-output", {
+        "title": "A profile script stopped by its whole-script limit (script_timeout) keeps the lines it printed: their "
+                 "checks report, every probe it never reached is a narrow gap (not reached: rc=124), the job is not "
+                 "held up; a host that printed nothing before the limit is a host gap",
+        "contract": C, "origin": "tests/test_host_probes.py::test_script_stopped_keeps_partial_output; adapters/exec.py partial",
+        "files": dict(fakes("ssh", "sh"), **{"instance.json": {"json": {"name": "conformance", "hosts": [
+            {"name": "local", "profile": "macos", "script_timeout": 5, "exec": {"type": "local"}},
+            {"name": "silent", "profile": "linux", "script_timeout": 5, "exec": ssh("silent.test")}]}}},
+            **replay("local-sh", partial, sleep=30), **replay("silent.test", sleep=30)),
+        "steps": [{"name": "collect", "exec": {"impl": "collector-host", "env": exec_env(), "writes_only_under": ["run", "trace"],
+                                               "timeout": 60},
+                   "expect": protocol_checks("host") + [
+                       {"duration_max": 25},
+                       {"json": "run/host.findings.json", "subset": {
+                           "coverage": [{"asset": "host:local", "status": "ok"},
+                                        {"asset": "host:local/brew", "status": "gap", "checks": ["patch.brew_outdated"]},
+                                        {"asset": "host:local/gatekeeper", "status": "gap", "checks": ["macos.gatekeeper_off"],
+                                         "reason": {"$regex": r"gatekeeper: not reached: the script was stopped \(rc=124\)"}},
+                                        {"asset": "host:local/listeners", "status": "gap", "checks": ["listen.db_wildcard.*"]},
+                                        {"asset": "host:local/os-updates", "status": "gap", "checks": ["patch.os_updates_pending"]},
+                                        {"asset": "host:silent", "status": "gap", "reason": {"$regex": "^exec failed rc=124: timeout"}}],
+                           "findings": {"$unordered": [F("host:local", "macos.disk_filevault_off", "high"),
+                                                       F("host:local", "macos.fw_app_firewall_off", "medium")]}}},
+                       {"json": "run/raw/host/local.json", "subset": {"rc": 124, "unread": {"$len": 8}}},
+                       {"file": "trace/local-sh.argv", "regex": [argv_regex("-s")]},
+                       {"prom": "run/host.prom", "absent": [{"name": "security_host_wildcard_listeners"}]}]}]}, files)
+
+    win = (b"sshd.passwordauthentication=yes(default)\r\nsshd.permitrootlogin=n/a\r\n"
+           b"os.name=Microsoft Windows 11 Pro \xe9dition 10.0.26100\r\nuptime_days=2\r\nreboot_required=no\r\n"
+           b"fw.profile_domain=on\r\nfw.profile_private=off\r\nfw.profile_public=off\r\nav.realtime=off\r\n"
+           b"av.signature_age_days=12\r\ndisk.bitlocker=Off\r\nsmb.v1=True\r\nlisten=0.0.0.0:3306 mysqld\r\n"
+           b"listen=127.0.0.1:5432 postgres\r\npkg.last_hotfix=2020-01-14\r\nprobe.end=1\r\n")
+    write_case("collector-host", "windows-over-ssh", {
+        "title": "The Windows profile runs through PowerShell over ssh to a cmd.exe login shell: a fixed -EncodedCommand "
+                 "bootstrap reads the script (probe limits in front) from stdin; CRLF output is read as lines, bytes that "
+                 "are not UTF-8 are replaced, not fatal; firewall profiles, Defender, BitLocker, SMB1, hotfix age and "
+                 "listeners become findings",
+        "contract": C, "origin": "adapters/exec.py powershell(); collectors/host/profiles/windows.ps1",
+        "files": dict(fakes("ssh"), **{"instance.json": {"json": {"name": "conformance", "hosts": [
+            {"name": "win", "profile": "windows", "exec": ssh("win.test", shell="windows")}]}}},
+            **replay("win.test", raw="win.out")),
+        "steps": [{"name": "collect", "exec": {"impl": "collector-host", "env": exec_env(), "writes_only_under": ["run", "trace"]},
+                   "expect": protocol_checks("host") + [
+                       {"json": "run/host.findings.json", "subset": {
+                           "coverage": [{"asset": "host:win", "status": "ok"}],
+                           "findings": {"$unordered": [
+                               F("host:win", "ssh.password_auth_enabled", "high"),
+                               F("host:win", "win.fw_profile_private", "high", title="Windows firewall profile private is off"),
+                               F("host:win", "win.fw_profile_public", "high", layer="network"),
+                               F("host:win", "win.av_realtime_off", "high"),
+                               F("host:win", "win.av_signatures_stale", "medium", title="AV signatures 12 days old"),
+                               F("host:win", "win.disk_unencrypted", "medium", needs_human=True),
+                               F("host:win", "win.smb1_enabled", "high"),
+                               F("host:win", "patch.windows_stale", "medium", title="last Windows update installed 2020-01-14"),
+                               F("host:win", "listen.db_wildcard.3306", "medium")]}}},
+                       {"json": "run/raw/host/win.json", "subset": {"kv": {"os.name": "Microsoft Windows 11 Pro \ufffddition 10.0.26100",
+                                                                          "smb.v1": "True"}}},
+                       {"file": "trace/win.test.argv", "regex": [r"^powershell -NoProfile -NonInteractive -EncodedCommand [A-Za-z0-9+/]+=*\n\Z"]},
+                       {"file": "trace/win.test.stdin", "regex": [r"\A\$SpProbeTimeout = 20\n\$SpProbeSlowTimeout = 90\n",
+                                                                  r"\n'probe\.end=1'\n\Z"]}]}]},
+        dict(files, **{"win.out": win}))
+
+    bad = win.replace(b"pkg.last_hotfix=2020-01-14", b"pkg.last_hotfix=last Tuesday")
+    write_case("collector-host", "one-host-never-fails-the-run", {
+        "title": "A host the collector cannot fully evaluate never fails the run (collector-protocol §5): a probe value "
+                 "that is not a date is a narrow gap for the checks reading it, a missing exec program (no powershell "
+                 "on a local Windows profile) is a host gap; every other host and check still reports",
+        "contract": C, "deviation": "COLLECTOR-D2",
+        "origin": "collectors/host/collector.py: time.strptime ValueError and FileNotFoundError end the whole run (exit 1)",
+        "files": dict(fakes("ssh"), **{"instance.json": {"json": {"name": "conformance", "hosts": [
+            {"name": "win", "profile": "windows", "exec": ssh("win.test", shell="windows")},
+            {"name": "tab", "profile": "termux", "exec": ssh("tab.test")},
+            {"name": "nops", "profile": "windows", "exec": {"type": "local"}},
+            {"name": "fine", "profile": "busybox", "exec": ssh("fine.test")}]}}},
+            **replay("win.test", raw="win.out"),
+            **replay("tab.test", lines("os.security_patch=2026-13-45", "proc.secret_in_argv_suspects=1", "probe.end=1")),
+            **replay("fine.test", router)),
+        "steps": [{"name": "collect", "exec": {"impl": "collector-host", "env": exec_env(), "writes_only_under": ["run", "trace"]},
+                   "expect": protocol_checks("host") + [
+                       {"json": "run/host.findings.json", "subset": {
+                           "coverage": [{"asset": "host:win", "status": "ok"},
+                                        {"asset": "host:win/windows-updates", "status": "gap", "checks": ["patch.windows_stale"],
+                                         "reason": {"$regex": "could not check.*pkg.last_hotfix"}},
+                                        {"asset": "host:tab", "status": "ok"},
+                                        {"asset": "host:tab/android-patch", "status": "gap",
+                                         "checks": ["patch.android_security_patch_old"]},
+                                        {"asset": "host:nops", "status": "gap", "reason": {"$regex": "^exec failed"}},
+                                        {"asset": "host:fine", "status": "ok"}],
+                           "findings": {"$contains": [F("host:win", "win.smb1_enabled", "high"),
+                                                      F("host:tab", "secret.in_process_argv", "medium"),
+                                                      F("host:fine", "telnet.daemon_running", "high")]}}},
+                       {"json": "run/host.findings.json", "subset": {"findings": {"$not_contains": [
+                           {"check": "patch.windows_stale"}, {"check": "patch.android_security_patch_old"}]}}}]}]},
+        dict(files, **{"win.out": bad}))
+
+
+def sbom_cases():
+    C = "collector-protocol/1.0 / inventory/v1"
+    files = {"fake_exec.sh": FAKE_EXEC}
+    deb = lines("os.family=debian", "os.version=13", "os.codename=trixie", "os.name=Debian GNU/Linux 13 (trixie)",
+                "kernel.running=6.12.0-1-amd64", "arch=x86_64",
+                "pkg\tdeb\topenssl\t3.5.1-1\topenssl\t3.5.1-1\tamd64",
+                "pkg\tdeb\tlibssl3t64\t3.5.1-1\topenssl\t3.5.1-1\tamd64",
+                "pkg\tdeb\tbash\t5.2.37-2\t\t\tamd64",
+                "pkg\tdeb\t\t1.0\t\t\t", "pkg\tdeb\tshort", "# comment=ignored", " indented=ignored")
+    mac = lines("os.family=macos", "os.version=26.1", "os.build=25B78", "os.name=macOS 26.1", "os.rsr=",
+                "kernel.running=25.1.0", "arch=arm64", "brew.prefix=/opt/homebrew",
+                "pkg\tbrew\tgit\t2.51.0\tgit\t2.51.0\t", "pkg\tbrew-cask\tfirefox\t145.0\tfirefox\t145.0\t")
+    rtr = lines("os.family=openwrt", "os.version=24.10.0", "os.name=OpenWrt 24.10.0", "arch=aarch64_cortex-a53",
+                "kernel.running=6.6.73", "firmware.vendor=gl-inet", "firmware.version=4.8.1", "firmware.model=GL-EXAMPLE",
+                "firmware.build_ts=1700000000", "pkg\topkg\tdropbear\t2024.86-r1\tdropbear\t2024.86-r1\t")
+    phone = lines("os.family=android", "os.version=14", "os.name=Android 14", "platform.patch_level=2025-10-01",
+                  "platform.vendor_patch_level=2025-09-01", "device.manufacturer=Acme", "device.model=P1",
+                  "os.build=AP1A.2510", "kernel.running=5.15.0", "arch=aarch64")
+    win = ("os.family=windows\r\nos.name=Microsoft Windows 11 Pro\r\nos.product=Windows 10 Pro\r\nos.edition=Professional\r\n"
+           "os.version=24H2\r\nos.build=10.0.26100.4652\r\narch=AMD64\r\n"
+           "pkg\twindows-kb\tKB5062553\t2025-07-08\tSecurity Update\t\t\r\n"
+           "pkg\twindows-program\t\u00c9diteur Example\t1.2.3\tExample Corp\t\t\r\n").encode()
+    inst = {"name": "conformance", "scope": [{"names": ["elsewhere"], "scope": ["host"]}], "hosts": [
+        {"name": "deb", "profile": "linux", "exec": ssh("deb.test"), "sbom_paths": ["/opt"]},
+        {"name": "mac", "profile": "macos", "exec": ssh("mac.test"), "prod": False},
+        {"name": "rtr", "profile": "busybox", "exec": ssh("rtr.test"), "exposed": True},
+        {"name": "phone", "profile": "termux", "exec": ssh("phone.test")},
+        {"name": "win", "profile": "windows", "exec": ssh("win.test", shell="windows")},
+        {"name": "broken", "profile": "linux", "exec": ssh("broken.test")},
+        {"name": "skipped", "profile": "linux", "exec": ssh("skipped.test"), "sbom": False},
+        {"name": "dormant", "profile": "linux", "exec": None},
+        {"name": "elsewhere", "profile": "linux", "exec": ssh("elsewhere.test")}]}
+    pk = lambda host, eco, name, ver, src=None, srcver=None, arch="": {  # noqa: E731
+        "host": host, "ecosystem": eco, "name": name, "version": ver, "source_name": src or name,
+        "source_version": srcver or ver, "arch": arch}
+    write_case("collector-host-sbom", "inventory-over-ssh", {
+        "title": "Platform facts and package lines of linux, macOS, OpenWrt, Android and Windows hosts become the "
+                 "inventory/v1 documents (host-packages, host-platforms) and per-ecosystem metrics; incomplete package "
+                 "lines are skipped, a missing source defaults to the package, firmware build time becomes a UTC date; "
+                 "no os.family is a gap, no package an info finding, sbom: false skips, sbom_paths needs a local exec "
+                 "adapter (narrow fs-sbom gap)",
+        "contract": C, "origin": "collectors/host-sbom/collector.py; docs/design.md (inventory/v1)",
+        "files": dict(fakes("ssh"), **{"instance.json": {"json": inst}}, **replay("deb.test", deb), **replay("mac.test", mac),
+                      **replay("rtr.test", rtr), **replay("phone.test", phone), **replay("win.test", raw="win.out"),
+                      **replay("broken.test", "no facts here\n", err="dpkg-query: permission denied\n")),
+        "steps": [{"name": "collect", "exec": {"impl": "collector-host-sbom", "env": exec_env(), "writes_only_under": ["run", "trace"]},
+                   "expect": protocol_checks("host-sbom") + [
+                       {"json": "run/host-sbom.findings.json", "subset": {
+                           "coverage": [{"asset": "host:deb", "status": "ok"},
+                                        {"asset": "host:deb/fs-sbom", "status": "gap", "reason": {"$regex": "local exec adapter"}},
+                                        {"asset": "host:mac", "status": "ok"}, {"asset": "host:rtr", "status": "ok"},
+                                        {"asset": "host:phone", "status": "ok"}, {"asset": "host:win", "status": "ok"},
+                                        {"asset": "host:broken", "status": "gap",
+                                         "reason": "inventory failed rc=0: dpkg-query: permission denied"},
+                                        {"asset": "host:dormant", "status": "gap", "reason": "no exec adapter configured"}],
+                           "findings": [{"check": "sbom.no_packages", "asset": "host:phone", "severity": "info",
+                                         "evidence": "raw/host-sbom/phone.json"}]}},
+                       {"json": "run/inventory.host-packages.json", "subset": {
+                           "schema": "security-platform/inventory/v1", "kind": "host-package",
+                           "generated_at": {"$regex": r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$"}, "items": [
+                               pk("deb", "deb", "openssl", "3.5.1-1", arch="amd64"),
+                               pk("deb", "deb", "libssl3t64", "3.5.1-1", "openssl", arch="amd64"),
+                               pk("deb", "deb", "bash", "5.2.37-2", arch="amd64"),
+                               pk("mac", "brew", "git", "2.51.0"), pk("mac", "brew-cask", "firefox", "145.0"),
+                               pk("rtr", "opkg", "dropbear", "2024.86-r1"),
+                               pk("win", "windows-kb", "KB5062553", "2025-07-08", "Security Update"),
+                               pk("win", "windows-program", "\u00c9diteur Example", "1.2.3", "Example Corp")]}},
+                       {"json": "run/inventory.host-platforms.json", "subset": {"kind": "host-platform", "items": [
+                           {"host": "deb", "profile": "linux", "os_family": "debian", "os_codename": "trixie", "package_count": 3,
+                            "fs_sbom": None, "firmware": None, "exposed": False, "prod": True, "device": ""},
+                           {"host": "mac", "os_build": "25B78", "prod": False, "package_count": 2},
+                           {"host": "rtr", "exposed": True, "firmware": {"vendor": "gl-inet", "model": "GL-EXAMPLE",
+                                                                          "version": "4.8.1", "build_date": "2023-11-14"}},
+                           {"host": "phone", "device": "Acme P1", "patch_level": "2025-10-01", "package_count": 0},
+                           {"host": "win", "os_build": "10.0.26100.4652", "os_edition": "Professional", "package_count": 2}]}},
+                       {"prom": "run/host-sbom.prom", "has": [
+                           {"name": "security_sbom_host_packages", "labels": {"kind": "deb"}, "value": 3},
+                           {"name": "security_sbom_host_packages", "labels": {"kind": "windows-program"}, "value": 1},
+                           {"name": "security_sbom_hosts", "value": 5}]},
+                       {"file": "trace/deb.test.argv", "regex": [argv_regex(*SSH_BASE, "deb.test", "sh -s")]},
+                       {"file": "trace/deb.test.stdin", "regex": [r"\A# host-sbom profile: Linux"]},
+                       {"absent": "trace/skipped.test.argv"}, {"absent": "trace/elsewhere.test.argv"}]}]},
+        dict(files, **{"win.out": win}))
+
+    write_case("collector-host-sbom", "missing-tool-is-a-gap", {
+        "title": "A program the collector needs that is not installed never fails the run (collector-protocol §5): "
+                 "no trivy for sbom_paths is a narrow fs-sbom gap next to the package inventory, no powershell for a "
+                 "local Windows profile is a host gap",
+        "contract": C, "deviation": "COLLECTOR-D3",
+        "origin": "collectors/host-sbom/collector.py: FileNotFoundError from subprocess ends the whole run (exit 1)",
+        "files": dict(fakes("sh"), **{"instance.json": {"json": {"name": "conformance", "hosts": [
+            {"name": "l", "profile": "linux", "exec": {"type": "local"}, "sbom_paths": ["{sandbox}/apps"]},
+            {"name": "w", "profile": "windows", "exec": {"type": "local"}}]}}, "apps/.keep": {"text": ""}},
+            **replay("local-sh", deb)),
+        "steps": [{"name": "collect", "exec": {"impl": "collector-host-sbom", "env": exec_env(), "writes_only_under": ["run", "trace"]},
+                   "expect": protocol_checks("host-sbom") + [
+                       {"json": "run/host-sbom.findings.json", "subset": {"coverage": [
+                           {"asset": "host:l", "status": "ok"},
+                           {"asset": "host:l/fs-sbom", "status": "gap", "reason": {"$regex": "trivy"}},
+                           {"asset": "host:w", "status": "gap", "reason": {"$regex": "^inventory failed"}}]}},
+                       {"json": "run/inventory.host-platforms.json", "subset": {"items": [{"host": "l", "fs_sbom": None,
+                                                                                         "package_count": 3}]}}]}]}, files)
+
+
+    write_case("collector-host-sbom", "evidence-follows-collector-name", {
+        "title": "Under SP_COLLECTOR_NAME the evidence is stored as raw/<that name>/... and every finding points there",
+        "contract": C, "deviation": "COLLECTOR-D6",
+        "origin": "collectors/host-sbom/collector.py: sbom.no_packages points to raw/host-sbom/<host>.json whatever the name",
+        "files": dict(fakes("ssh"), **{"instance.json": {"json": {"name": "conformance", "hosts": [
+            {"name": "phone", "profile": "termux", "exec": ssh("phone.test")}]}}}, **replay("phone.test", phone)),
+        "steps": [{"name": "collect", "exec": {"impl": "collector-host-sbom", "env": exec_env({"SP_COLLECTOR_NAME": "sbom-b"}),
+                                               "writes_only_under": ["run", "trace"]},
+                   "expect": protocol_checks("sbom-b") + [
+                       {"exists": "run/raw/sbom-b/phone.json"},
+                       {"json": "run/sbom-b.findings.json", "subset": {"findings": [
+                           {"check": "sbom.no_packages", "asset": "host:phone", "evidence": "raw/sbom-b/phone.json"}]}}]}]},
+        files)
+
+
+def secrets_cases():
+    C = "collector-protocol/1.0 / findings/1.2"
+    files = {"fake_exec.sh": FAKE_EXEC}
+    can = [f"conformance-canary-value-{i:02d}" for i in range(12)]
+    home = {
+        # the scan only reads the header: no closing line (secret scanners must not take a fixture for a key)
+        "home/.ssh/id_conformance": ("-----BEGIN RSA PRIVATE " + "KEY-----\nProc-Type: 4,ENCRYPTED\n" + can[0] + "\n", "0644"),
+        "home/work/.env": ("API_TOKEN=" + can[2] + "\nexport X=1\n", "0640"),
+        "home/work/.env.example": ("API_TOKEN=\n", "0644"),
+        "home/work/node_modules/pkg/.env": ("T=" + can[3] + "\n", "0644"),
+        "home/skip/.env": ("T=" + can[3] + "\n", "0644"),
+        "home/infra/terraform.tfstate": ('{"resources": [{"password": "' + can[4] + '"}]}\n', "0600"),
+        "home/infra/.terraform/terraform.tfstate": ('{"backend": "' + can[4] + '"}\n', "0600"),
+        "home/.docker/config.json": ('{"auths": {"registry.example": {"auth": "' + can[5] + '"}}}\n', "0600"),
+        "home/.config/gh/hosts.yml": ("github.com:\n    oauth_token: " + can[6] + "\n", "0600"),
+        "home/.config/rclone/rclone.conf": ("[remote]\ntype = s3\nsecret_access_key = " + can[7] + "\n", "0600"),
+        "home/.kube/config": ("apiVersion: v1\nclusters:\n- cluster: {server: https://k.example}\nusers:\n- user:\n"
+                              "    client-key-data: " + can[8] + "\n", "0644"),
+        "home/notes/MEMORY.md": ("the db password: " + can[9] + "\nstored in the vault, value not written here\n", "0600"),
+        "home/.netrc": ("machine example login u password " + can[10] + "\n", "0600"),
+        "home/.secrets/db": (can[11] + "\n", "0600"),
+    }
+    fx = {k: {"text": t, "mode": m} for k, (t, m) in home.items()}
+    write_case("collector-secrets-files", "metadata-only-local-scan", {
+        "title": "Where secrets live, never what they are: a local scan of a fixture home records kind, mode, size and "
+                 "properties of private keys, dotenv, Terraform state, docker/gh/rclone/kube configs, netrc, secret files "
+                 "and credential-like notes (excluded directories and example files skipped), raises the documented "
+                 "findings and metrics, and no byte of any file's content reaches the run directory or the output",
+        "contract": C, "origin": "collectors/secrets-files/collector.py + remote/scan.py; docs/threat-model.md (values never stored)",
+        "files": dict({"instance.json": {"json": {"name": "conformance", "secrets_files": [
+            {"host": "lab", "exec": {"type": "local"}, "roots": ["~"], "exclude": ["~/skip"], "python": "{python}"}]}}}, **fx),
+        "steps": [{"name": "collect", "exec": {"impl": "collector-secrets-files", "env": exec_env(), "writes_only_under": ["run"]},
+                   "expect": protocol_checks("secrets-files", canaries=can) + [
+                       {"json": "run/secrets-files.findings.json", "subset": {
+                           "coverage": [{"asset": "host:lab", "status": "ok"}],
+                           "findings": {"$unordered": [
+                               F("secret-file:lab:~/.ssh/id_conformance", "secret.permissions_too_open", "high",
+                                 title="private-key readable by group/others (mode 0o644)",
+                                 evidence="raw/secrets-files/lab.json#~/.ssh/id_conformance"),
+                               F("secret-file:lab:~/work/.env", "secret.permissions_too_open", "medium"),
+                               F("secret-file:lab:~/infra/terraform.tfstate", "secret.tf_state_plaintext", "medium"),
+                               F("secret-file:lab:~/.docker/config.json", "secret.docker_inline_auth", "medium"),
+                               F("secret-file:lab:~/.config/gh/hosts.yml", "secret.gh_token_in_file", "medium"),
+                               F("secret-file:lab:~/.config/rclone/rclone.conf", "secret.rclone_config_plaintext", "medium"),
+                               F("secret-file:lab:~/.kube/config", "secret.permissions_too_open", "high"),
+                               F("secret-file:lab:~/.kube/config", "secret.kubeconfig_embedded_client_key", "medium"),
+                               F("secret-file:lab:~/notes/MEMORY.md", "secret.credential_in_notes", "high", layer="ai-agents",
+                                 title={"$regex": "^1 line"})]}}},
+                       {"json": "run/raw/secrets-files/lab.json", "subset": {"$contains": [
+                           {"path": "~/work/.env", "kind": "dotenv", "mode": "0o640", "vars": 1},
+                           {"path": "~/.ssh/id_conformance", "kind": "private-key", "passphrase": True, "format": "pem"},
+                           {"path": "~/.secrets/db", "kind": "secret-file", "mode": "0o600"}]}},
+                       {"json": "run/raw/secrets-files/lab.json", "subset": {"$not_contains": [
+                           {"path": "~/skip/.env"}, {"path": "~/work/.env.example"}, {"path": "~/work/node_modules/pkg/.env"},
+                           {"path": "~/infra/.terraform/terraform.tfstate"}]}},
+                       {"prom": "run/secrets-files.prom", "has": [
+                           {"name": "security_secrets_total", "labels": {"store": "files:lab"}, "value": 9},
+                           {"name": "security_secrets_older_than_90d", "labels": {"store": "files:lab"}, "value": 0}]}]}]})
+
+    write_case("collector-secrets-files", "sudo-refused-falls-back", {
+        "title": "sudo: true runs the scan through `sudo -n` (never a prompt); when sudo refuses, the scan runs again "
+                 "unprivileged and the privileged paths become a gap (host:<name>/privileged-paths); the scan settings go "
+                 "to the target as one JSON argument and the scan program on stdin",
+        "contract": C, "origin": "collectors/secrets-files/collector.py (sudo fallback)",
+        "files": dict(fakes("sudo"), **{"instance.json": {"json": {"name": "conformance", "secrets_files": [
+            {"host": "lab", "exec": {"type": "local"}, "roots": ["~/work"], "sudo": True, "maxdepth": 3,
+             "python": "{python}"}]}},
+            "home/work/.env": {"text": "A=" + can[2] + "\n", "mode": "0600"}},
+            **replay("local-sudo", err="sudo: a password is required\n", rc=1)),
+        "steps": [{"name": "collect", "exec": {"impl": "collector-secrets-files", "env": exec_env(),
+                                               "writes_only_under": ["run", "trace"]},
+                   "expect": protocol_checks("secrets-files", canaries=can[2:3]) + [
+                       {"json": "run/secrets-files.findings.json", "subset": {"coverage": [
+                           {"asset": "host:lab/privileged-paths", "status": "gap", "reason": "sudo -n not available; privileged paths skipped"},
+                           {"asset": "host:lab", "status": "ok"}], "findings": []}},
+                       {"file": "trace/local-sudo.argv", "regex": [
+                           r"\A-n\n", r"^-c\nimport sys;exec\(sys\.stdin\.buffer\.read\(\)\.decode\('utf-8'\)\)\n"
+                                      r'\{"roots": \["~/work"\], "exclude": \[\], "maxdepth": 3\}\n\Z']},
+                       {"file": "trace/local-sudo.stdin", "regex": [r"\A\"\"\"Runs on the target host", r"^print\(json\.dumps"]}]}]},
+        files)
+
+    def item(path, kind, mode="0o600", age_days=1, **kw):
+        return dict({"path": path, "kind": kind, "mode": mode, "uid": 1000, "size": 100,
+                     "mtime": "{epoch:-%d}" % (age_days * 86400)}, **kw)
+
+    def scan_json(home_dir, items):  # mtime templates become numbers once the harness renders the fixture
+        return "warning: one line of noise before the result\n" + json.dumps({"home": home_dir, "items": items}).replace(
+            '"{epoch:', "{epoch:").replace('}"', "}") + "\n"
+
+    srv = [item("/home/u/.ssh/id_ed25519", "private-key", age_days=100, format="openssh", passphrase=False, type="ssh-ed25519"),
+           item("/etc/ssh/ssh_host_ed25519_key", "private-key", age_days=400, uid=0, format="openssh", passphrase=False,
+                type="ssh-ed25519"),
+           item("/home/u/.kube/config", "kubeconfig", "0o644", embedded_client_key=False, token_auth=False),
+           item("/home/u/.kube/admin.yaml", "kubeconfig", "0o644", embedded_client_key=False, token_auth=True),
+           item("/home/u/.config/rclone/rclone.conf", "rclone-config", encrypted=True),
+           item("/home/u/backup/.env.prod", "dotenv", "0o604", age_days=200, vars=3),
+           item("/home/u/age/keys.txt", "age-key", "0o640"),
+           item("/home/u/x.pem", "private-key", "0o640", format="pem", passphrase=True),
+           item("/home/u/infra/prod.tfstate", "tf-state", "0o644", encrypted=True)]
+    winitems = [item("C:\\Users\\u\\.ssh\\id_rsa", "private-key", "unknown", format="openssh", passphrase=True),
+                item("C:\\Users\\u\\.aws\\deploy.token", "secret-file", "0o644", acl=["S-1-5-32-545"])]
+    loader = "import sys;exec(sys.stdin.buffer.read().decode('utf-8'))"
+    write_case("collector-secrets-files", "replay-over-ssh", {
+        "title": "Scan results from remote POSIX and Windows targets (the last output line is the result): ~ for the "
+                 "home, / separators, ages from mtime, severities from mode bits and properties (encrypted lowers, "
+                 "world-readable raises), host keys exempt from the passphrase finding, unreadable permissions a "
+                 "narrow gap, an unreachable target or one without exec adapter a host gap; argv quoted for the "
+                 "remote POSIX shell or cmd.exe",
+        "contract": C, "origin": "collectors/secrets-files/collector.py; adapters/exec.py SSH quoting",
+        "files": dict(fakes("ssh"), **{"instance.json": {"json": {"name": "conformance",
+                                                                    "scope": [{"names": ["elsewhere"], "scope": ["host"]}],
+                                                                    "secrets_files": [
+            {"host": "srv", "exec": ssh("srv.test"), "roots": ["~", "/etc/ssh"], "exclude": ["~/old"], "sudo": True},
+            {"host": "win", "exec": ssh("win.test", shell="windows"), "roots": ["~"], "python": "C:\\Python312\\python.exe"},
+            {"host": "down", "exec": ssh("down.test"), "roots": ["~"]},
+            {"host": "nox", "exec": None, "roots": ["~"]},
+            {"host": "elsewhere", "exec": ssh("elsewhere.test"), "roots": ["~"]}]}}},
+            **replay("srv.test.sudo", scan_json("/home/u", srv)), **replay("win.test", scan_json("C:\\Users\\u", winitems)),
+            **replay("down.test", err="ssh: connect to host down.test port 22: Connection refused\n", rc=255)),
+        "steps": [{"name": "collect", "exec": {"impl": "collector-secrets-files", "env": exec_env(),
+                                               "writes_only_under": ["run", "trace"]},
+                   "expect": protocol_checks("secrets-files") + [
+                       {"json": "run/secrets-files.findings.json", "subset": {
+                           "coverage": [{"asset": "host:srv", "status": "ok"},
+                                        {"asset": "host:win", "status": "ok"},
+                                        {"asset": "secret-file:win:~/.ssh/id_rsa/permissions", "status": "gap",
+                                         "reason": "file permissions could not be read"},
+                                        {"asset": "host:down", "status": "gap",
+                                         "reason": "scan failed rc=255: ssh: connect to host down.test port 22: Connection refused"},
+                                        {"asset": "host:nox", "status": "gap", "reason": "no exec adapter"}],
+                           "findings": {"$unordered": [
+                               F("secret-file:srv:~/.ssh/id_ed25519", "secret.ssh_key_no_passphrase", "medium",
+                                 title="private key without passphrase (ssh-ed25519, 100d old)", needs_human=True),
+                               F("secret-file:srv:~/.ssh/id_ed25519", "secret.age_over_90d", "low",
+                                 title="private-key unchanged for 100 days (rotation unknown)"),
+                               F("secret-file:srv:/etc/ssh/ssh_host_ed25519_key", "secret.age_over_90d", "medium"),
+                               F("secret-file:srv:~/.kube/admin.yaml", "secret.permissions_too_open", "high"),
+                               F("secret-file:srv:~/backup/.env.prod", "secret.permissions_too_open", "high"),
+                               F("secret-file:srv:~/backup/.env.prod", "secret.age_over_90d", "low"),
+                               F("secret-file:srv:~/age/keys.txt", "secret.permissions_too_open", "medium"),
+                               F("secret-file:srv:~/x.pem", "secret.permissions_too_open", "medium"),
+                               F("secret-file:srv:~/infra/prod.tfstate", "secret.permissions_too_open", "low",
+                                 title="tf-state (encrypted) readable by group/others (mode 0o644)"),
+                               F("secret-file:win:~/.aws/deploy.token", "secret.permissions_too_open", "high",
+                                 evidence="raw/secrets-files/win.json#~/.aws/deploy.token")]}}},
+                       {"prom": "run/secrets-files.prom", "has": [
+                           {"name": "security_secrets_total", "labels": {"store": "files:srv"}, "value": 9},
+                           {"name": "security_secrets_older_than_90d", "labels": {"store": "files:srv"}, "value": 3},
+                           {"name": "security_secrets_total", "labels": {"store": "files:win"}, "value": 2}],
+                        "absent": [{"name": "security_secrets_total", "labels": {"store": "files:down"}}]},
+                       {"file": "trace/srv.test.sudo.argv", "regex": [argv_regex(*SSH_BASE, "srv.test",
+                           "sudo -n python3 -c '" + loader.replace("'", "'\"'\"'") + "' "
+                           "'{\"roots\": [\"~\", \"/etc/ssh\"], \"exclude\": [\"~/old\"], \"maxdepth\": 5}'")]},
+                       {"file": "trace/win.test.argv", "regex": [argv_regex(*SSH_BASE, "win.test",
+                           'C:\\Python312\\python.exe -c "' + loader + '" '
+                           '"{\\"roots\\": [\\"~\\"], \\"exclude\\": [], \\"maxdepth\\": 5}"')]},
+                       {"absent": "trace/elsewhere.test.argv"}]}]}, files)
+
+    good = [item("/home/u/.ssh/id_rsa", "private-key", "0o644", format="pem", passphrase=True)]
+    write_case("collector-secrets-files", "unreadable-scan-output-is-a-gap", {
+        "title": "A target whose scan cannot be read never fails the run (collector-protocol §5): output that is not "
+                 "the scan result, no output at all, or an interpreter that does not exist is a gap for that host; the "
+                 "other hosts report",
+        "contract": C, "deviation": "COLLECTOR-D4",
+        "origin": "collectors/secrets-files/collector.py: json.loads / IndexError / FileNotFoundError end the whole run (exit 1)",
+        "files": dict(fakes("ssh"), **{"instance.json": {"json": {"name": "conformance", "secrets_files": [
+            {"host": "bad", "exec": ssh("bad.test"), "roots": ["~"]},
+            {"host": "empty", "exec": ssh("empty.test"), "roots": ["~"]},
+            {"host": "nopy", "exec": {"type": "local"}, "roots": ["~"], "python": "{sandbox}/missing/python3"},
+            {"host": "good", "exec": ssh("good.test"), "roots": ["~"]}]}}},
+            **replay("bad.test", "Traceback (most recent call last):\nSyntaxError: invalid syntax\n"),
+            **replay("good.test", scan_json("/home/u", good))),
+        "steps": [{"name": "collect", "exec": {"impl": "collector-secrets-files", "env": exec_env(),
+                                               "writes_only_under": ["run", "trace"]},
+                   "expect": protocol_checks("secrets-files") + [
+                       {"json": "run/secrets-files.findings.json", "subset": {
+                           "coverage": [{"asset": "host:bad", "status": "gap", "reason": {"$regex": "^scan output unreadable"}},
+                                        {"asset": "host:empty", "status": "gap", "reason": {"$regex": "^scan output unreadable"}},
+                                        {"asset": "host:nopy", "status": "gap", "reason": {"$regex": "^scan failed"}},
+                                        {"asset": "host:good", "status": "ok"}],
+                           "findings": [F("secret-file:good:~/.ssh/id_rsa", "secret.permissions_too_open", "high")]}}]}]},
+        files)
+
+    pfx = [item("/home/u/.ssh/id_rsa", "private-key", "0o644", format="pem", passphrase=True),
+           item("/backup/home/u/.ssh/id_rsa", "private-key", "0o644", format="pem", passphrase=True),
+           item("/home/u2/.env", "dotenv", "0o644", vars=1)]
+    write_case("collector-secrets-files", "home-replaced-only-as-prefix", {
+        "title": "The target's home directory becomes ~ only where a path starts with it (whole path components): a "
+                 "copy of the home elsewhere or a home whose name merely starts the same keeps its full path",
+        "contract": C, "deviation": "COLLECTOR-D5",
+        "origin": "collectors/secrets-files/collector.py: str.replace(home, '~', 1) replaces the first occurrence anywhere",
+        "files": dict(fakes("ssh"), **{"instance.json": {"json": {"name": "conformance", "secrets_files": [
+            {"host": "h", "exec": ssh("h.test"), "roots": ["/"]}]}}}, **replay("h.test", scan_json("/home/u", pfx))),
+        "steps": [{"name": "collect", "exec": {"impl": "collector-secrets-files", "env": exec_env(),
+                                               "writes_only_under": ["run", "trace"]},
+                   "expect": protocol_checks("secrets-files") + [
+                       {"json": "run/secrets-files.findings.json", "subset": {"findings": {"$unordered": [
+                           F("secret-file:h:~/.ssh/id_rsa", "secret.permissions_too_open", "high"),
+                           F("secret-file:h:/backup/home/u/.ssh/id_rsa", "secret.permissions_too_open", "high"),
+                           F("secret-file:h:/home/u2/.env", "secret.permissions_too_open", "high")]}}}]}]}, files)
+
 COLLECTOR_CASE_MODULES = ("collector_k8s", "collector_vuln_intel", "collector_identity")
 
 
@@ -2210,6 +2805,9 @@ def main(argv=None):
     runner_cases()
     cli_cases()
     collector_cases()
+    host_cases()
+    sbom_cases()
+    secrets_cases()
     import types
     helpers = types.SimpleNamespace(write_case=write_case, collector_env=collector_env, protocol_checks=protocol_checks)
     for module in COLLECTOR_CASE_MODULES:          # one module per collector: conformance/tools/collector_<name>.py

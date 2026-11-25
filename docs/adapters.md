@@ -9,7 +9,7 @@ page is the recipe. The interfaces themselves are listed in `adapters/README.md`
 | you want to... | write | size | example |
 |---|---|---|---|
 | find assets somewhere new (cloud API, CMDB, inventory file) | a **discovery** adapter (`adapters/discovery.py`) | 20-40 lines | `static`, `file`, `tailscale`, `gcp` |
-| run read-only commands on machines a new way (SSM, osquery, an agent) | an **exec** adapter (`adapters/exec.py`) | 20-40 lines | `local`, `ssh` |
+| run read-only commands on machines a new way (SSM, osquery, an agent) | an **exec** adapter (`adapters/exec.py`; Go: `internal/collectors/execadapter`) | 20-40 lines | `local`, `ssh` |
 | deliver metrics somewhere new | a **sink** (`adapters/sinks.py`) | 20-60 lines | `textfile`, `kubernetes-configmap`, `remote_write` |
 | send the daily summary somewhere new | a **notifier** (`notifier/notifiers.py`) | 10-20 lines | `telegram`, `webhook`, `exec` |
 | open tickets in another issue tracker | a **ticket backend** (`adapters/tickets.py`: `check`, `list`, `create`, `update`, `comment`) | 60-120 lines | `github` (`jira` planned) |
