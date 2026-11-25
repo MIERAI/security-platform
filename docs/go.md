@@ -50,10 +50,12 @@ internal/ledger/       the ledger merge (`sp ledger merge`, contracts/ledger); V
   yamlcfg/             exceptions.yaml, catalog-review.yaml, instance config, SLI catalog: pyvalue.DecodeYAML
   findings/            findings document validation (embedded copy of schema/findings-v1.schema.json)
   instant/ prom/ fileio/  UTC timestamps, Prometheus text, bounded reads and atomic writes
+internal/runner/       `sp runner` (docs/runner.md): scheduling, locks, jobs, state, metrics; subpackages cron (schedules,
+                       DST), config (the runner block of the instance), promtext (metrics text); files through pyvalue
 internal/remediation/  track (`sp ledger track`): items, owners, SLO due dates, files and github-issues trackers
 internal/cloud/        the cloud adapter (adapters/cloud.py): AWS, GCP, Azure on the official SDKs; discovery gcp
 internal/collectors/cloud/  the cloud collector (`sp cloud collect`) and its engines, imports, controls, merge
-internal/<component>/  added per component as it moves (runner, collectors/<name>, ...)
+internal/<component>/  added per component as it moves (collectors/<name>, ...)
 ```
 
 Everything is under `internal/`: the Go packages are not a public library API, the contracts (`schema/`,

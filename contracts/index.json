@@ -47,7 +47,7 @@
    ]
   },
   "runner": {
-   "version": "1.1",
+   "version": "1.2",
    "spec": "runner/SPEC.md",
    "schemas": [
     "runner/runner-config-v1.schema.json",
@@ -90,8 +90,11 @@
   "LEDGER-D5": "ledger/removed-exception-reopens",
   "RUNNER-D1": "runner/retry-waits-for-retry-delay",
   "RUNNER-D2": "runner/missed-slot-is-visible",
-  "RUNNER-D3": null,
-  "CLI-D1": "cli/status-shows-missed-slot",
+  "RUNNER-D4": "runner/dst-spring-forward-gap-runs-once",
+  "RUNNER-D5": "runner/dst-fall-back-runs-once",
+  "RUNNER-D6": "runner/dst-catch-up-across-spring-forward",
+  "RUNNER-D7": "runner/job-environment-allow-list",
+  "RUNNER-D8": null,
   "COLLECTOR-D1": null,
   "METRICS-D1": null,
   "SCORECARD-D1": "scorecard/attestation-expiry-is-utc",

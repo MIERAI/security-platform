@@ -1,0 +1,113 @@
+{
+ "component": "runner",
+ "title": "DST, fall back (Europe/Berlin): a wall-clock time that occurs twice (02:30 on 2030-10-27) is one slot, its first occurrence; an hourly job does not run again in the repeated hour",
+ "contract": "runner/1.0",
+ "deviation": "RUNNER-D5",
+ "origin": "contract §3.1 (DST); the reference runs both occurrences",
+ "files": {
+  "instance.json": "instance.json"
+ },
+ "steps": [
+  {
+   "name": "02:40 CEST, first occurrence",
+   "exec": {
+    "impl": "runner",
+    "args": [
+     "tick",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1919292000"
+    ],
+    "env": {
+     "TZ": "Europe/Berlin"
+    }
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/state/runner/daily.json",
+     "schema": "runner-state",
+     "subset": {
+      "runs_total": 1,
+      "done_slot": 1919291400
+     }
+    },
+    {
+     "json": "data/state/runner/hourly.json",
+     "schema": "runner-state",
+     "subset": {
+      "runs_total": 1,
+      "done_slot": 1919289600
+     }
+    }
+   ]
+  },
+  {
+   "name": "02:40 CET, the repeated hour: nothing new",
+   "exec": {
+    "impl": "runner",
+    "args": [
+     "tick",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1919295600"
+    ],
+    "env": {
+     "TZ": "Europe/Berlin"
+    }
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/state/runner/daily.json",
+     "schema": "runner-state",
+     "subset": {
+      "runs_total": 1
+     }
+    },
+    {
+     "json": "data/state/runner/hourly.json",
+     "schema": "runner-state",
+     "subset": {
+      "runs_total": 1
+     }
+    }
+   ]
+  },
+  {
+   "name": "03:05 CET: the next hour",
+   "exec": {
+    "impl": "runner",
+    "args": [
+     "tick",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1919297100"
+    ],
+    "env": {
+     "TZ": "Europe/Berlin"
+    }
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/state/runner/hourly.json",
+     "schema": "runner-state",
+     "subset": {
+      "runs_total": 2,
+      "done_slot": 1919296800
+     }
+    }
+   ]
+  }
+ ]
+}

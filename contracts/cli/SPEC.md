@@ -53,10 +53,11 @@ secret. `sp status`, `sp findings`, `sp explain` are local and may show assets.
 
 | id | current behaviour (reference) | target | case |
 |---|---|---|---|
-| CLI-D1 | after downtime, before the catch-up tick, `sp status` shows a job whose scheduled slot passed without a run as `ok … last good run 47m ago` (seen: remediation due 07:50, machine off 07:46–08:06) | the job line says that a scheduled run is late or missed (e.g. `LATE remediation  slot 07:50 not run yet (20m late)`), using the same schedule semantics as the runner ([runner §3](../runner/SPEC.md)); the runner exports the same fact as a metric (RUNNER-D2) | `cli/status-shows-missed-slot` |
+(none)
 
 ## History
 
 | version | change |
 |---|---|
 | 1.0 | first formal version (documents cli 0.3.0) |
+| 1.0 | CLI-D1 fixed in cli 0.3.1: `sp status` marks a job `LATE` when a scheduled slot passed without a run (more than 15 minutes after its jittered start) |

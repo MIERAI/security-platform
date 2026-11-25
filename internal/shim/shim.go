@@ -45,6 +45,7 @@ func goCommands() map[string]command {
 		"cloud":     runCloud,
 		"ledger":    runLedger,
 		"version":   runVersion,
+		"runner":    runRunner,
 		"scorecard": runScorecard,
 	}
 }
