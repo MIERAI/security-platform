@@ -1,0 +1,112 @@
+{
+ "component": "collector-agent-claude-code",
+ "title": "A memory-file finding names the PATTERN CLASS of what it saw (github-token, credential-assignment, private-key, ...) so the owner knows what to rotate, still never the value",
+ "contract": "collector-protocol/1.0",
+ "origin": "collectors/agent-claude-code memory_scan: only a count per file",
+ "deviation": "AGENT-D1",
+ "files": {
+  "home/.claude/projects/proj-a/memory/MEMORY.md": {
+   "text": "# notes\ngithub token for the bot: {canary_github}\npassword: {canary_password}\npassword = same as the admin UI\nthe deploy key lives in the vault, not here\n"
+  },
+  "home/.claude/projects/proj-b/memory/notes.md": {
+   "text": "ssh key backup\n{canary_privkey}\nAAAA\n"
+  },
+  "home/.claude/projects/proj-b/memory/.hidden.md": {
+   "text": "token: {canary_token}\n"
+  },
+  "home/.claude/projects/proj-b/memory/clean.md": {
+   "text": "nothing to see\n"
+  },
+  "home/.claude/projects/proj-a/s1.jsonl": {
+   "text": "{}\n"
+  },
+  "data/.keep": {
+   "text": ""
+  },
+  "instance.json": "instance.json",
+  "home/.claude/settings.json": "settings.json"
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-agent-claude-code",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance"
+    },
+    "writes_only_under": [
+     "run"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "run/agent-claude-code.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "agent-claude-code"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "no_secret": [
+      "{canary_github}",
+      "{canary_password}",
+      "{canary_privkey}",
+      "{canary_token}"
+     ],
+     "in": "run"
+    },
+    {
+     "json": "run/agent-claude-code.findings.json",
+     "subset": {
+      "findings": {
+       "$contains": [
+        {
+         "asset": "agent-memory:claude-code/proj-a/MEMORY.md",
+         "attributes": {
+          "pattern_classes": [
+           "credential-assignment",
+           "github-token"
+          ]
+         }
+        },
+        {
+         "asset": "agent-memory:claude-code/proj-b/notes.md",
+         "attributes": {
+          "pattern_classes": [
+           "private-key"
+          ]
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/raw/agent-claude-code/memory-scan.json",
+     "subset": {
+      "pattern_classes": {
+       "MEMORY.md": [
+        "credential-assignment",
+        "github-token"
+       ],
+       "notes.md": [
+        "private-key"
+       ]
+      }
+     }
+    }
+   ]
+  }
+ ]
+}

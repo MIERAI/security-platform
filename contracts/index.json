@@ -98,6 +98,8 @@
   "COLLECTOR-D1": null,
   "METRICS-D1": null,
   "SCORECARD-D1": "scorecard/attestation-expiry-is-utc",
-  "SCORECARD-D2": null
+  "SCORECARD-D2": null,
+  "AGENT-D1": "collector-agent-claude-code/memory-credentials-pattern-class",
+  "AGENT-D2": "collector-agent-claude-code/malformed-settings-is-a-gap"
  }
 }

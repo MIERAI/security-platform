@@ -4,7 +4,8 @@
 # The interpreter needs PyYAML (YAML configs, as in production). Known deviations of the reference implementation are
 # listed in expected-failures.txt: those cases describe the TARGET behaviour and must pass in a new implementation.
 HERE=$(cd "$(dirname "$0")" && pwd)
-for c in ledger remediation scorecard runner cli collector-cloud collector-agent-claude-code; do
+for c in ledger remediation scorecard runner cli collector-cloud collector-agent-claude-code collector-exposure \
+         collector-codehost-github collector-codehost-gitea collector-detection events; do
   v=SP_IMPL_$(echo "$c" | tr 'a-z-' 'A-Z_')
   eval "[ -n \"\${$v}\" ] || export $v=\"\$HERE/$c\""
 done

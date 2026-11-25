@@ -97,6 +97,8 @@ hitting the job timeout and losing every result.
 | id | what | target |
 |---|---|---|
 | COLLECTOR-D1 | `vuln-intel` and `host-sbom` write SBOMs to `$SP_DATA/sbom/` and caches to `$SP_DATA/cache/{repos,trivy}`; `vuln-intel` keeps `$SP_DATA/state/vendor-advisories.json` and appends to the advisor decision log; `identity` caches under `$SP_DATA/cache/identity/`. | Only `$SP_DATA/cache/<name>/` (rebuildable). SBOMs that other components read become `inventory.*`/run-directory outputs or an explicit, versioned data-directory path in a later minor of this contract. No conformance case (these collectors need external tools/network). |
+| AGENT-D1 | `agent-claude-code` reports a count of credential-shaped lines per memory file, not what kind of credential it saw. | The finding names the **pattern classes** (`attributes.pattern_classes`: `github-token`, `aws-access-key-id`, `slack-token`, `api-secret-key`, `google-api-key`, `private-key`, `credential-assignment`), and so does the `memory-scan.json` evidence (`pattern_classes` per file); still never the value. Case `collector-agent-claude-code/memory-credentials-pattern-class`. |
+| AGENT-D2 | `agent-claude-code` crashes (exit 1, no document) on a settings file that is not a settings document (invalid JSON, not an object, rules that are not text, `cleanupPeriodDays` that is not a number). | That file is a coverage gap (`agent:claude-code:<path>`, reason says why); the run completes and every other file is evaluated (§5). Case `collector-agent-claude-code/malformed-settings-is-a-gap`. |
 
 ## History
 

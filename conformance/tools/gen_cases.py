@@ -1725,6 +1725,8 @@ def main(argv=None):
     runner_cases()
     cli_cases()
     collector_cases()
+    import cases_net     # exposure, codehost-*, agent-claude-code, detection, events (conformance/tools/cases_net.py)
+    cases_net.cases(write_case)
     print(f"{len(OWNED)} cases written")
 
 

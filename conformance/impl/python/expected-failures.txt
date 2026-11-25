@@ -13,3 +13,5 @@ runner/dst-catch-up-across-spring-forward RUNNER-D6 day jump assumes 24-hour day
 runner/job-environment-allow-list        RUNNER-D7  jobs inherit the runner's whole environment
 ledger/removed-exception-reopens         LEDGER-D5  an exception deleted by a human leaves the finding accepted
 scorecard/attestation-expiry-is-utc       SCORECARD-D1  dates parsed as local time: an expiry is an hour early under DST
+collector-agent-claude-code/memory-credentials-pattern-class  AGENT-D1  a count per memory file, no pattern class
+collector-agent-claude-code/malformed-settings-is-a-gap       AGENT-D2  a malformed settings file crashes the run (exit 1)
