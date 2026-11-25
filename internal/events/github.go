@@ -50,7 +50,7 @@ func (s *source) github(ctx context.Context) ([]*event, *pyvalue.Map, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	cache := rundoc.Map(s.state.Value("http_cache")).Copy()
+	cache := rundoc.MapOr(s.state.Value("http_cache")).Copy()
 	g := &ghRun{s: s, snap: pyvalue.NewMap(), unsup: pyvalue.NewMap(), api: &apiClient{
 		base: strings.TrimRight(pyvalue.Str(s.getOr("api", "https://api.github.com")), "/"), token: token,
 		agent: "security-platform-events/" + Version, cache: cache, http: s.d.client()}}
@@ -59,7 +59,7 @@ func (s *source) github(ctx context.Context) ([]*event, *pyvalue.Map, error) {
 	}
 	var evs []*event
 	if prev, ok := s.state.Get("snapshot"); ok && prev != nil {
-		if evs, err = g.diff(rundoc.Map(prev)); err != nil {
+		if evs, err = g.diff(rundoc.MapOr(prev)); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -128,7 +128,7 @@ func (g *ghRun) keys(ctx context.Context, kind, path string) error {
 		if err != nil {
 			return err
 		}
-		km := rundoc.Map(k)
+		km := rundoc.MapOr(k)
 		rec := pyvalue.NewMap()
 		rec.Set("id", id)
 		rec.Set("title", or(km.Value("title"), km.Value("name"), km.GetOr("key_id", "")))
@@ -163,7 +163,7 @@ func (g *ghRun) repos(ctx context.Context) ([]any, error) {
 		if err != nil {
 			return nil, err
 		}
-		rm := rundoc.Map(r)
+		rm := rundoc.MapOr(r)
 		vis := rm.Value("visibility")
 		if !pyvalue.Truthy(vis) {
 			vis = "public"
@@ -192,7 +192,7 @@ func (g *ghRun) owned(repos []any) ([]*pyvalue.Map, error) {
 		if err != nil {
 			return nil, err
 		}
-		rm := rundoc.Map(r)
+		rm := rundoc.MapOr(r)
 		if pyvalue.Equal(login, g.login) && !pyvalue.Truthy(rm.Value("archived")) {
 			out = append(out, rm)
 		}
@@ -254,7 +254,7 @@ func (g *ghRun) repoItems(ctx context.Context, r *pyvalue.Map, kind [2]string, i
 		if err != nil {
 			return err
 		}
-		km := rundoc.Map(k)
+		km := rundoc.MapOr(k)
 		rec := pyvalue.NewMap()
 		rec.Set("id", id)
 		rec.Set("repo", r.Value("full_name"))
@@ -265,7 +265,7 @@ func (g *ghRun) repoItems(ctx context.Context, r *pyvalue.Map, kind [2]string, i
 		} else {
 			rec.Set("events", km.Value("events"))
 			rec.Set("active", km.Value("active"))
-			rec.Set("target", hookHost(textOf(rundoc.Map(km.Value("config")).Value("url"))))
+			rec.Set("target", hookHost(textOf(rundoc.MapOr(km.Value("config")).Value("url"))))
 		}
 		items.Set(full+"#"+pyvalue.Str(id), rec)
 	}
@@ -313,7 +313,7 @@ func (g *ghRun) installations(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		im := rundoc.Map(i)
+		im := rundoc.MapOr(i)
 		rec := pyvalue.NewMap()
 		rec.Set("id", id)
 		rec.Set("app_slug", im.Value("app_slug"))

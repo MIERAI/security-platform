@@ -215,7 +215,7 @@ func vector(res []any, key string) (map[string]float64, error) {
 		if !ok {
 			return nil, &pyError{"TypeError", "a sample is not a JSON object"}
 		}
-		k := pyvalue.Str(rundoc.Map(m.Value("metric")).GetOr(key, ""))
+		k := pyvalue.Str(rundoc.MapOr(m.Value("metric")).GetOr(key, ""))
 		val := rundoc.List(m.Value("value"))
 		if len(val) < 2 {
 			return nil, &pyError{"IndexError", "list index out of range"}

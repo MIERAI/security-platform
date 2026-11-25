@@ -1,0 +1,25 @@
+{
+ "intel": {
+  "feeds": [
+   {
+    "type": "cisa-kev"
+   },
+   {
+    "type": "epss"
+   },
+   {
+    "ecosystems": [
+     "Go"
+    ],
+    "type": "osv"
+   },
+   {
+    "type": "nvd"
+   }
+  ],
+  "repos": [
+   "{sandbox}/src/app"
+  ]
+ },
+ "name": "conformance"
+}

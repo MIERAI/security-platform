@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -129,10 +130,13 @@ func run(t *testing.T, a *api, entry map[string]any, getenv map[string]string) r
 		vars[k] = v
 	}
 	var stderr bytes.Buffer
-	env := rundoc.Env{Getenv: func(k string) string { return vars[k] }, Stderr: &stderr, Now: time.Now}
+	env := &rundoc.Env{Getenv: func(k string) string { return vars[k] }, Stderr: &stderr, Now: time.Now}
 	d := deps{status: func(context.Context) (string, bool) { return status, true }}
-	if cerr := collectWith(context.Background(), env, d); cerr != nil {
-		t.Fatal(cerr)
+	c := &rundoc.Collector{Name: Name, Version: Version, Collect: func(ctx context.Context, run *rundoc.Run, env *rundoc.Env) error {
+		return collectWith(ctx, run, env, d)
+	}}
+	if code := rundoc.Main(context.Background(), c, []string{"collect"}, env, io.Discard); code != 0 {
+		t.Fatalf("collect: exit %d (%s)", code, stderr.String())
 	}
 	res := result{files: map[string][]byte{}, stderr: stderr.String()}
 	err = filepath.WalkDir(filepath.Join(dir, "run"), func(p string, e os.DirEntry, err error) error {

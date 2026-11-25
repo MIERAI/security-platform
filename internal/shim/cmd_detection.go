@@ -15,5 +15,5 @@ func runDetection(ctx context.Context, env Env, args []string) int {
 	if home, err := pyhome.Locate(env.Getenv, env.Executable); err == nil {
 		tree = home.Dir
 	}
-	return detection.Main(ctx, collectorEnv(env), tree, args)
+	return detection.Main(ctx, collectorEnv(env), tree, args, env.Stdout)
 }

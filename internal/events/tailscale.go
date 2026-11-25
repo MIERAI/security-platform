@@ -23,7 +23,7 @@ func upperOf(m *pyvalue.Map, key string) string {
 
 // mapRecord is ship.py TailscaleAuditSource.map: a configuration-log record -> an event name.
 func mapRecord(r *pyvalue.Map) (string, error) {
-	t := rundoc.Map(r.Value("target"))
+	t := rundoc.MapOr(r.Value("target"))
 	tt, prop := upperOf(t, "type"), upperOf(t, "property")
 	act := strings.ToUpper(textOf(or(r.Value("type"), r.Value("action"), "")))
 	nv := r.Value("new")
@@ -167,7 +167,7 @@ func (s *source) auditRecord(x any, seen map[string]bool) (*event, string, error
 	if seen[rid] {
 		return nil, "", nil
 	}
-	a := rundoc.Map(or(r.Value("actor"), pyvalue.NewMap()))
+	a := rundoc.MapOr(or(r.Value("actor"), pyvalue.NewMap()))
 	rec := pyvalue.NewMap()
 	for _, k := range []string{"eventTime", "origin", "type", "target", "old", "new", "eventGroupID"} {
 		rec.Set(k, r.Value(k))

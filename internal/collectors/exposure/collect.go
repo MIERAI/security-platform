@@ -29,15 +29,17 @@ const Name = "exposure"
 const remoteProbeTimeout = time.Hour
 
 // Main is `sp exposure collect|probe ...`.
-func Main(ctx context.Context, env rundoc.Env, stdout io.Writer, args []string) int {
+func Main(ctx context.Context, env *rundoc.Env, args []string, stdout io.Writer) int {
 	if len(args) > 0 && args[0] == "probe" {
 		return probeMain(ctx, env, stdout, args[1:])
 	}
-	return rundoc.Main(ctx, env, args, Name, Collect)
+	return rundoc.Main(ctx, &rundoc.Collector{Name: Name, Version: Version, Collect: collect}, args, env, stdout)
 }
 
 // collector is one run.
 type collector struct {
+	env      *rundoc.Env
+	runDir   string // SP_RUN_DIR: the evidence goes under it
 	run      *rundoc.Run
 	doc      *rundoc.Document
 	cfg      *pyvalue.Map
@@ -47,22 +49,18 @@ type collector struct {
 	fromCIDR map[string]bool
 }
 
-// Collect is one run (collector protocol).
-func Collect(ctx context.Context, env rundoc.Env) error {
-	run, err := rundoc.Start(env, Name, Version)
-	if err != nil {
-		return err
-	}
+// collect is one run (collector protocol); the caller writes the document.
+func collect(ctx context.Context, run *rundoc.Run, env *rundoc.Env) error {
 	prober, err := NewProber()
 	if err != nil {
 		return err
 	}
-	c := &collector{run: run, doc: run.Doc, cfg: rundoc.Map(run.Instance.Value("exposure")), prober: prober,
+	c := &collector{runDir: run.Dir, env: env, run: run, doc: run.Doc, cfg: rundoc.MapOr(run.Instance.Value("exposure")), prober: prober,
 		nameOf: map[string]string{}, verified: map[string]bool{}, fromCIDR: map[string]bool{}}
 	if err := c.collect(ctx); err != nil {
 		return err
 	}
-	return run.Finish()
+	return nil
 }
 
 func (c *collector) collect(ctx context.Context) error {
@@ -75,9 +73,9 @@ func (c *collector) collect(ctx context.Context) error {
 		return err
 	}
 	for k, v := range res.Tools {
-		c.doc.Tools[k] = pyvalue.Str(v)
+		c.doc.Tools.Set(k, pyvalue.Str(v))
 	}
-	ev, err := c.doc.Raw("probe.json", res.Value())
+	ev, err := c.doc.Raw(c.runDir, "probe.json", rundoc.JSON(res.Value()))
 	if err != nil {
 		return err
 	}
@@ -87,13 +85,13 @@ func (c *collector) collect(ctx context.Context) error {
 
 // targets discovers the devices, records their coverage and returns the addresses to scan (in order, once each).
 func (c *collector) targets(ctx context.Context) ([]string, error) {
-	dc := &discoverer{run: c.prober.Run, env: c.run.Env, home: c.run.Env.Home()}
+	dc := &discoverer{run: c.prober.Run, env: c.env, home: c.env.Home()}
 	var devs []Device
 	for _, x := range rundoc.List(c.cfg.Value("discovery")) {
-		m := rundoc.Map(x)
+		m := rundoc.MapOr(x)
 		found, err := dc.discover(ctx, m)
 		if err != nil {
-			c.doc.Gap("discovery:"+pyvalue.Str(m.Value("type")), err.Error())
+			c.doc.Gap("discovery:"+pyvalue.Str(m.Value("type")), err.Error(), nil)
 			continue
 		}
 		devs = append(devs, found...)
@@ -103,7 +101,7 @@ func (c *collector) targets(ctx context.Context) ([]string, error) {
 	for i := range devs {
 		values[i] = devs[i].value()
 	}
-	ev, err := c.doc.Raw("devices.json", values)
+	ev, err := c.doc.Raw(c.runDir, "devices.json", rundoc.JSON(values))
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +124,7 @@ func (c *collector) device(d *Device, ev string) (string, bool) {
 	addr, name := pyvalue.Str(d.Address), pyvalue.Str(d.Name)
 	host := "host:" + name
 	if !ValidTarget(addr) { // never an nmap argument: "-iL file" or "--script x" is not an address
-		c.doc.Gap(host, "refused as a scan target: "+pyvalue.Repr(addr)+" is not an IP address or host name")
+		c.doc.Gap(host, "refused as a scan target: "+pyvalue.Repr(addr)+" is not an IP address or host name", nil)
 		return "", false
 	}
 	c.nameOf[addr] = name
@@ -137,16 +135,17 @@ func (c *collector) device(d *Device, ev string) (string, bool) {
 		c.fromCIDR[addr] = true
 	}
 	if !d.Online {
-		c.doc.Gap(host, "offline at scan time")
+		c.doc.Gap(host, "offline at scan time", nil)
 		return "", false
 	}
 	if !c.fromCIDR[addr] {
-		c.doc.OK(host)
+		c.doc.OK(host, "")
 	}
 	if pyvalue.Truthy(d.Attrs["key_expiry_disabled"]) {
-		c.doc.Add(&rundoc.Finding{Layer: "identity", Asset: host, Check: "overlay.node_key_expiry_disabled",
+		c.doc.AddFinding(&rundoc.Finding{Layer: "identity", Asset: host, Check: "overlay.node_key_expiry_disabled",
 			Title: "overlay-network node key never expires", Severity: "low", Evidence: ev, NeedsHuman: true,
 			Remediation: "enable key expiry, or record an exception for unattended servers"})
+
 	}
 	return addr, true
 }
@@ -154,7 +153,7 @@ func (c *collector) device(d *Device, ev string) (string, bool) {
 // result is the probe result: SP_EXPOSURE_RAW, or a probe from the vantage. done: there is none, a vantage gap
 // was recorded instead.
 func (c *collector) result(ctx context.Context, targets []string) (*Result, bool, error) {
-	if raw := c.run.Env.Getenv("SP_EXPOSURE_RAW"); raw != "" {
+	if raw := c.env.Getenv("SP_EXPOSURE_RAW"); raw != "" {
 		data, err := rundoc.ReadLimited(raw, maxResult)
 		if err != nil {
 			return nil, false, fmt.Errorf("SP_EXPOSURE_RAW: %w", err)
@@ -170,7 +169,7 @@ func (c *collector) result(ctx context.Context, targets []string) (*Result, bool
 		return nil, false, err
 	}
 	if reason != "" {
-		c.doc.Gap("vantage", reason)
+		c.doc.Gap("vantage", reason, nil)
 		return nil, true, nil
 	}
 	return res, false, nil
@@ -248,25 +247,25 @@ func (c *collector) report(res *Result, ev string) {
 			unauth += c.port(h.IP, asset, p, ev)
 		}
 	}
-	c.doc.Metric("security_exposure_open_ports", float64(open), "Open TCP ports seen from the vantage point (all targets)")
-	c.doc.Metric("security_exposure_unauth_services", float64(unauth),
-		"Sensitive services answering without auth, seen from the vantage point")
+	c.doc.Metric("security_exposure_open_ports", float64(open), "Open TCP ports seen from the vantage point (all targets)", nil)
+	c.doc.Metric("security_exposure_unauth_services", float64(unauth), "Sensitive services answering without auth, seen from the vantage point", nil)
+
 }
 
 // cover records an address's coverage; false when it has no port to report.
 func (c *collector) cover(h Host, name, asset string, timedOut bool) bool {
 	switch {
 	case timedOut: // nmap gave up on it: what was seen is reported, the address is not covered
-		c.doc.Gap(asset, "the scan of this address timed out: the open ports are a partial result")
+		c.doc.Gap(asset, "the scan of this address timed out: the open ports are a partial result", nil)
 		return len(h.Ports) > 0
 	case len(h.Ports) > 0:
-		c.doc.OK(asset)
+		c.doc.OK(asset, "")
 		return true
 	case c.verified[h.IP]: // discovery saw it online at scan time: nothing open = fully filtered (the goal)
-		c.doc.OK(asset)
+		c.doc.OK(asset, "")
 	case c.fromCIDR[h.IP]: // an unused address of a range nobody vouched for: no host there
 	default: // -Pn scan of an address nobody vouched for: down or filtered cannot be told apart
-		c.doc.Gap("host:"+name, "no open port seen from the vantage point (down or filtered)")
+		c.doc.Gap("host:"+name, "no open port seen from the vantage point (down or filtered)", nil)
 	}
 	return false
 }
@@ -277,15 +276,16 @@ func (c *collector) port(ip, asset string, p Port, ev string) int {
 		if v.Check != "metrics.unauth" && v.Check != "http.catch_all_unverified" && v.Check != "otlp.unauth_ingest" {
 			n++
 		}
-		c.doc.Add(&rundoc.Finding{Layer: "network", Asset: asset + ":" + p.Key, Check: v.Check,
+		c.doc.AddFinding(&rundoc.Finding{Layer: "network", Asset: asset + ":" + p.Key, Check: v.Check,
 			Title: v.Title + " (" + ip + ":" + p.Key + ")", Severity: v.Severity, Evidence: ev + "#" + ip + "/" + p.Key,
 			Remediation: v.Remediation, Kind: rundoc.KindDetection})
+
 	}
 	return n
 }
 
 // probeMain is `sp exposure probe [--ports P] TARGET...`: the probe document on stdout.
-func probeMain(ctx context.Context, env rundoc.Env, stdout io.Writer, args []string) int {
+func probeMain(ctx context.Context, env *rundoc.Env, stdout io.Writer, args []string) int {
 	extra := ""
 	if len(args) >= 2 && args[0] == "--ports" {
 		extra, args = args[1], args[2:]

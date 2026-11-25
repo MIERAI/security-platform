@@ -49,7 +49,7 @@ func newRow(in *repoReads) *row {
 	for _, t := range protectingRules() {
 		protected = protected || set[t]
 	}
-	sa := rundoc.Map(rundoc.Get(fullR, "security_and_analysis"))
+	sa := rundoc.MapOr(rundoc.Get(fullR, "security_and_analysis"))
 	status := func(k string) any { return rundoc.Loose(rundoc.Get(sa.Value(k), "status")) }
 	r := &row{full: full, br: br, vis: vis, protected: protected, ruleTypes: types,
 		wfWrite:  rundoc.Get(wf, "default_workflow_permissions") == "write",
@@ -164,8 +164,9 @@ func (o *ownerScan) findings(asset string, r *row) {
 	doc, pub := o.c.doc, r.vis == "public"
 	ev := "raw/codehost-github/repos.json#" + r.full
 	add := func(layer, a, check, title, sev, fix string, human bool) {
-		doc.Add(&rundoc.Finding{Layer: layer, Asset: a, Check: check, Title: title, Severity: sev, Evidence: ev,
+		doc.AddFinding(&rundoc.Finding{Layer: layer, Asset: a, Check: check, Title: title, Severity: sev, Evidence: ev,
 			Remediation: fix, NeedsHuman: human})
+
 	}
 	if !r.protected {
 		if pub {

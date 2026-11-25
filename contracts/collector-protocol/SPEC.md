@@ -109,6 +109,40 @@ hitting the job timeout and losing every result.
 | EXPOSURE-D1 | `exposure` passes every discovered address to nmap as it is: a static target, an asset-file entry or a discovery result such as `-iL /etc/hosts` or `--script=...` becomes an nmap option on the vantage host. | An address must be an IP address or a host name before it reaches any command line; anything else is a coverage gap for that host (`host:<name>`, "refused as a scan target") and is never scanned; `extra_ports` must be a port list. Case `collector-exposure/target-is-never-an-nmap-option`. |
 | EXPOSURE-D2 | `exposure` runs nmap without a host timeout and reads a partial result (a host nmap gave up on) as a complete one: the address is covered (`ok`) and findings missing from the partial scan read as fixed. | nmap gets `--host-timeout 30m`; an address it reports `timedout` is a gap (`net-endpoint:<name>@<ip>`, "timed out"), the ports it saw are still reported. Case `collector-exposure/timed-out-host-is-a-gap`. |
 
+### Collector `k8s`
+
+Target behaviour of `collectors/k8s` (the Go implementation, `sp k8s collect`, has it; the Python one does not).
+
+| id | what | target |
+|---|---|---|
+| K8S-D1 | One part of a cluster that cannot be read (e.g. `list clusterrolebindings` forbidden for an in-cluster reader) raises out of the cluster: the cluster becomes a gap and every later part (Secrets, PolicyReports, the operator credential, CIS) is skipped. A Secret listing that fails is read as zero Secrets. | Each part is read on its own: a failed part is a gap of that part — `k8s-workload:<c>` + `k8s-namespace:<c>` (workloads), `k8s-identity:<c>` (rbac), `k8s-cluster:<c>/secrets`, `k8s-cluster:<c>/policy` with `checks: [k8s.policy.*]`, `k8s-identity:<c>/operator-kubeconfig` — and the cluster itself stays covered. Case `collector-k8s/failing-part-is-a-gap-of-that-part`. |
+| K8S-D2 | Any error listing PolicyReports (forbidden, timeout) is reported as `k8s.policy.engine_missing`. | Only a missing resource type means no policy engine; any other error is the narrow gap `k8s-cluster:<c>/policy` (`checks: [k8s.policy.*]`). Case `collector-k8s/unreadable-policy-reports-are-a-gap`. |
+| K8S-D3 | A failed kube-bench run is a gap on `cis:<c>`, but the CIS findings live on `k8s-cluster:<c>`, which the same run covers: the ledger marks them fixed. | Also the narrow gap `k8s-cluster:<c>/cis` with `checks: [cis.*]`. Case `collector-k8s/kube-bench-failure-keeps-cis-findings`. |
+| K8S-D4 | A RoleBinding to a namespaced Role is never evaluated (only ClusterRole references are looked up). | Roles are listed (`get roles -A`) and judged by the same rules (wildcard, secrets read, pods/exec, RBAC write). Case `collector-k8s/namespaced-role-is-evaluated`. |
+
+### Collector `vuln-intel`
+
+Target behaviour of `collectors/vuln-intel` (Go: `sp vuln-intel collect`).
+
+| id | what | target |
+|---|---|---|
+| VULN-D1 | Every feed is read from one fixed URL: no mirror for air-gapped or pinned sources, and the fetch path cannot be exercised against a test server. | Optional per-feed `url` (`osv`: a template with `{ecosystem}`; `msrc-cvrf`: `url` for the update list, `cvrf_url` with `{id}`), HTTPS only (plain HTTP only to a loopback address), the same cache files and conditional GET (`If-None-Match` / `If-Modified-Since`, 304 keeps the copy). Case `collector-vuln-intel/feed-mirror-conditional-get`. |
+| VULN-D2 | A download is written over the cached copy before it is read: an error page or a truncated file replaces the last good copy, and the feed is lost until the next good download. No size limit. | The payload is parsed (and bounded: `max_bytes`, inflated size and entry count of archives) before it replaces anything; a rejected download keeps the last good copy in use and the feed is a gap saying so. Case `collector-vuln-intel/corrupt-feed-keeps-last-good-copy`. |
+| VULN-D3 | A refresh that fails (outage, HTTP 5xx) makes the feed unavailable even when a cached copy exists: KEV / EPSS enrichment disappears and priorities drop for that run. | The cached copy is used; the feed is a gap whose reason says the refresh failed and since when the copy is confirmed; `security_intel_feed_age_seconds` shows its real age. Case `collector-vuln-intel/feed-outage-uses-cached-copy`. |
+
+### Collector `identity`
+
+Target behaviour of `collectors/identity` (Go: `sp identity collect`). The code host's API is read over HTTPS with a
+per-provider `api_url` (default `https://api.github.com`; plain http only to a loopback host).
+
+| id | what | target |
+|---|---|---|
+| IDENTITY-D1 | Every code-host listing (organisation members, outside collaborators, repositories, collaborators) is read as one page of `per_page=100`; anything after it is silently missing (an unexpected collaborator on page 2 is never reported). | Listings follow the `Link: rel="next"` header to the end (bounded page count; a listing cut by the bound is a gap). Case `collector-identity/pagination-is-followed`. |
+| IDENTITY-D2 | Errors of the organisation listings (`/user/orgs`, members, outside collaborators), deploy keys and the fork-PR approval policy are dropped: an empty list, no gap. | Each is a gap of that part — `orgs:github/<user>`, `org:github/<org>/members`, `org:github/<org>/outside_collaborators`, `repo:github/<r>/deploy-key`, `repo:github/<r>/actions` (`checks: [identity.fork_pr_approval_weak]`) — and the reason names the OAuth scope the API asks for (`X-Accepted-OAuth-Scopes`). Case `collector-identity/unreadable-listings-are-gaps`. |
+| IDENTITY-D3 | A rate-limited answer (403/429 with `X-RateLimit-Remaining: 0` or `Retry-After`) is an ordinary error or, for most listings, silence; every later call is still made. | `rate limited until <reset time>` gaps; no further call for that account in this run. Case `collector-identity/rate-limit-is-a-gap-until-reset`. |
+| IDENTITY-D4 | Two-factor status is read only for the token's own account (`/user`). | Organisation members without 2FA (`/orgs/<org>/members?filter=2fa_disabled`, an owner's token) are accounts with `mfa: false` (`identity.mfa_disabled`); without the right, the gap `org:github/<org>/members-2fa`. Case `collector-identity/org-members-without-2fa`. |
+| IDENTITY-D5 | The overlay network's API base is fixed to the vendor's host (no mirror, proxy or test endpoint). | `api_url` per provider (default `https://api.tailscale.com/api/v2`; plain http only to a loopback host). Case `collector-identity/overlay-network-api`. |
+
 ## History
 
 | version | change |

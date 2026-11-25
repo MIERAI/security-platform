@@ -1,0 +1,16 @@
+{
+ "intel": {
+  "feeds": [
+   {
+    "type": "cisa-kev",
+    "url": "{svc_feeds}/kev.json"
+   },
+   {
+    "max_bytes": 64,
+    "type": "epss",
+    "url": "{svc_feeds}/epss.csv.gz"
+   }
+  ]
+ },
+ "name": "conformance"
+}

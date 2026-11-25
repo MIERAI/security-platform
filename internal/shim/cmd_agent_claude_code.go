@@ -11,10 +11,10 @@ import (
 // runAgentClaudeCode is `sp agent-claude-code collect`: the Go implementation of the agent-claude-code collector
 // (internal/collectors/agentclaude).
 func runAgentClaudeCode(ctx context.Context, env Env, args []string) int {
-	return agentclaude.Main(ctx, collectorEnv(env), args)
+	return agentclaude.Main(ctx, collectorEnv(env), args, env.Stdout)
 }
 
 // collectorEnv is what a Go collector reads from the process.
-func collectorEnv(env Env) rundoc.Env {
-	return rundoc.Env{Getenv: env.Getenv, Stderr: env.Stderr, Now: time.Now}
+func collectorEnv(env Env) *rundoc.Env {
+	return &rundoc.Env{Getenv: env.Getenv, Environ: env.Environ, Stderr: env.Stderr, Now: time.Now}
 }

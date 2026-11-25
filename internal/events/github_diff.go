@@ -26,7 +26,7 @@ func (g *ghRun) diff(prev *pyvalue.Map) ([]*event, error) {
 		if !prev.Has(kind) || !g.snap.Has(kind) {
 			continue
 		}
-		old, cur := rundoc.Map(prev.Value(kind)), rundoc.Map(g.snap.Value(kind))
+		old, cur := rundoc.MapOr(prev.Value(kind)), rundoc.MapOr(g.snap.Value(kind))
 		var add []*event
 		var err error
 		if kind == "repo" {
@@ -45,7 +45,7 @@ func (g *ghRun) diff(prev *pyvalue.Map) ([]*event, error) {
 func (g *ghRun) repoChanges(old, cur *pyvalue.Map) ([]*event, error) {
 	var evs []*event
 	for _, name := range cur.Keys() {
-		r := rundoc.Map(cur.Value(name))
+		r := rundoc.MapOr(cur.Value(name))
 		was := old.Value(name)
 		switch {
 		case pyvalue.Truthy(was):
@@ -85,7 +85,7 @@ func (g *ghRun) addedRemoved(kind string, old, cur *pyvalue.Map) ([]*event, erro
 			if err != nil {
 				return nil, err
 			}
-			e, err := g.ev(kind+side.suffix, pyvalue.Str(or(rec, "")), rundoc.Map(side.from.Value(k)))
+			e, err := g.ev(kind+side.suffix, pyvalue.Str(or(rec, "")), rundoc.MapOr(side.from.Value(k)))
 			if err != nil {
 				return nil, err
 			}
@@ -146,7 +146,7 @@ func (g *ghRun) publicRecords(list []any) ([]*event, []any, error) {
 		if g.s.first || hashable(id) && seen[id] {
 			continue
 		}
-		ev, err := g.publicEvent(rundoc.Map(e))
+		ev, err := g.publicEvent(rundoc.MapOr(e))
 		if err != nil {
 			return nil, nil, err
 		}

@@ -106,7 +106,7 @@ func (c *Client) Get(ctx context.Context, path string) (*Page, error) {
 		}
 	}
 	if res.Status/100 != 2 {
-		return nil, &HTTPError{Status: res.Status, Message: rundoc.Cut(rundoc.Str(rundoc.Get(v, "message")), 160),
+		return nil, &HTTPError{Status: res.Status, Message: rundoc.Cut(rundoc.Text(rundoc.Get(v, "message")), 160),
 			RateLimited: res.Status == http.StatusTooManyRequests || res.Status == http.StatusForbidden &&
 				(res.Header.Get("X-RateLimit-Remaining") == "0" || res.Header.Get("Retry-After") != "")}
 	}

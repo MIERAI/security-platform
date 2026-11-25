@@ -23,7 +23,7 @@ type memoryHit struct {
 func (c *collector) memory(a *pyvalue.Map) error {
 	var hits []memoryHit
 	files := 0
-	for _, d := range rundoc.Strings(a.Value("memory_dirs")) {
+	for _, d := range rundoc.Texts(a.Value("memory_dirs")) {
 		for _, p := range markdownFiles(rundoc.ExpandUser(d, c.home)) {
 			files++
 			n, classes, err := ScanFile(p)
@@ -34,30 +34,32 @@ func (c *collector) memory(a *pyvalue.Map) error {
 		}
 	}
 	if !pyvalue.Truthy(a.Value("memory_dirs")) {
-		c.doc.Gap(memoryAsset, "no memory_dirs configured")
+		c.doc.Gap(memoryAsset, "no memory_dirs configured", nil)
 		return nil
 	}
-	c.doc.OK(memoryAsset)
+	c.doc.OK(memoryAsset, "")
 	sort.Slice(hits, func(i, j int) bool { return hits[i].path < hits[j].path })
 	suspect, classes := map[string]any{}, map[string]any{}
 	for _, h := range hits {
 		suspect[filepath.Base(h.path)] = h.lines
 		classes[filepath.Base(h.path)] = h.classes
 	}
-	ev, err := c.doc.Raw("memory-scan.json", map[string]any{"files": files, "suspect_files": suspect,
-		"pattern_classes": classes})
+	ev, err := c.doc.Raw(c.runDir, "memory-scan.json", rundoc.JSON(map[string]any{"files": files, "suspect_files": suspect,
+		"pattern_classes": classes}))
+
 	if err != nil {
 		return err
 	}
 	for _, h := range hits {
 		base := filepath.Base(h.path)
-		c.doc.Add(&rundoc.Finding{Layer: layer, Check: "agent.memory_secret_suspect",
+		c.doc.AddFinding(&rundoc.Finding{Layer: layer, Check: "agent.memory_secret_suspect",
 			Asset:    memoryAsset + "/" + filepath.Base(filepath.Dir(filepath.Dir(h.path))) + "/" + base,
 			Title:    fmt.Sprintf("%d line(s) shaped like a credential in agent memory file %s", h.lines, base),
-			Severity: "high", Evidence: ev, NeedsHuman: true, Attributes: map[string]any{"pattern_classes": h.classes},
+			Severity: "high", Evidence: ev, NeedsHuman: true, Attributes: rundoc.Attributes(map[string]any{"pattern_classes": h.classes}),
 			Remediation: "remove the value (keep where it lives, not what it is); rotate it if it was real"})
+
 	}
-	c.doc.Metric("security_agent_memory_files", float64(files), "Agent memory files scanned for credential shapes")
+	c.doc.Metric("security_agent_memory_files", float64(files), "Agent memory files scanned for credential shapes", nil)
 	return nil
 }
 

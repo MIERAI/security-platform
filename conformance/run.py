@@ -257,8 +257,8 @@ class CaseError(Exception):
 
 
 PROTOCOL_ENV = {"SP_DATA", "SP_INSTANCE", "SP_RUN_DIR", "SP_INPUT_DIR", "SP_INSTANCE_NAME", "SP_COLLECTOR_NAME"}
-# {sandbox} {case} {python} {now_epoch} {fake_jwt} {svc_<name>} {epoch:+-N} {utc:+-N}; anything else in braces is left alone
-TEMPLATE = re.compile(r"\{(sandbox|case|python|now_epoch|fake_jwt|canary_[a-z]+|svc_[a-z0-9_]+|epoch:[+-]?\d+|utc:[+-]?\d+)\}")
+# {sandbox} {case} {python} {path} {now_epoch} {fake_jwt} {fake_key} {canary_*} {svc_<name>} {epoch:+-N} {utc:+-N}; anything else in braces is left alone
+TEMPLATE = re.compile(r"\{(sandbox|case|python|path|now_epoch|fake_jwt|fake_key|canary_[a-z]+|svc_[a-z0-9_]+|epoch:[+-]?\d+|utc:[+-]?\d+)\}")
 
 
 def fake_jwt():
@@ -285,8 +285,9 @@ class Sandbox:
         self.case_dir = case_dir
         self.root = tempfile.mkdtemp(prefix="spconf-")
         self.keep = keep
-        self.vars = {"sandbox": self.root, "case": case_dir, "python": sys.executable,
-                     "now_epoch": str(int(time.time())), "fake_jwt": fake_jwt(), **canaries()}
+        self.vars = {"sandbox": self.root, "case": case_dir, "python": sys.executable, "path": os.environ.get("PATH", ""),
+                     "now_epoch": str(int(time.time())), "fake_jwt": fake_jwt(),
+                     "fake_key": "fake-private-key-" + os.urandom(8).hex(), **canaries()}
         self.services, self.background = [], {}
 
     def render(self, s):
@@ -470,6 +471,10 @@ def check(sb, exp, res):
         for r in sb.render_obj(exp.get("regex", [])):
             if not re.search(r, text, re.M):
                 errs.append(f"{exp['file']}: no match for /{r}/ in:\n{text[-1500:]}")
+        for r in sb.render_obj(exp.get("not_regex", [])):
+            m = re.search(r, text, re.M)
+            if m:
+                errs.append(f"{exp['file']}: unexpected match /{r}/: {m.group(0)[:200]}")
         if "lines" in exp and len([x for x in text.splitlines() if x.strip()]) != exp["lines"]:
             errs.append(f"{exp['file']}: {len(text.splitlines())} lines, want {exp['lines']}")
         return errs

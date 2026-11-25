@@ -54,24 +54,25 @@ func (c *collector) ageDays(t float64) any {
 func (c *collector) auditTrail(a *pyvalue.Map, retention int64) error {
 	configured := []string{defaultTranscript}
 	if a.Has("transcripts_dirs") {
-		configured = rundoc.Strings(a.Value("transcripts_dirs"))
+		configured = rundoc.Texts(a.Value("transcripts_dirs"))
 	}
 	dirs := make([]string, len(configured))
 	for i, d := range configured {
 		dirs[i] = rundoc.ExpandUser(d, c.home)
 	}
 	t := readTrail(dirs)
-	ev, err := c.doc.Raw("audit-trail.json", map[string]any{"transcripts": t.files, "newest_age_days": c.ageDays(t.newest),
+	ev, err := c.doc.Raw(c.runDir, "audit-trail.json", rundoc.JSON(map[string]any{"transcripts": t.files, "newest_age_days": c.ageDays(t.newest),
 		"oldest_age_days": c.ageDays(t.oldest), "retention_days": retention,
-		"size_mb": pyvalue.Round(float64(t.size)/bytesPerMB, 1)})
+		"size_mb": pyvalue.Round(float64(t.size)/bytesPerMB, 1)}))
+
 	if err != nil {
 		return err
 	}
 	if !anyDir(dirs) {
-		c.doc.Gap(auditAsset, "transcripts directory not found")
+		c.doc.Gap(auditAsset, "transcripts directory not found", nil)
 		return nil
 	}
-	c.doc.OK(auditAsset)
+	c.doc.OK(auditAsset, "")
 	minRet := int64(defaultMinRet)
 	if v, ok := a.Get("min_transcript_retention_days"); ok {
 		if minRet, err = pyvalue.ToInt(v); err != nil {
@@ -80,15 +81,17 @@ func (c *collector) auditTrail(a *pyvalue.Map, retention int64) error {
 	}
 	switch {
 	case t.files == 0 || t.newest == 0 || c.now-t.newest > recentWindow:
-		c.doc.Add(&rundoc.Finding{Layer: layer, Asset: auditAsset, Check: "agent.audit_trail_missing",
+		c.doc.AddFinding(&rundoc.Finding{Layer: layer, Asset: auditAsset, Check: "agent.audit_trail_missing",
 			Title: "no agent session transcript in the last 7 days (audit trail off?)", Severity: "medium", Evidence: ev,
 			Remediation: "keep session transcripts (do not disable them); they are the agent's audit trail"})
+
 	case retention < minRet:
-		c.doc.Add(&rundoc.Finding{Layer: layer, Asset: auditAsset, Check: "agent.audit_trail_missing",
+		c.doc.AddFinding(&rundoc.Finding{Layer: layer, Asset: auditAsset, Check: "agent.audit_trail_missing",
 			Title:    fmt.Sprintf("agent transcripts are kept %d days (< %d): too short to investigate an incident", retention, minRet),
 			Severity: "low", Evidence: ev, Remediation: fmt.Sprintf("set cleanupPeriodDays >= %d", minRet)})
+
 	}
-	c.doc.Metric("security_agent_transcripts", float64(t.files), "Agent session transcripts kept (audit trail; metadata only)")
+	c.doc.Metric("security_agent_transcripts", float64(t.files), "Agent session transcripts kept (audit trail; metadata only)", nil)
 	return nil
 }
 

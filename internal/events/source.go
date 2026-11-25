@@ -246,7 +246,7 @@ func (s *source) parseOutput(out string, parse parser, cursor float64, hasCursor
 func (s *source) markNovel(evs []*event, next *pyvalue.Map) {
 	seen := map[string]map[string]bool{}
 	var order []string
-	old := rundoc.Map(s.state.Value("seen"))
+	old := rundoc.MapOr(s.state.Value("seen"))
 	for _, k := range old.Keys() {
 		seen[k] = stringSet(old.Value(k))
 		order = append(order, k)
@@ -306,7 +306,7 @@ func (s *source) fileIntegrity(ctx context.Context) ([]*event, *pyvalue.Map, err
 	if err != nil {
 		return nil, nil, err
 	}
-	hashes := rundoc.Map(s.state.Value("hashes")).Copy()
+	hashes := rundoc.MapOr(s.state.Value("hashes")).Copy()
 	paths, ok := s.cfg.Get("paths")
 	if !ok {
 		return nil, nil, keyError("paths")

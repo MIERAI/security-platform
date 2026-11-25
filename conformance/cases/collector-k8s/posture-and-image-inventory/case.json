@@ -1,0 +1,467 @@
+{
+ "component": "collector-k8s",
+ "title": "Two clusters through kubectl (read verbs only): privileged / host namespaces / hostPath / capabilities, NetworkPolicy coverage, wide RBAC, Secret metadata, PolicyReports, the operator's own credential, CIS through kube-bench; severities lowered outside prod; the image inventory is complete. Env values and Secret data never reach the output",
+ "contract": "collector-protocol/1.0 / findings/1.2",
+ "origin": "collectors/k8s/collector.py; tests/test_retired.py::K8sInventory",
+ "files": {
+  "instance.json": "instance.json",
+  "data/.keep": {
+   "text": ""
+  },
+  "bin/kubectl": {
+   "text": "#!/bin/sh\nexec \"{python}\" \"{case}/fake_kubectl.py\" \"$@\"\n",
+   "mode": "0755"
+  },
+  "bin/sudo": {
+   "text": "#!/bin/sh\n[ \"$1\" = \"-n\" ] && shift\nexec \"$@\"\n",
+   "mode": "0755"
+  },
+  "kube/prod.json": "prod.json",
+  "kube/lab.json": "lab.json",
+  "data/kube-bench_0.9.0_linux_amd64.tar.gz": {
+   "raw": "kube-bench.tar.gz"
+  }
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-k8s",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance",
+     "PATH": "{sandbox}/bin:{path}",
+     "FAKE_KUBE_DIR": "{sandbox}/kube",
+     "FAKE_KUBE_LOG": "{sandbox}/.svc-kubectl.calls"
+    },
+    "writes_only_under": [
+     "run"
+    ]
+   },
+   "expect": [
+    {
+     "json": "run/k8s.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "k8s"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "no_secret": [
+      "k8s-conformance-env-canary-6b1f",
+      "k8s-conformance-secret-canary-93d0"
+     ],
+     "in": "run"
+    },
+    {
+     "json": "run/k8s.findings.json",
+     "subset": {
+      "collector": {
+       "tools": {
+        "kube-bench": "0.9.0"
+       }
+      },
+      "coverage": {
+       "$unordered": [
+        {
+         "asset": "k8s-cluster:prod",
+         "status": "ok"
+        },
+        {
+         "asset": "k8s-cluster:lab",
+         "status": "ok"
+        },
+        {
+         "asset": "cis:prod",
+         "status": "ok"
+        }
+       ]
+      },
+      "findings": {
+       "$unordered": [
+        {
+         "check": "k8s.pod.privileged",
+         "asset": "k8s-workload:prod/data/StatefulSet/db",
+         "severity": "high",
+         "layer": "workload",
+         "title": "prod/data/StatefulSet/db: privileged",
+         "kind": "compliance",
+         "evidence": "raw/k8s/prod-workloads.json"
+        },
+        {
+         "check": "k8s.pod.cap.sys_admin",
+         "asset": "k8s-workload:prod/data/StatefulSet/db",
+         "severity": "medium"
+        },
+        {
+         "check": "k8s.pod.hostpath",
+         "asset": "k8s-workload:prod/data/StatefulSet/db",
+         "severity": "medium",
+         "title": "prod/data/StatefulSet/db: hostPath:/var/lib/db"
+        },
+        {
+         "check": "k8s.pod.hostpid",
+         "asset": "k8s-workload:prod/kube-system/DaemonSet/node-agent",
+         "severity": "high"
+        },
+        {
+         "check": "k8s.pod.hostnetwork",
+         "asset": "k8s-workload:prod/kube-system/DaemonSet/node-agent",
+         "severity": "medium"
+        },
+        {
+         "check": "k8s.pod.privileged",
+         "asset": "k8s-workload:prod/kube-system/DaemonSet/node-agent",
+         "severity": "high"
+        },
+        {
+         "check": "k8s.netpol.missing",
+         "asset": "k8s-namespace:prod/data",
+         "severity": "medium",
+         "title": "1 pod(s) in prod/data not selected by any NetworkPolicy (flat network)",
+         "evidence": "raw/k8s/prod-netpol.json"
+        },
+        {
+         "check": "k8s.netpol.missing",
+         "asset": "k8s-namespace:prod/default",
+         "severity": "medium"
+        },
+        {
+         "check": "k8s.netpol.missing",
+         "asset": "k8s-namespace:prod/kube-system",
+         "severity": "medium"
+        },
+        {
+         "check": "k8s.rbac.cluster_admin_pods_exec_rbac_write_secrets_read_wildcard",
+         "asset": "k8s-identity:prod/User:alice",
+         "severity": "high",
+         "layer": "identity"
+        },
+        {
+         "check": "k8s.rbac.secrets_read",
+         "asset": "k8s-identity:prod/ServiceAccount:ci/deployer",
+         "severity": "medium"
+        },
+        {
+         "check": "k8s.rbac.pods_exec",
+         "asset": "k8s-identity:prod/User:bob",
+         "severity": "medium",
+         "title": "User:bob has pods-exec (ns:web, via exec)"
+        },
+        {
+         "check": "k8s.policy.fail.require-limits",
+         "asset": "k8s-cluster:prod",
+         "severity": "low",
+         "title": "admission/background policy 'require-limits' failing in 2 namespace(s)"
+        },
+        {
+         "check": "k8s.policy.fail.no-host-ns",
+         "asset": "k8s-cluster:prod"
+        },
+        {
+         "check": "k8s.operator_cred_system_masters",
+         "asset": "k8s-identity:prod/operator-kubeconfig",
+         "severity": "high",
+         "evidence": "raw/k8s/prod-whoami.json"
+        },
+        {
+         "check": "cis.cis-1.9.1.2.6",
+         "asset": "k8s-cluster:prod",
+         "severity": "medium",
+         "refs": [
+          "cis:cis-1.9:1.2.6"
+         ],
+         "remediation": "Follow the Kubernetes documentation and set up the TLS connection."
+        },
+        {
+         "check": "cis.cis-1.9.4.2.9",
+         "asset": "k8s-cluster:prod",
+         "severity": "low",
+         "remediation": "see benchmark"
+        },
+        {
+         "check": "k8s.pod.privileged",
+         "asset": "k8s-workload:lab/tools/Deployment/builder",
+         "severity": "medium"
+        },
+        {
+         "check": "k8s.netpol.missing",
+         "asset": "k8s-namespace:lab/tools",
+         "severity": "low"
+        },
+        {
+         "check": "k8s.policy.engine_missing",
+         "asset": "k8s-cluster:lab",
+         "severity": "low"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/k8s.findings.json",
+     "subset": {
+      "findings": {
+       "$not_contains": [
+        {
+         "asset": "k8s-workload:prod/web/Deployment/app"
+        },
+        {
+         "asset": {
+          "$regex": "backup"
+         }
+        },
+        {
+         "asset": {
+          "$regex": "system:masters|kube-system/agent|devs"
+         }
+        },
+        {
+         "asset": "k8s-namespace:prod/web"
+        },
+        {
+         "check": "k8s.pod.cap.net_raw"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/inventory.k8s-images.json",
+     "subset": {
+      "schema": "security-platform/inventory/v1",
+      "kind": "container-image",
+      "complete": true,
+      "sources": {
+       "k8s-cluster:prod": "complete",
+       "k8s-cluster:lab": "complete"
+      },
+      "items": [
+       {
+        "cluster": "prod",
+        "image": "registry.example/web:1.4",
+        "image_id": "registry.example/web@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "namespaces": [
+         "web"
+        ],
+        "workloads": [
+         "k8s-workload:prod/web/Deployment/app"
+        ],
+        "exposed": true,
+        "prod": true
+       },
+       {
+        "cluster": "prod",
+        "image": "registry.example/db:16",
+        "image_id": "",
+        "namespaces": [
+         "data"
+        ],
+        "workloads": [
+         "k8s-workload:prod/data/StatefulSet/db"
+        ],
+        "exposed": false,
+        "prod": true
+       },
+       {
+        "cluster": "prod",
+        "image": "registry.example/agent:2",
+        "image_id": "",
+        "namespaces": [
+         "kube-system"
+        ],
+        "workloads": [
+         "k8s-workload:prod/kube-system/DaemonSet/node-agent"
+        ],
+        "exposed": true,
+        "prod": true
+       },
+       {
+        "cluster": "prod",
+        "image": "registry.example/agent-init:2",
+        "exposed": true
+       },
+       {
+        "cluster": "prod",
+        "image": "busybox:1.36",
+        "namespaces": [
+         "default"
+        ],
+        "exposed": false
+       },
+       {
+        "cluster": "lab",
+        "image": "registry.example/dind:27",
+        "exposed": false,
+        "prod": false
+       }
+      ]
+     }
+    },
+    {
+     "json": "run/raw/k8s/prod-secrets-metadata.json",
+     "subset": {
+      "$unordered": [
+       {
+        "ns": "web",
+        "name": "old-api-key",
+        "type": "Opaque",
+        "created": "2020-01-01T00:00:00Z"
+       },
+       {
+        "ns": "web",
+        "name": "fresh",
+        "type": "Opaque"
+       }
+      ]
+     }
+    },
+    {
+     "prom": "run/k8s.prom",
+     "has": [
+      {
+       "name": "security_k8s_pods_root_capable_containers",
+       "labels": {
+        "cluster": "prod"
+       },
+       "value": 3
+      },
+      {
+       "name": "security_k8s_pods_without_netpol",
+       "labels": {
+        "cluster": "prod"
+       },
+       "value": 3
+      },
+      {
+       "name": "security_k8s_wide_rbac_subjects",
+       "labels": {
+        "cluster": "prod"
+       },
+       "value": 3
+      },
+      {
+       "name": "security_secrets_total",
+       "labels": {
+        "store": "k8s:prod"
+       },
+       "value": 2
+      },
+      {
+       "name": "security_secrets_older_than_90d",
+       "labels": {
+        "store": "k8s:prod"
+       },
+       "value": 1
+      },
+      {
+       "name": "security_k8s_policyreport_results",
+       "labels": {
+        "cluster": "prod",
+        "result": "fail"
+       },
+       "value": 2
+      },
+      {
+       "name": "security_k8s_policy_engine_present",
+       "labels": {
+        "cluster": "lab"
+       },
+       "value": 0
+      },
+      {
+       "name": "security_cis_results",
+       "labels": {
+        "cluster": "prod",
+        "result": "fail"
+       },
+       "value": 2
+      },
+      {
+       "name": "security_cis_results",
+       "labels": {
+        "cluster": "prod",
+        "result": "warn"
+       },
+       "value": 1
+      },
+      {
+       "name": "security_inventory_images",
+       "value": 6
+      },
+      {
+       "name": "security_collector_gaps",
+       "labels": {
+        "collector": "k8s"
+       },
+       "value": 0
+      }
+     ]
+    },
+    {
+     "file": ".svc-kubectl.calls",
+     "not_regex": [
+      "^[a-z-]+: (?!get |auth whoami )"
+     ]
+    },
+    {
+     "file": ".svc-kubectl.calls",
+     "regex": [
+      "^prod: get pods -A -o json$",
+      "^prod: auth whoami -o json$",
+      "^lab: get pods -A -o json$"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "collect as another name: one inventory per collector instance",
+   "remove": [
+    "run"
+   ],
+   "exec": {
+    "impl": "collector-k8s",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance",
+     "PATH": "{sandbox}/bin:{path}",
+     "FAKE_KUBE_DIR": "{sandbox}/kube",
+     "FAKE_KUBE_LOG": "{sandbox}/.svc-kubectl.calls",
+     "SP_COLLECTOR_NAME": "k8s-incluster"
+    }
+   },
+   "expect": [
+    {
+     "json": "run/k8s-incluster.findings.json",
+     "schema": "findings",
+     "subset": {
+      "collector": {
+       "name": "k8s-incluster"
+      }
+     }
+    },
+    {
+     "json": "run/inventory.k8s-incluster-images.json",
+     "subset": {
+      "complete": true
+     }
+    },
+    {
+     "absent": "run/inventory.k8s-images.json"
+    }
+   ]
+  }
+ ]
+}

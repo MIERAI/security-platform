@@ -1,0 +1,101 @@
+{
+ "component": "collector-vuln-intel",
+ "title": "One image inventory that is partial (a failed cluster) or that does not declare completeness (an older producer) makes the whole image inventory partial: no complete_scope, so the ledger retires nothing",
+ "contract": "collector-protocol/1.0 / findings/1.2",
+ "origin": "tests/test_retired.py::VulnIntelInventory::test_complete_only_when_every_inventory_is",
+ "files": {
+  "instance.json": "instance.json",
+  "data/.keep": {
+   "text": ""
+  },
+  "fake_trivy.json": "trivy.json",
+  "bin/trivy": {
+   "text": "#!/bin/sh\nexec \"{python}\" \"{case}/fake_trivy.py\" \"$@\"\n",
+   "mode": "0755"
+  },
+  "data/latest/inventory.a-images.json": "a.json",
+  "data/latest/inventory.b-images.json": "b.json",
+  "data/latest/inventory.old-images.json": "old.json"
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-vuln-intel",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance",
+     "PATH": "{sandbox}/bin:{path}",
+     "FAKE_TRIVY_DATA": "{sandbox}/fake_trivy.json",
+     "FAKE_TRIVY_LOG": "{sandbox}/.svc-trivy.calls",
+     "https_proxy": "http://127.0.0.1:9",
+     "HTTPS_PROXY": "http://127.0.0.1:9",
+     "http_proxy": "http://127.0.0.1:9",
+     "HTTP_PROXY": "http://127.0.0.1:9",
+     "no_proxy": "",
+     "NO_PROXY": ""
+    },
+    "writes_only_under": [
+     "run",
+     "data/cache",
+     "data/sbom"
+    ]
+   },
+   "expect": [
+    {
+     "json": "run/vuln-intel.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "vuln-intel"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "json": "run/vuln-intel.findings.json",
+     "subset": {
+      "coverage": {
+       "$unordered": [
+        {
+         "asset": "image:registry.example/a:1",
+         "status": "ok"
+        },
+        {
+         "asset": "image:registry.example/b:1",
+         "status": "ok"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/raw/vuln-intel/images.json",
+     "subset": {
+      "registry.example/a:1": {
+       "clusters": [
+        "a",
+        "old"
+       ],
+       "exposed": true,
+       "prod": true
+      }
+     }
+    },
+    {
+     "stderr": {
+      "regex": [
+       "image inventory partial \\(inventory\\.b-images\\.json: k8s-cluster:b failed: RuntimeError; inventory\\.old-images\\.json: completeness not declared\\)"
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}

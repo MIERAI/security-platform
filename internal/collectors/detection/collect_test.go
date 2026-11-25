@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -87,9 +88,12 @@ func run(t *testing.T, dir string, detection map[string]any, kube kubectlFunc) r
 	vars := map[string]string{"SP_INSTANCE": filepath.Join(dir, "instance.json"), "SP_RUN_DIR": runDir,
 		"SP_DATA": filepath.Join(dir, "data"), "HOME": dir}
 	var stderr bytes.Buffer
-	env := rundoc.Env{Getenv: func(k string) string { return vars[k] }, Stderr: &stderr, Now: time.Now}
-	if cerr := collect(context.Background(), env, filepath.Join("..", "..", ".."), kube); cerr != nil {
-		t.Fatalf("collect: %v (%s)", cerr, stderr.String())
+	env := &rundoc.Env{Getenv: func(k string) string { return vars[k] }, Stderr: &stderr, Now: time.Now}
+	c := &rundoc.Collector{Name: Name, Version: Version, Collect: func(ctx context.Context, run *rundoc.Run, env *rundoc.Env) error {
+		return collect(ctx, run, env, filepath.Join("..", "..", ".."), kube)
+	}}
+	if code := rundoc.Main(context.Background(), c, []string{"collect"}, env, io.Discard); code != 0 {
+		t.Fatalf("collect: exit %d (%s)", code, stderr.String())
 	}
 	res := result{stderr: stderr.String(), files: map[string][]byte{}}
 	err = filepath.WalkDir(runDir, func(p string, d os.DirEntry, err error) error {

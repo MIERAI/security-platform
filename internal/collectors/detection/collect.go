@@ -9,6 +9,7 @@ package detection
 import (
 	"context"
 	"fmt"
+	"io"
 	"path/filepath"
 	"time"
 
@@ -29,48 +30,39 @@ const (
 )
 
 // Main is `sp detection collect`; tree is the product tree holding detections/catalog.yaml ("" when none).
-func Main(ctx context.Context, env rundoc.Env, tree string, args []string) int {
-	return rundoc.Main(ctx, env, args, Name, func(ctx context.Context, env rundoc.Env) error {
-		return Collect(ctx, env, tree)
-	})
+func Main(ctx context.Context, env *rundoc.Env, tree string, args []string, stdout io.Writer) int {
+	return rundoc.Main(ctx, &rundoc.Collector{Name: Name, Version: Version,
+		Collect: func(ctx context.Context, run *rundoc.Run, env *rundoc.Env) error {
+			return collect(ctx, run, env, tree, runKubectl)
+		}}, args, env, stdout)
 }
 
 // collector is one run.
 type collector struct {
-	doc   *rundoc.Document
-	env   rundoc.Env
-	home  string
-	now   float64 // epoch seconds
-	inst  *pyvalue.Map
-	d     *pyvalue.Map // the instance's detection section
-	cat   *pyvalue.Map // the detection catalog
-	data  string       // SP_DATA
-	kube  kubectlFunc
-	httpT time.Duration
+	doc    *rundoc.Document
+	runDir string
+	env    *rundoc.Env
+	home   string
+	now    float64 // epoch seconds
+	inst   *pyvalue.Map
+	d      *pyvalue.Map // the instance's detection section
+	cat    *pyvalue.Map // the detection catalog
+	data   string       // SP_DATA
+	kube   kubectlFunc
+	httpT  time.Duration
 }
 
-// Collect is one run of the collector (collector protocol).
-func Collect(ctx context.Context, env rundoc.Env, tree string) error {
-	return collect(ctx, env, tree, runKubectl)
-}
-
-func collect(ctx context.Context, env rundoc.Env, tree string, kube kubectlFunc) error {
-	run, err := rundoc.Start(env, Name, Version)
-	if err != nil {
-		return err
-	}
-	c := &collector{doc: run.Doc, env: env, home: env.Home(), now: float64(env.Now().UnixNano()) / 1e9,
+// collect is one run of the collector (collector protocol); the caller writes the document.
+func collect(ctx context.Context, run *rundoc.Run, env *rundoc.Env, tree string, kube kubectlFunc) error {
+	c := &collector{doc: run.Doc, runDir: run.Dir, env: env, home: env.Home(), now: float64(env.Clock()().UnixNano()) / 1e9,
 		inst: run.Instance, data: env.Getenv("SP_DATA"), cat: loadCatalog(tree), kube: kube, httpT: defaultTimeout}
-	c.d = rundoc.Map(run.Instance.Value("detection"))
-	if err := c.run(ctx); err != nil {
-		return err
-	}
-	return run.Finish()
+	c.d = rundoc.MapOr(run.Instance.Value("detection"))
+	return c.run(ctx)
 }
 
 func (c *collector) run(ctx context.Context) error {
 	if c.d.Len() == 0 {
-		c.doc.Gap("detection-config:instance", "no `detection:` section in the instance")
+		c.doc.Gap("detection-config:instance", "no `detection:` section in the instance", nil)
 	} else if err := c.checks(ctx); err != nil {
 		return err
 	}
@@ -92,7 +84,7 @@ func (c *collector) checks(ctx context.Context) error {
 func (c *collector) logStore(ctx context.Context) error {
 	cfg := c.d.Value("log_store")
 	if !pyvalue.Truthy(cfg) {
-		c.doc.Gap("detection-ruler:log-store", "no detection.log_store configured")
+		c.doc.Gap("detection-ruler:log-store", "no detection.log_store configured", nil)
 		return nil
 	}
 	store, err := c.endpoint(cfg)
@@ -115,7 +107,7 @@ func loadCatalog(tree string) *pyvalue.Map {
 	if err != nil {
 		return pyvalue.NewMap()
 	}
-	return rundoc.Map(m)
+	return rundoc.MapOr(m)
 }
 
 // loadYAML is spsdk.load_config for the collector's own data files: YAML (or JSON), any top-level value.
@@ -133,7 +125,7 @@ func loadYAML(path string, limit int64) (any, error) {
 
 // raw stores evidence; a failure to write it fails the run (the document would point at nothing).
 func (c *collector) raw(file string, v any) (string, error) {
-	return c.doc.Raw(file, v)
+	return c.doc.Raw(c.runDir, file, rundoc.JSON(v))
 }
 
 // finding adds a finding with its evidence written first (as the reference evaluates c.raw before c.finding).
@@ -143,12 +135,12 @@ func (c *collector) finding(f *rundoc.Finding, evFile string, ev any) error {
 		return err
 	}
 	f.Layer, f.Evidence = layer, p
-	c.doc.Add(f)
+	c.doc.AddFinding(f)
 	return nil
 }
 
 func (c *collector) metric(name string, v float64, help string, labels ...[2]string) {
-	c.doc.Metric(name, v, help, labels...)
+	c.doc.Metric(name, v, help, rundoc.Labels(labels...))
 }
 
 func label(k, v string) [2]string { return [2]string{k, v} }

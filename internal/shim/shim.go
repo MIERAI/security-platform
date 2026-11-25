@@ -49,10 +49,13 @@ func goCommands() map[string]command {
 		"detection":         runDetection,
 		"events":            runEvents,
 		"exposure":          runExposure,
+		"identity":          runIdentity,
+		"k8s":               runK8s,
 		"ledger":            runLedger,
 		"version":           runVersion,
 		"runner":            runRunner,
 		"scorecard":         runScorecard,
+		"vuln-intel":        runVulnIntel,
 	}
 }
 

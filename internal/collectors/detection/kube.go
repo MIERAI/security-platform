@@ -80,15 +80,15 @@ func (c *collector) sensors(ctx context.Context) error {
 		asset := "k8s-cluster:" + name
 		res := c.kube(ctx, c.kubeconfig(cl), []string{"get", "daemonsets", "-A", "-o", "json"})
 		if res.RC != 0 {
-			c.doc.Gap(asset, "cannot list DaemonSets: "+rundoc.Cut(strings.TrimSpace(res.Err), maxStderrText))
+			c.doc.Gap(asset, "cannot list DaemonSets: "+rundoc.Cut(strings.TrimSpace(res.Err), maxStderrText), nil)
 			continue
 		}
 		list, err := items(res.Out)
 		if err != nil {
-			c.doc.Gap(asset, "cannot list DaemonSets: "+err.Error())
+			c.doc.Gap(asset, "cannot list DaemonSets: "+err.Error(), nil)
 			continue
 		}
-		c.doc.OK(asset)
+		c.doc.OK(asset, "")
 		byName := map[string]any{}
 		for _, i := range list {
 			byName[itemName(i)] = i
@@ -109,7 +109,7 @@ func (c *collector) clusterSensors(cl any, name string, byName map[string]any) e
 		s := pyvalue.Str(k)
 		ds, present := byName[s]
 		present = present && pyvalue.Truthy(ds)
-		st := rundoc.Map(rundoc.Get(ds, "status"))
+		st := rundoc.MapOr(rundoc.Get(ds, "status"))
 		want, ready := st.GetOr("desiredNumberScheduled", int64(0)), st.GetOr("numberReady", int64(0))
 		w, _ := pyvalue.ToFloat64(want)
 		r, _ := pyvalue.ToFloat64(ready)

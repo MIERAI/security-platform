@@ -254,7 +254,7 @@ func evidenceName(configured string) string {
 func (c *collector) settings(f *settingsFile) error {
 	asset := "agent:claude-code:" + f.configured
 	if f.doc == nil {
-		c.doc.Gap(asset, "settings file not evaluated: "+f.problem)
+		c.doc.Gap(asset, "settings file not evaluated: "+f.problem, nil)
 		return nil
 	}
 	d := f.doc
@@ -267,15 +267,16 @@ func (c *collector) settings(f *settingsFile) error {
 		hooks[i] = h
 	}
 	mode := "0o" + strconv.FormatUint(uint64(f.mode), 8)
-	ev, err := c.doc.Raw(evidenceName(f.configured), map[string]any{
+	ev, err := c.doc.Raw(c.runDir, evidenceName(f.configured), rundoc.JSON(map[string]any{
 		"defaultMode": rundoc.Loose(d.defaultMode), "blockReadsOutsideWorkingDirectories": rundoc.Loose(d.blockReads),
 		"skipDangerousModePermissionPrompt": rundoc.Loose(d.skipDanger), "allow_rules": len(d.allow),
 		"deny_rules": len(d.deny), "additional_directories": d.additional, "hooks": hooks, "env_keys": d.envKeys,
-		"broad_allow": broad, "mode": mode})
+		"broad_allow": broad, "mode": mode}))
+
 	if err != nil {
 		return err
 	}
-	c.doc.OK(asset)
+	c.doc.OK(asset, "")
 	c.settingsFindings(asset, ev, d, f.mode, mode)
 	return nil
 }
@@ -286,24 +287,28 @@ func (c *collector) settingsFindings(asset, ev string, d *settingsDoc, perm os.F
 		if pyvalue.Truthy(d.skipDanger) {
 			title += " and the danger prompt is skipped"
 		}
-		c.doc.Add(&rundoc.Finding{Layer: layer, Asset: asset, Check: "agent.bypass_permissions_default", Title: title,
+		c.doc.AddFinding(&rundoc.Finding{Layer: layer, Asset: asset, Check: "agent.bypass_permissions_default", Title: title,
 			Severity: "high", Evidence: ev, NeedsHuman: true,
 			Remediation: "default to an allowlist mode; use bypass only in a sandbox/container"})
+
 	}
 	if b, ok := d.blockReads.(bool); ok && !b {
-		c.doc.Add(&rundoc.Finding{Layer: layer, Asset: asset, Check: "agent.reads_outside_workdir",
+		c.doc.AddFinding(&rundoc.Finding{Layer: layer, Asset: asset, Check: "agent.reads_outside_workdir",
 			Title:    "agent may read outside its working directories (blockReadsOutsideWorkingDirectories=false): ~/.ssh, kubeconfigs, tokens are readable",
 			Severity: "high", Evidence: ev, NeedsHuman: true,
 			Remediation: "turn it on; add needed dirs explicitly to additionalDirectories"})
+
 	}
 	for _, why := range d.broadOrder {
-		c.doc.Add(&rundoc.Finding{Layer: layer, Asset: asset, Check: "agent.broad_allow." + notLower.ReplaceAllString(why, "_"),
+		c.doc.AddFinding(&rundoc.Finding{Layer: layer, Asset: asset, Check: "agent.broad_allow." + notLower.ReplaceAllString(why, "_"),
 			Title:    fmt.Sprintf("%d allow rule(s) grant %s without confirmation", d.broadCount[why], why),
 			Severity: "medium", Evidence: ev, NeedsHuman: true,
 			Remediation: "narrow to read-only subcommands; require confirmation for writes"})
+
 	}
 	if perm&0o022 != 0 {
-		c.doc.Add(&rundoc.Finding{Layer: layer, Asset: asset, Check: "agent.settings_writable_by_others",
+		c.doc.AddFinding(&rundoc.Finding{Layer: layer, Asset: asset, Check: "agent.settings_writable_by_others",
 			Title: "settings file writable by others (" + mode + ")", Severity: "high", Evidence: ev, Remediation: "chmod 600"})
+
 	}
 }

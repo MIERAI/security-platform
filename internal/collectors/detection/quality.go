@@ -218,7 +218,7 @@ func (c *collector) drills(context.Context) error {
 			}
 		}
 	}
-	c.doc.OK(drillAsset)
+	c.doc.OK(drillAsset, "")
 	maxAge, err := c.duration("drill_max_age", "90d")
 	if err != nil {
 		return err
@@ -244,7 +244,7 @@ func (c *collector) drills(context.Context) error {
 func (c *collector) lastDrill(last *pyvalue.Map, maxAge, target float64) error {
 	t, ok := EventTime(last.Value("action_at"))
 	if !ok {
-		c.doc.Gap(drillAsset, "the last drill's action_at is not a time: "+rundoc.Cut(pyvalue.Repr(last.Value("action_at")), 60))
+		c.doc.Gap(drillAsset, "the last drill's action_at is not a time: "+rundoc.Cut(pyvalue.Repr(last.Value("action_at")), 60), nil)
 		return nil
 	}
 	c.metric("security_detection_drill_last_timestamp_seconds", t, "When the last detection drill acted")
@@ -254,7 +254,7 @@ func (c *collector) lastDrill(last *pyvalue.Map, maxAge, target float64) error {
 	if hasTTD {
 		f, ok := floatOf(ttd)
 		if !ok {
-			c.doc.Gap(drillAsset, "the last drill's ttd_seconds is not a number")
+			c.doc.Gap(drillAsset, "the last drill's ttd_seconds is not a number", nil)
 			return nil
 		}
 		ttdF = f
@@ -287,10 +287,10 @@ func (c *collector) ruleset() error {
 	const asset = "detection-ruleset:catalog"
 	t, ok := DateTime(rel)
 	if !ok {
-		c.doc.Gap(asset, "catalog has no released date")
+		c.doc.Gap(asset, "catalog has no released date", nil)
 		return nil
 	}
-	c.doc.OK(asset)
+	c.doc.OK(asset, "")
 	age := (c.now - t) / day
 	c.metric("security_detection_ruleset_age_days", pyvalue.Round(age, 1), "Days since the detection rule content was last reviewed/released")
 	c.metric("security_detection_ruleset_info", 1, "Detection catalog version", label("version", pyvalue.Str(c.cat.GetOr("version", ""))))

@@ -1,0 +1,170 @@
+{
+ "component": "collector-identity",
+ "title": "A listing the token may not read (members, outside collaborators, deploy keys, the fork-PR approval policy) is a gap of that part, naming the scope the API asks for; never silently an empty list",
+ "contract": "collector-protocol/1.0 / findings/1.2",
+ "deviation": "IDENTITY-D2",
+ "origin": "errors of these listings were dropped: no members, no deploy keys, no policy, no gap",
+ "services": [
+  {
+   "name": "api",
+   "argv": [
+    "{python}",
+    "{case}/mock_api.py",
+    "--data",
+    "{case}/api.json",
+    "--log",
+    "{sandbox}/.svc-api.calls"
+   ]
+  }
+ ],
+ "files": {
+  "instance.json": "instance.json",
+  "data/.keep": {
+   "text": ""
+  },
+  "bin/gh": {
+   "text": "#!/bin/sh\nexec \"{python}\" \"{case}/fake_gh.py\" \"$@\"\n",
+   "mode": "0755"
+  },
+  "bin/security": {
+   "text": "#!/bin/sh\n# fake macOS keychain: attributes only (a fixed creation date), never a secret\ncat \"{case}/keychain.txt\"\n",
+   "mode": "0755"
+  },
+  "bin/tailscale": {
+   "text": "#!/bin/sh\n[ \"$1 $2\" = \"status --json\" ] || { echo \"fake tailscale: $*\" >&2; exit 1; }\ncat \"{sandbox}/tailscale-status.json\"\n",
+   "mode": "0755"
+  },
+  "tailscale-status.json": "tailscale-status.json",
+  "home/.config/ts/api.key": {
+   "text": "ts-conformance-api-key-canary-4b2e\n",
+   "mode": "0600"
+  },
+  "home/.config/ts/oauth.secret": {
+   "text": "ts-conformance-oauth-secret-canary-9a3c\n",
+   "mode": "0600"
+  }
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-identity",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance",
+     "PATH": "{sandbox}/bin:{path}",
+     "FAKE_GH_URL": "{svc_api}",
+     "FAKE_GH_LOG": "{sandbox}/.svc-gh.calls"
+    },
+    "writes_only_under": [
+     "run",
+     "data/cache"
+    ]
+   },
+   "expect": [
+    {
+     "json": "run/identity.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "identity"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "no_secret": [
+      "conformanceCanary",
+      "kube-conformance-token-canary-51aa",
+      "docker-conformance-auth-canary-2f0e",
+      "{fake_key}",
+      "token-file-canary-0b3d",
+      "ts-conformance-api-key-canary-4b2e",
+      "ts-conformance-oauth-secret-canary-9a3c",
+      "ts-conformance-access-canary-1c4f"
+     ],
+     "in": "run"
+    },
+    {
+     "json": "run/identity.findings.json",
+     "subset": {
+      "coverage": {
+       "$contains": [
+        {
+         "asset": "org:github/acme",
+         "status": "ok"
+        },
+        {
+         "asset": "org:github/acme/members",
+         "status": "gap",
+         "reason": {
+          "$regex": "HTTP 403.*read:org"
+         }
+        },
+        {
+         "asset": "org:github/acme/outside_collaborators",
+         "status": "gap",
+         "reason": {
+          "$regex": "HTTP 403.*admin:org"
+         }
+        },
+        {
+         "asset": "org:github/acme/members-2fa",
+         "status": "gap",
+         "reason": {
+          "$regex": "HTTP 403"
+         }
+        },
+        {
+         "asset": "repo:github/octo/app/deploy-key",
+         "status": "gap",
+         "reason": {
+          "$regex": "HTTP 404"
+         }
+        },
+        {
+         "asset": "repo:github/octo/app/actions",
+         "status": "gap",
+         "checks": [
+          "identity.fork_pr_approval_weak"
+         ]
+        }
+       ]
+      },
+      "findings": {
+       "$not_contains": [
+        {
+         "check": "identity.deploy_key_unused"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/raw/identity/inventory.json",
+     "subset": {
+      "orgs": [
+       {
+        "id": "acme",
+        "members": null,
+        "outside_collaborators": null
+       }
+      ]
+     }
+    },
+    {
+     "file": ".svc-api.calls",
+     "not_regex": [
+      "^(?!GET |POST /api/v2/oauth/token |$)"
+     ]
+    }
+   ]
+  }
+ ]
+}

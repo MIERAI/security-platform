@@ -1,0 +1,132 @@
+{
+ "collector": {
+  "name": "golden",
+  "tools": {
+   "tool": "9.9"
+  },
+  "version": "1.2.3"
+ },
+ "coverage": [
+  {
+   "asset": "host:a",
+   "status": "ok"
+  },
+  {
+   "asset": "inventory:container-image",
+   "complete_scope": "image:",
+   "status": "ok"
+  },
+  {
+   "asset": "host:b",
+   "reason": "unreachable: \u00e9t\u00e9 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "status": "gap"
+  },
+  {
+   "asset": "host:a/probe",
+   "checks": [
+    "host.a*",
+    "host.z*"
+   ],
+   "reason": "timed out",
+   "status": "gap"
+  }
+ ],
+ "findings": [
+  {
+   "asset": "host:a",
+   "check": "x.one",
+   "evidence": "raw/golden/e.json#k",
+   "id": "be3d82426fb0",
+   "kind": "compliance",
+   "layer": "host",
+   "needs_human": false,
+   "observed_at": "2026-11-18T11:06:40Z",
+   "owner": "platform",
+   "remediation": "fix it",
+   "severity": "high",
+   "title": "T\u00edtle \ud83d\ude00 yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+  },
+  {
+   "asset": "image:r/a:1",
+   "attributes": {
+    "clusters": [
+     "b",
+     "a"
+    ],
+    "count": 3,
+    "cve": "CVE-1",
+    "cvss": 9.8,
+    "epss": 0.00012,
+    "exposed": true,
+    "kev": false,
+    "kev_added": null
+   },
+   "check": "vuln.cve-1",
+   "evidence": "raw/golden/m.json",
+   "id": "6611e4daa4b5",
+   "kind": "vulnerability",
+   "layer": "supply-chain",
+   "needs_human": true,
+   "observed_at": "2026-11-18T11:06:40Z",
+   "owner": "human",
+   "refs": [
+    "CVE-1",
+    "GHSA-x"
+   ],
+   "remediation": "update",
+   "severity": "critical",
+   "title": "CVE"
+  },
+  {
+   "asset": "k8s-identity:c/User:x",
+   "check": "k8s.rbac.wildcard",
+   "evidence": "e",
+   "id": "5427e78c8b03",
+   "kind": "compliance",
+   "layer": "identity",
+   "needs_human": false,
+   "observed_at": "2026-11-18T11:06:40Z",
+   "owner": "team-a",
+   "remediation": "r",
+   "severity": "medium",
+   "title": "w"
+  }
+ ],
+ "metrics": [
+  {
+   "help": "A counter",
+   "labels": {
+    "a": "1",
+    "b": "q\"\\\nz"
+   },
+   "name": "security_x_total",
+   "value": 3.0
+  },
+  {
+   "help": "Big",
+   "labels": {},
+   "name": "security_y",
+   "value": 1000000.0
+  },
+  {
+   "help": "",
+   "labels": {
+    "kind": "f"
+   },
+   "name": "security_y",
+   "value": 0.30000000000000004
+  },
+  {
+   "help": "",
+   "labels": {},
+   "name": "security_z",
+   "value": 12345678.9
+  }
+ ],
+ "run": {
+  "finished_at": "2026-11-18T11:06:45Z",
+  "instance": "golden",
+  "started_at": "2026-11-18T11:06:40Z"
+ },
+ "schema_version": "1.2"
+}

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -89,7 +90,7 @@ type runResult struct {
 	files  map[string][]byte
 }
 
-func collect(t *testing.T, dir string, inst map[string]any) runResult {
+func collectRun(t *testing.T, dir string, inst map[string]any) runResult {
 	t.Helper()
 	instPath := filepath.Join(dir, "instance.json")
 	data, err := json.Marshal(inst)
@@ -100,8 +101,8 @@ func collect(t *testing.T, dir string, inst map[string]any) runResult {
 	run := filepath.Join(dir, "run")
 	vars := map[string]string{"SP_INSTANCE": instPath, "SP_RUN_DIR": run, "HOME": filepath.Join(dir, "home")}
 	var stderr bytes.Buffer
-	env := rundoc.Env{Getenv: func(k string) string { return vars[k] }, Stderr: &stderr, Now: time.Now}
-	if code := Main(context.Background(), env, []string{"collect"}); code != 0 {
+	env := &rundoc.Env{Getenv: func(k string) string { return vars[k] }, Stderr: &stderr, Now: time.Now}
+	if code := Main(context.Background(), env, []string{"collect"}, io.Discard); code != 0 {
 		t.Fatalf("exit %d: %s", code, stderr.String())
 	}
 	res := runResult{stderr: stderr.String(), files: map[string][]byte{}}
@@ -155,7 +156,7 @@ func TestCredentialValuesNeverLeave(t *testing.T) {
 	home := filepath.Join(dir, "home")
 	write(t, filepath.Join(home, "mem", "p", "memory", "MEMORY.md"), "bot "+gh+"\npassword: "+pw+"\n")
 	write(t, filepath.Join(home, "settings.json"), `{"env": {"TOKEN": "`+envSecret+`"}, "permissions": {"allow": ["Bash(*)"]}}`)
-	res := collect(t, dir, map[string]any{"agents": []any{map[string]any{"type": "claude-code",
+	res := collectRun(t, dir, map[string]any{"agents": []any{map[string]any{"type": "claude-code",
 		"settings": []any{"~/settings.json"}, "memory_dirs": []any{"~/mem"}}}})
 	noCanary(t, res, gh, pw, envSecret)
 	i := slices.IndexFunc(res.doc.Findings, func(f struct {
@@ -187,7 +188,7 @@ func TestMalformedSettingsAreGaps(t *testing.T) {
 		write(t, filepath.Join(home, name), text)
 		settings = append(settings, "~/"+name)
 	}
-	res := collect(t, dir, map[string]any{"agents": []any{map[string]any{"type": "claude-code", "settings": settings}}})
+	res := collectRun(t, dir, map[string]any{"agents": []any{map[string]any{"type": "claude-code", "settings": settings}}})
 	cov := map[string]string{}
 	for _, c := range res.doc.Coverage {
 		cov[c.Asset] = c.Status
@@ -227,11 +228,11 @@ func TestVersionMatchesTree(t *testing.T) {
 func TestUsage(t *testing.T) {
 	t.Parallel()
 	var stderr bytes.Buffer
-	env := rundoc.Env{Getenv: func(string) string { return "" }, Stderr: &stderr, Now: time.Now}
-	if code := Main(context.Background(), env, nil); code != 2 {
+	env := &rundoc.Env{Getenv: func(string) string { return "" }, Stderr: &stderr, Now: time.Now}
+	if code := Main(context.Background(), env, nil, io.Discard); code != 2 {
 		t.Errorf("no verb: exit %d", code)
 	}
-	if code := Main(context.Background(), env, []string{"collect"}); code != 2 || !strings.Contains(stderr.String(), "SP_INSTANCE") {
+	if code := Main(context.Background(), env, []string{"collect"}, io.Discard); code != 2 || !strings.Contains(stderr.String(), "SP_INSTANCE") {
 		t.Errorf("no SP_INSTANCE: exit %d %q", code, stderr.String())
 	}
 }

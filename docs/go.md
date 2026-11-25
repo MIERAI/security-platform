@@ -55,14 +55,17 @@ internal/runner/       `sp runner` (docs/runner.md): scheduling, locks, jobs, st
 internal/remediation/  track (`sp ledger track`): items, owners, SLO due dates, files and github-issues trackers
 internal/cloud/        the cloud adapter (adapters/cloud.py): AWS, GCP, Azure on the official SDKs; discovery gcp
 internal/collectors/cloud/  the cloud collector (`sp cloud collect`) and its engines, imports, controls, merge
-internal/collectors/rundoc/  the findings document of a collector run, byte for byte as sdk/spsdk writes it (document,
-                       evidence, Prometheus text); `sp <collector> collect` entry and exit statuses
+internal/collectors/rundoc/  what sdk/spsdk is for Python collectors: the findings document, evidence and metrics byte for
+                       byte as the SDK writes them, the protocol environment, private writes, child processes
 internal/collectors/credential/  secrets from 0600 files or named environment variables only, never in errors
 internal/collectors/roclient/  the collectors' HTTP client: GET/HEAD only (anything else refused before it is sent),
                        no redirect to another origin, bounded bodies, a deadline on every request
 internal/collectors/execad/  the exec adapter (adapters/exec.py): local or ssh, argument vectors, process-group kill
 internal/collectors/{exposure,codehostgithub,codehostgitea,agentclaude,detection}/  `sp <collector> collect`
 internal/events/       the events shipper (`sp events ship`, contracts/events)
+internal/collectors/k8s/    the k8s collector (`sp k8s collect`): kubectl, read verbs only; image inventory
+internal/collectors/vulnintel/  the vuln-intel collector (`sp vuln-intel collect`): feeds, trivy, image/host matching
+internal/collectors/identity/   the identity collector (`sp identity collect`): code host, overlay network, local credentials
 internal/<component>/  added per component as it moves (collectors/<name>, ...)
 ```
 
@@ -143,6 +146,62 @@ Each SDK measured alone on a small program: AWS (sts, iam, stscreds, config) +2.
 
 Checks: `go mod verify`, `go mod tidy -diff` and govulncheck in CI (`.github/workflows/go.yml`); every parser of
 provider responses and engine output has a fuzz test.
+
+## Go collectors: k8s, vuln-intel, identity
+
+`sp k8s collect`, `sp vuln-intel collect` and `sp identity collect` implement the collectors of the same names behind
+the collector protocol, with the same configuration keys, the same data-directory layout (one data directory works
+with either implementation, in both directions) and byte-identical documents, evidence, inventories and metrics on
+every conformance case without a deviation id (`tests/test_collectors_go.py` runs both implementations in identical
+sandboxes and compares every file of the run directory, times and the sandbox path masked). Where the Python
+collector has a recorded defect (contracts/collector-protocol/SPEC.md, "Known deviations": K8S-D*, VULN-D*,
+IDENTITY-D*) the Go one has the target behaviour, and its conformance runs have no expected failures. The Python
+collectors stay the default; as for the cloud collector, a `command` job selects the Go one:
+
+```yaml
+runner:
+  jobs:
+    k8s: {type: command, argv: [~/.local/bin/sp, k8s, collect], schedule: "15 */6 * * *", timeout: 30m}
+    vuln-intel: {type: command, argv: [~/.local/bin/sp, vuln-intel, collect], schedule: "0 5 * * *", timeout: 2h}
+    identity: {type: command, argv: [~/.local/bin/sp, identity, collect], schedule: "0 6 * * *", timeout: 30m}
+```
+
+(`collector:` defaults to the job name; with `as:` the collector reports under `SP_COLLECTOR_NAME`, as in Python.)
+
+**Kubernetes access: kubectl, not client-go.** The k8s collector runs the operator's `kubectl` with an argument vector,
+exactly as the Python collector does, instead of linking `k8s.io/client-go`:
+
+- *Correctness*: the kubeconfig is the operator's, with whatever authentication it carries (exec credential plugins
+  for EKS/GKE/AKS, OIDC, client certificates, in-cluster ServiceAccount). kubectl is the reference implementation of
+  all of them; with client-go every plugin path would be ours to configure and test. The collector reads lists only,
+  so the API machinery client-go adds (informers, watch, apply, protobuf) buys nothing here.
+- *Dependencies*: a program that lists pods with the typed clientset is 38 MB (linux/amd64, stripped), with the
+  dynamic client 12 MB, against 14.5 MB for all of `sp`; client-go brings 77 modules (k8s.io/api, apimachinery, klog,
+  kube-openapi, structured-merge-diff, gnostic, json-iterator, gogo/protobuf, ...) that govulncheck and depguard would
+  have to cover. depguard stays as it is: the collectors use the standard library and this module only.
+- *Read-only by construction*: every call goes through one function that builds the argument vector and refuses every
+  verb except `get` and `auth whoami` (unit-tested); the conformance cases replay recorded API answers through a fake
+  kubectl that logs every call, and assert that nothing but those verbs was ever called. Pod specs are decoded into
+  structs that have no field for environment values, so they cannot reach an output.
+
+**vuln-intel**: the feeds (CISA KEV, EPSS, OSV per ecosystem, Android bulletins, Apple security releases, MSRC CVRF)
+are fetched with `net/http`: conditional GET with the Python implementation's cache files and ETag/Last-Modified
+metadata, TLS 1.2+ only (plain http only to a loopback mirror, also for redirects), a size limit per download and per
+inflated archive (gzip, zip: total size, entry count, entry size), and the payload is parsed before it replaces the
+cached copy. Trivy stays an external engine (argument vectors as in Python; registry credentials only in
+`TRIVY_USERNAME`/`TRIVY_PASSWORD`). Not in Go: feed `vendor-advisories` (unstructured pages, the advisor, the human
+review state) and `code_repos` (code-host listings and clones): an instance that uses them is refused with exit 2 and
+keeps the Python collector.
+
+**identity**: the code host's REST API and the overlay network's API directly over `net/http` (no `gh api`): GET
+only (plus the OAuth token exchange of the overlay network), redirects never followed (the token would follow),
+proxies from the run's environment except for loopback hosts, Link-header pagination bounded to 100 pages, the Python
+adapter's ETag cache files; certificates of kubeconfig users are read with `crypto/x509` and printed in OpenSSL's
+form, so both implementations write the same groups and expiry.
+
+kube-bench (part `cis`) runs on a node through `host_exec` (`local`, or `ssh` with batch mode and strict host key
+checking): the same script as the Python collector, with the benchmark name checked against
+`^[A-Za-z0-9][A-Za-z0-9._-]*$` first, because it becomes part of that script.
 
 ## Go collectors: exposure, codehost-github, codehost-gitea, agent-claude-code, detection; the events shipper
 

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -59,8 +60,8 @@ func run(t *testing.T, url, tokenMode string) (doc string, files map[string][]by
 	}
 	vars := map[string]string{"SP_INSTANCE": filepath.Join(dir, "i.json"), "SP_RUN_DIR": filepath.Join(dir, "run")}
 	var stderr bytes.Buffer
-	env := rundoc.Env{Getenv: func(k string) string { return vars[k] }, Stderr: &stderr, Now: time.Now}
-	if code := Main(context.Background(), env, []string{"collect"}); code != 0 {
+	env := &rundoc.Env{Getenv: func(k string) string { return vars[k] }, Stderr: &stderr, Now: time.Now}
+	if code := Main(context.Background(), env, []string{"collect"}, io.Discard); code != 0 {
 		t.Fatalf("exit %d: %s", code, stderr.String())
 	}
 	files = map[string][]byte{"stderr": stderr.Bytes()}

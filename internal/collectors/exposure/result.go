@@ -55,13 +55,13 @@ func ParseResult(data []byte) (*Result, error) {
 	if !ok {
 		return nil, fmt.Errorf("%w: no hosts object", errResult)
 	}
-	r := &Result{Targets: rundoc.Strings(root.Value("targets")), Tools: map[string]any{}}
+	r := &Result{Targets: rundoc.Texts(root.Value("targets")), Tools: map[string]any{}}
 	if t, ok := root.Value("tools").(*pyvalue.Map); ok {
 		for _, k := range t.Keys() {
 			r.Tools[k] = rundoc.Loose(t.Value(k))
 		}
 	}
-	r.TimedOut = rundoc.Strings(root.Value("timed_out"))
+	r.TimedOut = rundoc.Texts(root.Value("timed_out"))
 	for _, ip := range hosts.Keys() {
 		h, err := parseHost(ip, hosts.Value(ip))
 		if err != nil {

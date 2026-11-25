@@ -1,0 +1,123 @@
+{
+ "component": "collector-k8s",
+ "title": "An unreachable cluster is a coverage gap (exit 0), and the image inventory says it is partial: `complete: false`, with `sources` naming the cluster that failed and the one whose workloads were not listed; the reachable cluster is still reported",
+ "contract": "collector-protocol/1.0 / findings/1.2",
+ "origin": "tests/test_retired.py::K8sInventory::test_complete_only_when_every_cluster_listed",
+ "files": {
+  "instance.json": "instance.json",
+  "data/.keep": {
+   "text": ""
+  },
+  "bin/kubectl": {
+   "text": "#!/bin/sh\nexec \"{python}\" \"{case}/fake_kubectl.py\" \"$@\"\n",
+   "mode": "0755"
+  },
+  "bin/sudo": {
+   "text": "#!/bin/sh\n[ \"$1\" = \"-n\" ] && shift\nexec \"$@\"\n",
+   "mode": "0755"
+  },
+  "kube/prod.json": "prod.json",
+  "kube/down.json": "down.json",
+  "kube/rbaconly.json": "rbaconly.json"
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-k8s",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance",
+     "PATH": "{sandbox}/bin:{path}",
+     "FAKE_KUBE_DIR": "{sandbox}/kube",
+     "FAKE_KUBE_LOG": "{sandbox}/.svc-kubectl.calls"
+    },
+    "writes_only_under": [
+     "run"
+    ]
+   },
+   "expect": [
+    {
+     "json": "run/k8s.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "k8s"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "json": "run/k8s.findings.json",
+     "subset": {
+      "coverage": {
+       "$unordered": [
+        {
+         "asset": "k8s-cluster:prod",
+         "status": "ok"
+        },
+        {
+         "asset": "k8s-cluster:down",
+         "status": "gap",
+         "reason": {
+          "$regex": "Unable to connect"
+         }
+        },
+        {
+         "asset": "k8s-cluster:rbaconly",
+         "status": "ok"
+        }
+       ]
+      },
+      "findings": {
+       "$contains": [
+        {
+         "check": "k8s.pod.privileged",
+         "asset": "k8s-workload:prod/data/StatefulSet/db"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/inventory.k8s-images.json",
+     "subset": {
+      "complete": false,
+      "items": {
+       "$len": 5
+      },
+      "sources": {
+       "k8s-cluster:prod": "complete",
+       "k8s-cluster:down": "failed: RuntimeError",
+       "k8s-cluster:rbaconly": "not inventoried (parts without workloads)"
+      }
+     }
+    },
+    {
+     "prom": "run/k8s.prom",
+     "has": [
+      {
+       "name": "security_collector_gaps",
+       "labels": {
+        "collector": "k8s"
+       },
+       "value": 1
+      }
+     ]
+    },
+    {
+     "file": ".svc-kubectl.calls",
+     "not_regex": [
+      "^[a-z-]+: (?!get |auth whoami )"
+     ]
+    }
+   ]
+  }
+ ]
+}

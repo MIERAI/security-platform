@@ -216,7 +216,7 @@ func (r *runner) source(ctx context.Context, sc *pyvalue.Map) bool {
 	}
 	counts, order := eventCounts(evs)
 	r.summary[name] = map[string]any{"ok": true, "shipped": len(evs), "events": counts, "baseline": src.first,
-		"unsupported": rundoc.Loose(rundoc.Map(next.GetOr("unsupported", pyvalue.NewMap())))}
+		"unsupported": rundoc.Loose(rundoc.MapOr(next.GetOr("unsupported", pyvalue.NewMap())))}
 	r.log(fmt.Sprintf("%s: shipped %d %s%s", name, len(evs), countsRepr(order, counts), map[bool]string{true: " (baseline)"}[src.first]))
 	return true
 }
@@ -303,7 +303,7 @@ func (r *runner) deliver(ctx context.Context, name string, sc *pyvalue.Map, got 
 		return keyError("loki")
 	}
 	if len(streams) > 0 {
-		p, err := newPusher(rundoc.Map(loki), r.d)
+		p, err := newPusher(rundoc.MapOr(loki), r.d)
 		if err != nil {
 			return err
 		}

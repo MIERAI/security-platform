@@ -58,12 +58,13 @@ func (o *ownerScan) scan(ctx context.Context, repos []any) error {
 		}
 		o.repo(ctx, full, r)
 	}
-	if _, err := o.c.doc.Raw("repos.json", o.summary); err != nil {
+	if _, err := o.c.doc.Raw(o.c.runDir, "repos.json", rundoc.JSON(o.summary)); err != nil {
 		return err
 	}
-	o.c.doc.Metric("security_repos_public_without_protection", float64(o.publicUnprotected),
-		"Public repos whose default branch has no protection/ruleset", [2]string{"owner", o.owner})
-	o.c.doc.Metric("security_repos_total", float64(len(o.summary)), "Repos checked", [2]string{"owner", o.owner})
+	o.c.doc.Metric("security_repos_public_without_protection", float64(o.publicUnprotected), "Public repos whose default branch has no protection/ruleset", rundoc.Labels(
+		[2]string{"owner", o.owner}))
+
+	o.c.doc.Metric("security_repos_total", float64(len(o.summary)), "Repos checked", rundoc.Labels([2]string{"owner", o.owner}))
 	return nil
 }
 
@@ -84,12 +85,12 @@ func (o *ownerScan) protection(ctx context.Context, full, br string) (any, error
 
 func (o *ownerScan) repo(ctx context.Context, full string, r *pyvalue.Map) {
 	asset := "repo:github/" + full
-	o.c.doc.OK(asset)
+	o.c.doc.OK(asset, "")
 	br, vis := pyvalue.Str(r.Value("default_branch")), pyvalue.Str(r.Value("visibility"))
 	base := "/repos/" + codehost.Quote(full)
 	prot, err := o.protection(ctx, full, br)
 	if err != nil {
-		o.c.doc.Gap(asset, "cannot read branch protection: "+rundoc.Cut(err.Error(), 200))
+		o.c.doc.Gap(asset, "cannot read branch protection: "+rundoc.Cut(err.Error(), 200), nil)
 		return
 	}
 	// an error of these reads is read as absent (no ruleset, no finding, no keys), as in the reference

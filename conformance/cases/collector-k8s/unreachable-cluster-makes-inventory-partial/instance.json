@@ -1,0 +1,25 @@
+{
+ "kubernetes": [
+  {
+   "kubeconfig": "{sandbox}/kube/prod.yaml",
+   "name": "prod",
+   "parts": [
+    "workloads"
+   ],
+   "role": "prod"
+  },
+  {
+   "kubeconfig": "{sandbox}/kube/down.yaml",
+   "name": "down",
+   "role": "prod"
+  },
+  {
+   "kubeconfig": "{sandbox}/kube/rbaconly.yaml",
+   "name": "rbaconly",
+   "parts": [
+    "rbac"
+   ]
+  }
+ ],
+ "name": "conformance"
+}

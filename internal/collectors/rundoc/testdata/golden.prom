@@ -1,0 +1,23 @@
+# HELP security_collector_findings Findings reported by the latest run of a collector
+# TYPE security_collector_findings gauge
+security_collector_findings{collector="golden",layer="host",severity="high"} 1
+security_collector_findings{collector="golden",layer="identity",severity="medium"} 1
+security_collector_findings{collector="golden",layer="supply-chain",severity="critical"} 1
+# HELP security_collector_gaps Assets the collector could not cover
+# TYPE security_collector_gaps gauge
+security_collector_gaps{collector="golden"} 2
+# HELP security_collector_assets Assets in scope of the run
+# TYPE security_collector_assets gauge
+security_collector_assets{collector="golden"} 4
+# HELP security_collector_last_run_timestamp_seconds Heartbeat: when the collector last finished (no findings != secure)
+# TYPE security_collector_last_run_timestamp_seconds gauge
+security_collector_last_run_timestamp_seconds{collector="golden"} 1795000005
+# HELP security_x_total A counter
+# TYPE security_x_total counter
+security_x_total{a="1",b="q'/ z",collector="golden"} 3
+# HELP security_y Big
+# TYPE security_y gauge
+security_y{collector="golden"} 1e+06
+security_y{collector="golden",kind="f"} 0.3
+# TYPE security_z gauge
+security_z{collector="golden"} 1.23457e+07

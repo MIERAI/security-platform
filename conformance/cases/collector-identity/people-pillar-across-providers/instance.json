@@ -1,0 +1,50 @@
+{
+ "identity": {
+  "credentials": {
+   "docker_configs": [
+    "{sandbox}/home/.docker/config.json"
+   ],
+   "exclude": [
+    "{sandbox}/home/.ssh/work_key",
+    "{sandbox}/home/.kube/excluded.yaml"
+   ],
+   "exclude_registries": [
+    "skip.example"
+   ],
+   "kubeconfigs": [
+    "{sandbox}/home/.kube/*.yaml"
+   ],
+   "ssh_dirs": [
+    "{sandbox}/home/.ssh"
+   ],
+   "token_files": [
+    "{sandbox}/home/.config/sp/*.token"
+   ]
+  },
+  "providers": [
+   {
+    "accounts": [
+     {
+      "gh_user": "octo"
+     }
+    ],
+    "api_url": "{svc_api}",
+    "expected_collaborators": [
+     "octo"
+    ],
+    "orgs": [
+     "acme"
+    ],
+    "repos_owner": "octo",
+    "type": "github"
+   },
+   {
+    "type": "tailscale"
+   },
+   {
+    "type": "google-workspace"
+   }
+  ]
+ },
+ "name": "conformance"
+}

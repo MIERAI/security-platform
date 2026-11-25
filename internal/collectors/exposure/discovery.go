@@ -47,7 +47,7 @@ func newPyError(class, format string, args ...any) error {
 // discoverer is what discovery adapters need from the run.
 type discoverer struct {
 	run  RunFunc
-	env  rundoc.Env
+	env  *rundoc.Env
 	home string
 }
 
@@ -88,7 +88,7 @@ func discoverStatic(cfg *pyvalue.Map) ([]Device, error) {
 	var out []Device
 	seen := map[string]bool{}
 	for _, t := range rundoc.List(cfg.Value("targets")) {
-		m := rundoc.Map(t)
+		m := rundoc.MapOr(t)
 		if !m.Has("address") {
 			return nil, newPyError("KeyError", "'address'")
 		}
@@ -186,7 +186,7 @@ func ParseTailscale(data []byte) ([]Device, error) {
 		return nil, newPyError("AttributeError", "'%s' object has no attribute 'get'", pyvalue.TypeName(v))
 	}
 	var out []Device
-	peers := rundoc.Map(st.Value("Peer"))
+	peers := rundoc.MapOr(st.Value("Peer"))
 	for _, k := range peers.Keys() {
 		p, isMap := peers.Value(k).(*pyvalue.Map)
 		if !isMap {
@@ -329,7 +329,7 @@ func applyScope(devs []Device, scope any) []Device {
 
 func scopeOf(name, scope any) *pyvalue.Map {
 	for _, x := range rundoc.List(scope) {
-		s := rundoc.Map(x)
+		s := rundoc.MapOr(x)
 		if in, err := pyvalue.In(name, rundoc.List(s.Value("names"))); err == nil && in {
 			return s
 		}

@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 
 	"github.com/MIERAI/security-platform/internal/collectors/rundoc"
 	"github.com/MIERAI/security-platform/internal/pyvalue"
@@ -31,29 +32,26 @@ const (
 )
 
 // Main is `sp agent-claude-code collect`.
-func Main(ctx context.Context, env rundoc.Env, args []string) int {
-	return rundoc.Main(ctx, env, args, Name, Collect)
+func Main(ctx context.Context, env *rundoc.Env, args []string, stdout io.Writer) int {
+	return rundoc.Main(ctx, &rundoc.Collector{Name: Name, Version: Version, Collect: collect}, args, env, stdout)
 }
 
-// Collect is one run (collector protocol).
-func Collect(_ context.Context, env rundoc.Env) error {
-	run, err := rundoc.Start(env, Name, Version)
-	if err != nil {
-		return err
-	}
-	c := &collector{doc: run.Doc, home: env.Home(), now: float64(env.Now().UnixNano()) / 1e9}
+// collect is one run (collector protocol); the caller writes the document.
+func collect(_ context.Context, run *rundoc.Run, env *rundoc.Env) error {
+	c := &collector{runDir: run.Dir, doc: run.Doc, home: env.Home(), now: float64(env.Clock()().UnixNano()) / 1e9}
 	for i, a := range rundoc.List(run.Instance.Value("agents")) {
 		if err := c.agent(a); err != nil {
 			return fmt.Errorf("%w: agents[%d]: %w", rundoc.ErrUsage, i, err)
 		}
 	}
-	return run.Finish()
+	return nil
 }
 
 type collector struct {
-	doc  *rundoc.Document
-	home string
-	now  float64 // epoch seconds
+	runDir string // SP_RUN_DIR: the evidence goes under it
+	doc    *rundoc.Document
+	home   string
+	now    float64 // epoch seconds
 }
 
 var errNoType = errors.New("no type")
@@ -64,7 +62,7 @@ func (c *collector) agent(v any) error {
 		return errNoType
 	}
 	if t := pyvalue.Str(a.Value("type")); t != "claude-code" {
-		c.doc.Gap("agent:"+t, "adapter not implemented (future)")
+		c.doc.Gap("agent:"+t, "adapter not implemented (future)", nil)
 		return nil
 	}
 	files := c.readSettings(a)
@@ -107,17 +105,19 @@ func (c *collector) guard(files []*settingsFile) error {
 			guarded++
 		}
 	}
-	ev, err := c.doc.Raw("guards.json", map[string]any{"deny_rules": len(deny), "credential_path_deny_rules": guarded,
-		"hooks": hooks})
+	ev, err := c.doc.Raw(c.runDir, "guards.json", rundoc.JSON(map[string]any{"deny_rules": len(deny), "credential_path_deny_rules": guarded,
+		"hooks": hooks}))
+
 	if err != nil {
 		return err
 	}
-	c.doc.OK(guardAsset)
+	c.doc.OK(guardAsset, "")
 	if guarded == 0 {
-		c.doc.Add(&rundoc.Finding{Layer: layer, Asset: guardAsset, Check: "agent.no_credential_deny_rules",
+		c.doc.AddFinding(&rundoc.Finding{Layer: layer, Asset: guardAsset, Check: "agent.no_credential_deny_rules",
 			Title:    "no deny rule protects credential paths (~/.ssh, kubeconfigs, cloud and gh credentials) from the agent",
 			Severity: "medium", Evidence: ev, NeedsHuman: true,
 			Remediation: "add deny rules such as Read(~/.ssh/**), Read(~/.kube/**), Read(~/.config/gh/**); grant exceptions per project"})
+
 	}
 	return nil
 }

@@ -1,0 +1,297 @@
+{
+ "component": "collector-vuln-intel",
+ "title": "Host inventories: distro packages through a CycloneDX SBOM and trivy (the running kernel aggregated, other installed kernels only evidence), an fs SBOM also through OSV, Android bulletins newer than the patch level, Apple releases of the same major line, MSRC monthly updates by build, KEV entries of the firmware vendor after the build date; a host no matcher applies to is a gap. Cached feeds only",
+ "contract": "collector-protocol/1.0 / findings/1.2",
+ "origin": "tests/test_hostintel.py; collectors/vuln-intel/hostmatch.py",
+ "files": {
+  "instance.json": "instance.json",
+  "data/.keep": {
+   "text": ""
+  },
+  "fake_trivy.json": "trivy.json",
+  "bin/trivy": {
+   "text": "#!/bin/sh\nexec \"{python}\" \"{case}/fake_trivy.py\" \"$@\"\n",
+   "mode": "0755"
+  },
+  "data/cache/feeds/known_exploited_vulnerabilities.json": "feed-known_exploited_vulnerabilities.json",
+  "data/cache/feeds/known_exploited_vulnerabilities.json.meta.json": {
+   "text": "{\"checked_at\": {now_epoch}, \"etag\": \"\\\"v1\\\"\", \"last_modified\": null, \"url\": \"x\"}"
+  },
+  "data/cache/feeds/osv/Go/all.zip": {
+   "raw": "feed-osv-Go-all.zip"
+  },
+  "data/cache/feeds/osv/Go/all.zip.meta.json": {
+   "text": "{\"checked_at\": {now_epoch}, \"etag\": \"\\\"v1\\\"\", \"last_modified\": null, \"url\": \"x\"}"
+  },
+  "data/cache/feeds/android/all.zip": {
+   "raw": "feed-android-all.zip"
+  },
+  "data/cache/feeds/android/all.zip.meta.json": {
+   "text": "{\"checked_at\": {now_epoch}, \"etag\": \"\\\"v1\\\"\", \"last_modified\": null, \"url\": \"x\"}"
+  },
+  "data/cache/feeds/apple/index.html": "feed-apple-index.html",
+  "data/cache/feeds/apple/index.html.meta.json": {
+   "text": "{\"checked_at\": {now_epoch}, \"etag\": \"\\\"v1\\\"\", \"last_modified\": null, \"url\": \"x\"}"
+  },
+  "data/cache/feeds/apple/release-1a383c31787a1184.html": "feed-apple-release-1a383c31787a1184.html",
+  "data/cache/feeds/apple/release-1a383c31787a1184.html.meta.json": {
+   "text": "{\"checked_at\": {now_epoch}, \"etag\": \"\\\"v1\\\"\", \"last_modified\": null, \"url\": \"x\"}"
+  },
+  "data/cache/feeds/apple/release-7a318699c574bcfc.html": "feed-apple-release-7a318699c574bcfc.html",
+  "data/cache/feeds/apple/release-7a318699c574bcfc.html.meta.json": {
+   "text": "{\"checked_at\": {now_epoch}, \"etag\": \"\\\"v1\\\"\", \"last_modified\": null, \"url\": \"x\"}"
+  },
+  "data/cache/feeds/msrc/updates.json": "feed-msrc-updates.json",
+  "data/cache/feeds/msrc/updates.json.meta.json": {
+   "text": "{\"checked_at\": {now_epoch}, \"etag\": \"\\\"v1\\\"\", \"last_modified\": null, \"url\": \"x\"}"
+  },
+  "data/cache/feeds/msrc/2026-Aug.json": "feed-msrc-2026-Aug.json",
+  "data/cache/feeds/msrc/2026-Aug.json.meta.json": {
+   "text": "{\"checked_at\": {now_epoch}, \"etag\": \"\\\"v1\\\"\", \"last_modified\": null, \"url\": \"x\"}"
+  },
+  "data/cache/feeds/msrc/2026-Sep.json": "feed-msrc-2026-Sep.json",
+  "data/cache/feeds/msrc/2026-Sep.json.meta.json": {
+   "text": "{\"checked_at\": {now_epoch}, \"etag\": \"\\\"v1\\\"\", \"last_modified\": null, \"url\": \"x\"}"
+  },
+  "data/cache/feeds/msrc/2026-Oct.json": "feed-msrc-2026-Oct.json",
+  "data/cache/feeds/msrc/2026-Oct.json.meta.json": {
+   "text": "{\"checked_at\": {now_epoch}, \"etag\": \"\\\"v1\\\"\", \"last_modified\": null, \"url\": \"x\"}"
+  },
+  "data/latest/inventory.host-sbom-platform.json": "platform.json",
+  "data/latest/inventory.host-sbom-packages.json": "packages.json",
+  "data/sbom/host-web1-fs.cdx.json": "web1-fs.json"
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-vuln-intel",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance",
+     "PATH": "{sandbox}/bin:{path}",
+     "FAKE_TRIVY_DATA": "{sandbox}/fake_trivy.json",
+     "FAKE_TRIVY_LOG": "{sandbox}/.svc-trivy.calls",
+     "https_proxy": "http://127.0.0.1:9",
+     "HTTPS_PROXY": "http://127.0.0.1:9",
+     "http_proxy": "http://127.0.0.1:9",
+     "HTTP_PROXY": "http://127.0.0.1:9",
+     "no_proxy": "",
+     "NO_PROXY": ""
+    },
+    "writes_only_under": [
+     "run",
+     "data/cache",
+     "data/sbom"
+    ]
+   },
+   "expect": [
+    {
+     "json": "run/vuln-intel.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "vuln-intel"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "json": "run/vuln-intel.findings.json",
+     "subset": {
+      "coverage": {
+       "$contains": [
+        {
+         "asset": "host:web1",
+         "status": "ok"
+        },
+        {
+         "asset": "host:phone",
+         "status": "ok"
+        },
+        {
+         "asset": "host:laptop",
+         "status": "ok"
+        },
+        {
+         "asset": "host:pc",
+         "status": "ok"
+        },
+        {
+         "asset": "host:router",
+         "status": "ok"
+        },
+        {
+         "asset": "host:nas",
+         "status": "gap",
+         "reason": {
+          "$regex": "^no matcher applies"
+         }
+        }
+       ]
+      },
+      "findings": {
+       "$unordered": [
+        {
+         "check": "vuln.cve-2099-0204",
+         "asset": "host:web1",
+         "severity": "critical",
+         "attributes": {
+          "matcher": "trivy",
+          "target": "host",
+          "clusters": []
+         }
+        },
+        {
+         "check": "vuln.kernel_fixes_available",
+         "asset": "host:web1",
+         "severity": "critical",
+         "layer": "supply-chain",
+         "title": "running kernel 6.8.0-40-generic: 2 CVEs fixed in 6.8.0-52.53 (1 critical, KEV CVE-2099-0202)",
+         "refs": [
+          "CVE-2099-0202"
+         ],
+         "attributes": {
+          "published_at": "2026-02-01",
+          "kev_added": "2026-03-01",
+          "cve": "CVE-2099-0202"
+         }
+        },
+        {
+         "check": "vuln.cve-2099-0101",
+         "asset": "host:web1",
+         "severity": "critical",
+         "attributes": {
+          "matcher": "osv",
+          "clusters": []
+         }
+        },
+        {
+         "check": "vuln.cve-2099-0002",
+         "asset": "host:web1",
+         "severity": "critical",
+         "attributes": {
+          "matcher": "osv",
+          "kev": true
+         }
+        },
+        {
+         "check": "platform.android_bulletin.2026-09-01",
+         "asset": "host:phone",
+         "severity": "high",
+         "layer": "host",
+         "title": "Android security patch level 2026-08-01 lacks bulletin 2026-09-01: 1 issues (1 critical)",
+         "attributes": {
+          "cve": null,
+          "kev": false,
+          "advisory": "android-bulletin-2026-09-01"
+         }
+        },
+        {
+         "check": "platform.android_bulletin.2026-09-05",
+         "asset": "host:phone",
+         "severity": "high",
+         "refs": [
+          "CVE-2099-0302"
+         ],
+         "attributes": {
+          "kev_added": "2026-03-05",
+          "alertable": true
+         }
+        },
+        {
+         "check": "platform.apple_release.26.6.3",
+         "asset": "host:laptop",
+         "severity": "medium",
+         "title": "macOS Tahoe 26.6.3 (2026-08-01) not installed (host 26.6.2): 1 CVEs",
+         "refs": [
+          "https://support.example.invalid/apple/120002"
+         ]
+        },
+        {
+         "check": "platform.apple_release.26.7",
+         "asset": "host:laptop",
+         "severity": "high",
+         "title": "macOS Tahoe 26.7 (2026-09-15) not installed (host 26.6.2): 2 CVEs, KEV CVE-2099-0402",
+         "refs": [
+          "CVE-2099-0402",
+          "https://support.example.invalid/apple/120001"
+         ]
+        },
+        {
+         "check": "platform.windows_update.2026-sep",
+         "asset": "host:pc",
+         "severity": "high",
+         "title": "2026-Sep security update not installed (build 10.0.26200.200): 1 CVEs (1 critical, exploited CVE-2099-0601)"
+        },
+        {
+         "check": "platform.windows_update.2026-oct",
+         "asset": "host:pc",
+         "severity": "medium"
+        },
+        {
+         "check": "vuln.cve-2099-0501",
+         "asset": "host:router",
+         "severity": "critical",
+         "layer": "host",
+         "needs_human": true,
+         "attributes": {
+          "candidate": true,
+          "matcher": "kev-vendor"
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/raw/vuln-intel/matches.json",
+     "subset": {
+      "host:web1|kernel": {
+       "other_installed_kernel_packages": [
+        "linux-image-6.8.0-45-generic"
+       ],
+       "fixed_in": "6.8.0-52.53"
+      }
+     }
+    },
+    {
+     "prom": "run/vuln-intel.prom",
+     "has": [
+      {
+       "name": "security_host_kernel_cves_fixable",
+       "labels": {
+        "host": "web1"
+       },
+       "value": 2
+      },
+      {
+       "name": "security_sbom_unmatched_packages",
+       "labels": {
+        "kind": "opkg"
+       },
+       "value": 1
+      },
+      {
+       "name": "security_sbom_unmatched_packages",
+       "labels": {
+        "kind": "brew"
+       },
+       "value": 1
+      },
+      {
+       "name": "security_intel_firmware_vendors_without_source",
+       "value": 1
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

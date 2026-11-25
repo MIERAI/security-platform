@@ -318,8 +318,8 @@ func TestCollectRefusesInjectedTarget(t *testing.T) {
 		{"name": "ok", "address": "192.0.2.1"}]}, {"type": "netbox"}]}}`)
 	vars := map[string]string{"SP_INSTANCE": inst, "SP_RUN_DIR": filepath.Join(dir, "run"), "SP_EXPOSURE_RAW": raw}
 	var stderr bytes.Buffer
-	env := rundoc.Env{Getenv: func(k string) string { return vars[k] }, Stderr: &stderr, Now: time.Now}
-	if code := Main(context.Background(), env, &stderr, []string{"collect"}); code != 0 {
+	env := &rundoc.Env{Getenv: func(k string) string { return vars[k] }, Stderr: &stderr, Now: time.Now}
+	if code := Main(context.Background(), env, []string{"collect"}, &stderr); code != 0 {
 		t.Fatalf("exit %d: %s", code, stderr.String())
 	}
 	data, err := os.ReadFile(filepath.Join(dir, "run", "exposure.findings.json"))
@@ -344,11 +344,11 @@ func writeFile(t *testing.T, p, text string) {
 func TestProbeUsage(t *testing.T) {
 	t.Parallel()
 	var out, errb bytes.Buffer
-	env := rundoc.Env{Getenv: func(string) string { return "" }, Stderr: &errb, Now: time.Now}
-	if code := Main(context.Background(), env, &out, []string{"probe"}); code != 2 {
+	env := &rundoc.Env{Getenv: func(string) string { return "" }, Stderr: &errb, Now: time.Now}
+	if code := Main(context.Background(), env, []string{"probe"}, &out); code != 2 {
 		t.Errorf("exit %d", code)
 	}
-	if code := Main(context.Background(), env, &out, []string{"probe", "--script=x"}); code != 1 || out.Len() != 0 {
+	if code := Main(context.Background(), env, []string{"probe", "--script=x"}, &out); code != 1 || out.Len() != 0 {
 		t.Errorf("exit %d, out %q", code, out.String())
 	}
 }

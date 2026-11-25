@@ -1,0 +1,26 @@
+{
+ "kubernetes": [
+  {
+   "host_exec": {
+    "type": "local"
+   },
+   "kube_bench": {
+    "benchmark": "cis-1.9",
+    "tarball": "kube-bench_0.9.0_linux_amd64.tar.gz"
+   },
+   "kubeconfig": "{sandbox}/kube/prod.yaml",
+   "name": "prod",
+   "role": "prod"
+  },
+  {
+   "kubeconfig": "{sandbox}/kube/lab.yaml",
+   "name": "lab",
+   "parts": [
+    "workloads",
+    "policy"
+   ],
+   "role": "lab"
+  }
+ ],
+ "name": "conformance"
+}

@@ -45,7 +45,7 @@ func (c *collector) scope(context.Context) error {
 			covered++
 			continue
 		}
-		c.doc.OK("k8s-cluster:" + name)
+		c.doc.OK("k8s-cluster:"+name, "")
 		missing := make([]any, len(parts))
 		for i, m := range parts {
 			missing[i] = m
@@ -72,11 +72,11 @@ func (c *collector) routing(ctx context.Context) error {
 	const asset = "detection-alertmanager:routing"
 	st, err := c.fetch(ctx, cfg, "/api/v2/status", nil)
 	if err != nil {
-		c.doc.Gap(asset, "alertmanager status: "+reason(err))
+		c.doc.Gap(asset, "alertmanager status: "+reason(err), nil)
 		return nil
 	}
-	c.doc.OK(asset)
-	notifying, page := Routing(pyvalue.Str(rundoc.Map(rundoc.Get(st, "config")).GetOr("original", "")))
+	c.doc.OK(asset, "")
+	notifying, page := Routing(pyvalue.Str(rundoc.MapOr(rundoc.Get(st, "config")).GetOr("original", "")))
 	v := 0.0
 	if page {
 		v = 1
@@ -122,7 +122,7 @@ func Routing(conf string) (notifying []string, page bool) {
 		notifying = append(notifying, n)
 	}
 	sort.Strings(notifying)
-	return notifying, pageRoute(rundoc.Map(doc.Value("route")), set, 0)
+	return notifying, pageRoute(rundoc.MapOr(doc.Value("route")), set, 0)
 }
 
 func notifies(r *pyvalue.Map) bool {
@@ -149,7 +149,7 @@ func pageRoute(r *pyvalue.Map, notifying map[string]bool, depth int) bool {
 		}
 	}
 	for _, x := range rundoc.List(r.Value("routes")) {
-		if pageRoute(rundoc.Map(x), notifying, depth+1) {
+		if pageRoute(rundoc.MapOr(x), notifying, depth+1) {
 			return true
 		}
 	}
@@ -159,8 +159,8 @@ func pageRoute(r *pyvalue.Map, notifying map[string]bool, depth int) bool {
 // sources: every expected source delivered lines to the log store within its window (a count query per source;
 // no line content is read).
 func (c *collector) sources(ctx context.Context, store *endpoint) error {
-	windows := rundoc.Map(c.d.Value("windows"))
-	expected := rundoc.Map(c.d.Value("expected"))
+	windows := rundoc.MapOr(c.d.Value("windows"))
+	expected := rundoc.MapOr(c.d.Value("expected"))
 	for _, s := range sourceTable() {
 		want := rundoc.List(expected.Value(s.name))
 		if len(want) == 0 {
@@ -193,7 +193,7 @@ func (c *collector) source(ctx context.Context, store *endpoint, s source, w str
 	}
 	if err != nil {
 		for _, x := range want {
-			c.doc.Gap("log-source:"+s.name+"/"+pyvalue.Str(x), "log store query failed: "+reason(err))
+			c.doc.Gap("log-source:"+s.name+"/"+pyvalue.Str(x), "log store query failed: "+reason(err), nil)
 		}
 		return nil
 	}
@@ -208,7 +208,7 @@ func (c *collector) source(ctx context.Context, store *endpoint, s source, w str
 	for _, x := range want {
 		who := pyvalue.Str(x)
 		asset := "log-source:" + s.name + "/" + who
-		c.doc.OK(asset)
+		c.doc.OK(asset, "")
 		if xs, ok := x.(string); ok && seen[xs] > 0 {
 			live++
 			continue
@@ -228,7 +228,7 @@ func (c *collector) source(ctx context.Context, store *endpoint, s source, w str
 
 // windowValue is the window as configured (a number stays a number in the evidence), or the default text.
 func windowValue(d *pyvalue.Map, s source) any {
-	if v, ok := rundoc.Map(d.Value("windows")).Get(s.name); ok {
+	if v, ok := rundoc.MapOr(d.Value("windows")).Get(s.name); ok {
 		return rundoc.Loose(v)
 	}
 	return s.window
@@ -268,10 +268,10 @@ func (c *collector) ruler(ctx context.Context, store *endpoint) error {
 	const asset = "detection-ruler:log-store"
 	doc, err := store.get(ctx, "/prometheus/api/v1/rules", nil)
 	if err != nil {
-		c.doc.Gap(asset, "ruler API: "+reason(err))
+		c.doc.Gap(asset, "ruler API: "+reason(err), nil)
 		return nil
 	}
-	c.doc.OK(asset)
+	c.doc.OK(asset, "")
 	loaded, unhealthy := RulerState(doc)
 	var missing []any
 	both := 0
@@ -302,7 +302,7 @@ func (c *collector) ruler(ctx context.Context, store *endpoint) error {
 // neither ok nor unknown.
 func RulerState(doc any) (loaded map[string]bool, unhealthy []any) {
 	loaded, unhealthy = map[string]bool{}, []any{}
-	for _, g := range rundoc.List(rundoc.Map(rundoc.Get(doc, "data")).Value("groups")) {
+	for _, g := range rundoc.List(rundoc.MapOr(rundoc.Get(doc, "data")).Value("groups")) {
 		for _, r := range rundoc.List(rundoc.Get(g, "rules")) {
 			name := rundoc.Get(r, "name")
 			if s, ok := name.(string); ok {
@@ -335,10 +335,10 @@ func (c *collector) alertHistory(ctx context.Context) error {
 		}
 	}
 	if err != nil {
-		c.doc.Gap(asset, "alert history query: "+reason(err))
+		c.doc.Gap(asset, "alert history query: "+reason(err), nil)
 		return nil
 	}
-	c.doc.OK(asset)
+	c.doc.OK(asset, "")
 	for _, sev := range []string{"page", "ticket", "info"} {
 		c.metric("security_detection_alert_minutes_24h", per[sev], "Minutes any detection alert was firing in the last 24h",
 			label("severity", sev))

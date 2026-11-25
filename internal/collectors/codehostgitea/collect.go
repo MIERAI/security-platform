@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"net/http"
 	"net/url"
@@ -33,34 +34,31 @@ const (
 )
 
 // Main is `sp codehost-gitea collect`.
-func Main(ctx context.Context, env rundoc.Env, args []string) int {
-	return rundoc.Main(ctx, env, args, Name, Collect)
+func Main(ctx context.Context, env *rundoc.Env, args []string, stdout io.Writer) int {
+	return rundoc.Main(ctx, &rundoc.Collector{Name: Name, Version: Version, Collect: collect}, args, env, stdout)
 }
 
-// Collect is one run (collector protocol).
-func Collect(ctx context.Context, env rundoc.Env) error {
-	run, err := rundoc.Start(env, Name, Version)
-	if err != nil {
-		return err
-	}
-	c := &collector{doc: run.Doc, home: env.Home()}
+// collect is one run (collector protocol); the caller writes the document.
+func collect(ctx context.Context, run *rundoc.Run, env *rundoc.Env) error {
+	c := &collector{runDir: run.Dir, doc: run.Doc, home: env.Home()}
 	for _, v := range rundoc.List(run.Instance.Value("codehost")) {
 		ch, ok := v.(*pyvalue.Map)
 		if !ok {
 			continue
 		}
-		if t := rundoc.Str(ch.Value("type")); t == "gitea" || t == "forgejo" {
+		if t := rundoc.Text(ch.Value("type")); t == "gitea" || t == "forgejo" {
 			if err := c.scan(ctx, ch); err != nil {
 				return err
 			}
 		}
 	}
-	return run.Finish()
+	return nil
 }
 
 type collector struct {
-	doc  *rundoc.Document
-	home string
+	runDir string // SP_RUN_DIR: the evidence goes under it
+	doc    *rundoc.Document
+	home   string
 }
 
 // tokenError is the gap reason of an unusable token file, worded as the reference words it.
@@ -77,7 +75,7 @@ func tokenError(configured, expanded string, err error) string {
 
 func (c *collector) client(ch *pyvalue.Map) (*codehost.Client, string) {
 	header := http.Header{"Accept": {"application/json"}, "User-Agent": {"security-platform-" + Name + "/" + Version}}
-	if tf := rundoc.Str(ch.Value("token_file")); tf != "" {
+	if tf := rundoc.Text(ch.Value("token_file")); tf != "" {
 		p := rundoc.ExpandUser(tf, c.home)
 		tok, err := credential.File(p)
 		if err != nil {
@@ -85,11 +83,11 @@ func (c *collector) client(ch *pyvalue.Map) (*codehost.Client, string) {
 		}
 		header.Set("Authorization", "token "+tok)
 	}
-	ca := rundoc.Str(ch.Value("ca_file"))
+	ca := rundoc.Text(ch.Value("ca_file"))
 	if ca != "" {
 		ca = rundoc.ExpandUser(ca, c.home)
 	}
-	api, err := codehost.New(codehost.Options{Base: strings.TrimRight(rundoc.Str(ch.Value("url")), "/") + "/api/v1",
+	api, err := codehost.New(codehost.Options{Base: strings.TrimRight(rundoc.Text(ch.Value("url")), "/") + "/api/v1",
 		Header: header, CAFile: ca, Timeout: timeout})
 	if err != nil {
 		return nil, "OSError: " + err.Error()
@@ -125,14 +123,14 @@ func list(ctx context.Context, api *codehost.Client, path string) ([]any, string
 }
 
 func (c *collector) scan(ctx context.Context, ch *pyvalue.Map) error {
-	kind, owner := rundoc.Str(ch.Value("type")), pyvalue.Str(ch.Value("owner"))
+	kind, owner := rundoc.Text(ch.Value("type")), pyvalue.Str(ch.Value("owner"))
 	if !ch.Has("url") || !ch.Has("owner") {
 		return fmt.Errorf("%w: codehost %s entry without url or owner", rundoc.ErrUsage, kind)
 	}
 	scope := "codehost:" + kind + "/" + owner
 	api, problem := c.client(ch)
 	if problem != "" {
-		c.doc.Gap(scope, problem)
+		c.doc.Gap(scope, problem, nil)
 		return nil
 	}
 	repos, errS := list(ctx, api, "/orgs/"+codehost.Quote(owner)+"/repos")
@@ -140,16 +138,16 @@ func (c *collector) scan(ctx context.Context, ch *pyvalue.Map) error {
 		repos, errS = list(ctx, api, "/users/"+codehost.Quote(owner)+"/repos")
 	}
 	if repos == nil {
-		c.doc.Gap(scope, "cannot list repositories: "+errS)
+		c.doc.Gap(scope, "cannot list repositories: "+errS, nil)
 		return nil
 	}
-	s := &ownerScan{c: c, api: api, kind: kind, host: hostOf(rundoc.Str(ch.Value("url"))), summary: map[string]any{}}
+	s := &ownerScan{c: c, api: api, kind: kind, host: hostOf(rundoc.Text(ch.Value("url"))), summary: map[string]any{}}
 	includePrivate := ch.Value("include_private") != false
 	sort.SliceStable(repos, func(i, j int) bool {
-		return rundoc.Str(rundoc.Get(repos[i], "full_name")) < rundoc.Str(rundoc.Get(repos[j], "full_name"))
+		return rundoc.Text(rundoc.Get(repos[i], "full_name")) < rundoc.Text(rundoc.Get(repos[j], "full_name"))
 	})
 	for _, v := range repos {
-		r := rundoc.Map(v)
+		r := rundoc.MapOr(v)
 		if pyvalue.Truthy(r.Value("archived")) || (pyvalue.Truthy(r.Value("private")) && !includePrivate) {
 			continue
 		}
@@ -157,12 +155,13 @@ func (c *collector) scan(ctx context.Context, ch *pyvalue.Map) error {
 			return err
 		}
 	}
-	if _, err := c.doc.Raw("repos.json", s.summary); err != nil {
+	if _, err := c.doc.Raw(c.runDir, "repos.json", rundoc.JSON(s.summary)); err != nil {
 		return err
 	}
-	c.doc.Metric("security_repos_public_without_protection", float64(s.publicUnprotected),
-		"Public repos whose default branch has no protection/ruleset", [2]string{"owner", owner})
-	c.doc.Metric("security_repos_total", float64(len(s.summary)), "Repos checked", [2]string{"owner", owner})
+	c.doc.Metric("security_repos_public_without_protection", float64(s.publicUnprotected), "Public repos whose default branch has no protection/ruleset", rundoc.Labels(
+		[2]string{"owner", owner}))
+
+	c.doc.Metric("security_repos_total", float64(len(s.summary)), "Repos checked", rundoc.Labels([2]string{"owner", owner}))
 	return nil
 }
 
