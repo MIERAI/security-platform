@@ -157,7 +157,12 @@ class H(BaseHTTPRequestHandler):
         p = CFG["gcp"]["projects"].get(project)
         if not p or not any(f"serviceAccount:{t['sa']}" in b["members"] for b in p["bindings"]):
             return self.gerr(403, "PERMISSION_DENIED", f"The caller does not have permission on project {project}")
-        self.reply(200, {"version": 1, "etag": "BwX=", "bindings": p["bindings"]})
+        # like Google: a conditional binding is shown with its real role only to a policy version 3 request
+        v3 = (self.body().get("options") or {}).get("requestedPolicyVersion") == 3
+        out = [b if not b.get("condition") or v3 else
+               {k: v for k, v in dict(b, role=b["role"] + "_withcond_5f0c1d2e").items() if k != "condition"}
+               for b in p["bindings"]]
+        self.reply(200, {"version": 3 if v3 else 1, "etag": "BwX=", "bindings": out})
 
     def gcp_assets(self, project):
         """cloudasset searchAllResources: the scenario's instances, only to a service account with a role there."""

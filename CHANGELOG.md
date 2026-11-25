@@ -13,6 +13,10 @@ Components are versioned independently (docs/design.md §5). Entries name the co
   `CLOUDSDK_AUTH_ACCESS_TOKEN`, not refreshed) or `impersonate` (Prowler `--impersonate-service-account`); gcloud's
   config directory is an empty private one for the engine. Failures (ADC missing, `invalid_grant`, 403, 404) are
   coverage gaps with a reason. `oauth_token_url` configurable.
+- **fix (GCP self-verification)**: the project IAM policy is read at policy version 3. A time-bound (conditional)
+  grant was returned at version 1 as `<role>_withcond_<hash>`, unknown to the read-only allow-list, so a correctly
+  scoped audit service account with an expiry was refused as over-privileged (found against a real project; the fakes
+  now return conditional bindings like Google). The evidence lists conditional grants.
 - **collector cloud 0.2.0**: Prowler `--impersonate-service-account` when asked; ScoutSuite is not run with GCP
   `source: adc` (it can only act as whoever `google.auth.default()` finds) - a gap of that engine with the reason; an
   engine-credential failure is a coverage gap instead of an exception.

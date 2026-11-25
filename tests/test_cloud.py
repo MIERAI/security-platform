@@ -289,7 +289,13 @@ class FakeIdP(BaseHTTPRequestHandler):
             FakeIdP.calls.append(("getIamPolicy", self.headers.get("Authorization", "").removeprefix("Bearer ")))
             sa = "serviceAccount:a@p.iam.gserviceaccount.com"
             roles = ["roles/viewer", "roles/iam.securityReviewer"] + (["roles/editor"] if "over" in self.path else [])
-            return self.reply(200, {"bindings": [{"role": r, "members": [sa]} for r in roles] + [{"role": "roles/owner", "members": ["user:x"]}]})
+            bindings = [{"role": r, "members": [sa]} for r in roles] + [{"role": "roles/owner", "members": ["user:x"]}]
+            if "cond" in self.path:     # time-bound grants, as Google returns them: real role only at policy version 3
+                v3 = (json.loads(body or "{}").get("options") or {}).get("requestedPolicyVersion") == 3
+                cond = {"title": "expires", "expression": 'request.time < timestamp("2999-01-01T00:00:00Z")'}
+                bindings = [dict(b, condition=cond) if v3 else dict(b, role=b["role"] + "_withcond_0123abcd")
+                            for b in bindings if b["role"] != "roles/viewer"] + [b for b in bindings if b["role"] == "roles/viewer"]
+            return self.reply(200, {"bindings": bindings})
         if self.path.endswith("/oauth2/v2.0/token"):
             f = dict(urllib.parse.parse_qsl(body))
             if f["client_id"] != "app":
@@ -351,6 +357,10 @@ class GcpAzure(unittest.TestCase):
         p = self.gcp()
         self.assertEqual(p.permissions()["write_capable"], [])
         self.assertEqual(self.gcp(project="over").permissions()["write_capable"], ["roles/editor"])
+        # a time-bound (conditional) grant: judged by its real role, read at IAM policy version 3
+        p = self.gcp(project="cond").permissions()
+        self.assertEqual((p["write_capable"], p["conditional"]), ([], ["roles/iam.securityReviewer"]))
+        self.assertEqual(self.gcp(project="cond-over").permissions()["write_capable"], ["roles/editor"])
         with self.assertRaisesRegex(cloud.CloudAuthError, "audience does not match"):
             self.gcp(aud="wrong").credentials()
         with self.assertRaisesRegex(cloud.CloudAuthError, "PERMISSION_DENIED"):

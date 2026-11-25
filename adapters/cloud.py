@@ -31,6 +31,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import shlex
 import subprocess
 import sys
@@ -56,6 +57,7 @@ AZURE_ENV_KEYS = ("AZURE_CLIENT_SECRET", "AZURE_CLIENT_CERTIFICATE_PATH", "AZURE
 AWS_READ_ONLY_POLICIES = {"arn:aws:iam::aws:policy/SecurityAudit", "arn:aws:iam::aws:policy/job-function/ViewOnlyAccess"}
 AWS_READ_VERBS = ("Get", "List", "Describe", "BatchGet", "Search", "Lookup", "View", "Head", "Query", "Select",
                   "Generate", "Simulate", "Check", "Validate", "Preview", "Estimate")
+GCP_WITHCOND = re.compile(r"_withcond_[0-9a-f]+$")      # a conditional binding read at policy version 1
 GCP_READ_ONLY_ROLES = {"roles/iam.securityReviewer", "roles/viewer", "roles/browser", "roles/cloudasset.viewer",
                        "roles/securitycenter.findingsViewer", "roles/securitycenter.adminViewer", "roles/logging.viewer",
                        "roles/monitoring.viewer", "roles/serviceusage.serviceUsageConsumer", "roles/iam.roleViewer"}
@@ -501,12 +503,26 @@ class GCP(Provider):
     def permissions(self):
         """Roles bound to the service account on the project (getIamPolicy: allowed by Security Reviewer)."""
         member = "serviceAccount:" + self.cfg["service_account"]
-        st, out = http("POST", f"{self.crm}/projects/{urllib.parse.quote(self.account)}:getIamPolicy", b"{}",
+        # Policy version 3: a binding with an IAM condition (e.g. an expiry, as recommended for audit access) is
+        # returned with its real role and the condition. Without it, Google returns such a binding under a synthetic
+        # role name "<role>_withcond_<hash>", which no allow-list knows (the account would be refused as
+        # over-privileged). A condition can only narrow a grant, so the base role is what is judged.
+        st, out = http("POST", f"{self.crm}/projects/{urllib.parse.quote(self.account)}:getIamPolicy",
+                       json.dumps({"options": {"requestedPolicyVersion": 3}}).encode(),
                        {"Authorization": "Bearer " + self.credentials()["access_token"], "Content-Type": "application/json"})
         if st != 200:
             raise CloudAuthError(f"gcp getIamPolicy {self.account}: HTTP {st} {_err_text(out)}")
-        roles = sorted({b["role"] for b in json.loads(out).get("bindings") or [] if member in (b.get("members") or [])})
-        return {"principal": member, "method": "project IAM policy bindings", "grants": roles,
+        roles, conditional = set(), set()
+        for b in json.loads(out).get("bindings") or []:
+            if member not in (b.get("members") or []):
+                continue
+            role = GCP_WITHCOND.sub("", b["role"])
+            roles.add(role)
+            if b.get("condition") or role != b["role"]:
+                conditional.add(role)
+        roles = sorted(roles)
+        return {"principal": member, "method": "project IAM policy bindings (policy version 3)", "grants": roles,
+                "conditional": sorted(conditional),
                 "write_capable": [r for r in roles if r not in GCP_READ_ONLY_ROLES]}
 
     def engine_env(self, tmpdir):

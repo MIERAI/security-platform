@@ -18,7 +18,8 @@
   },
   "projects": {
    "adc-readonly": {"bindings": [
-     {"role": "roles/iam.securityReviewer", "members": ["serviceAccount:audit@adc-readonly.iam.gserviceaccount.com"]},
+     {"role": "roles/iam.securityReviewer", "members": ["serviceAccount:audit@adc-readonly.iam.gserviceaccount.com"],
+      "condition": {"title": "trial access", "expression": "request.time < timestamp(\"2999-01-01T00:00:00Z\")"}},
      {"role": "roles/viewer", "members": ["serviceAccount:audit@adc-readonly.iam.gserviceaccount.com"]},
      {"role": "roles/owner", "members": ["user:operator@example.com"]}],
     "instances": [
