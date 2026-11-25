@@ -7,7 +7,7 @@
    Prometheus text, evidence, inventories) must be identical once wall-clock times and the sandbox path are masked.
    A difference is either a bug or a recorded deviation; there is no third kind.
 
-Skipped without a Go toolchain that can build cmd/sp (go.mod names the version) or without PyYAML. SP_SKIP_GO=1 skips."""
+SP_GO_COLLECTORS=k8s,identity limits it to those collectors. Skipped without a Go toolchain that can build cmd/sp (go.mod names the version) or without PyYAML. SP_SKIP_GO=1 skips."""
 import contextlib
 import copy
 import importlib.util
@@ -23,7 +23,8 @@ import unittest
 import unittest.mock
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-COMPONENTS = {"collector-k8s": "k8s", "collector-vuln-intel": "vuln-intel", "collector-identity": "identity"}
+COMPONENTS = {c: n for c, n in (("collector-k8s", "k8s"), ("collector-vuln-intel", "vuln-intel"), ("collector-identity", "identity"))
+              if not os.environ.get("SP_GO_COLLECTORS") or n in os.environ["SP_GO_COLLECTORS"].split(",")}
 ISO = re.compile(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?Z")
 EPOCH = re.compile(r"(_timestamp_seconds\{[^}]*\}|_age_seconds\{[^}]*\}) \S+")
 AGE = re.compile(r'"age_days": [0-9.]+')
