@@ -8,7 +8,8 @@
 #                   result. NEVER Request for Secrets: the request body would carry the secret values into the log
 #                   store (a leak of its own). Same for ConfigMaps (they often hold credentials by mistake).
 #   - None          read-only noise of the control plane itself (leases, events, health, node status, controller
-#                   watches), which is where almost all the volume is; humans' and workloads' reads stay in.
+#                   watches, service accounts' access reviews), which is where almost all the volume is; humans' and
+#                   workloads' reads stay in.
 # omitStages RequestReceived: one line per request (ResponseComplete / Panic), half the volume.
 apiVersion: audit.k8s.io/v1
 kind: Policy
@@ -34,6 +35,15 @@ rules:
   - level: None
     userGroups: [system:serviceaccounts]
     verbs: [watch]
+  # controllers asking the API server what THEY may do (policy engines' cleanup controllers, admission webhooks,
+  # operators): creates of access reviews are evaluations, not changes, and can be a third of all lines. Service
+  # accounts only: a PERSON's (self)subject access/rules review can be reconnaissance and stays in (Metadata below).
+  # Trade-off: a stolen service account token asking "what may I do" is not logged; what it then does is (exec,
+  # tokens, Secrets, RBAC and every write below).
+  - level: None
+    userGroups: [system:serviceaccounts]
+    verbs: [create]
+    resources: [{group: authorization.k8s.io, resources: [selfsubjectaccessreviews, subjectaccessreviews, localsubjectaccessreviews, selfsubjectrulesreviews]}]
   # ---- what detection needs ----------------------------------------------------------------------------------
   - level: Request
     resources: [{group: "", resources: [pods/exec, pods/attach, pods/portforward, pods/ephemeralcontainers, nodes/proxy, serviceaccounts/token]}]
