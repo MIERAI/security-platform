@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -43,10 +44,11 @@ func assertSameFile(t *testing.T, got, want string) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	w = bytes.ReplaceAll(w, []byte("\r\n"), []byte("\n")) // a Windows checkout of testdata
 	if !bytes.Equal(g, w) {
 		t.Errorf("%s differs from the Python SDK's\n got: %s\nwant: %s", got, g, w)
 	}
-	if fi, err := os.Stat(got); err != nil || fi.Mode().Perm() != 0o600 {
+	if fi, err := os.Stat(got); runtime.GOOS != "windows" && (err != nil || fi.Mode().Perm() != 0o600) { // no POSIX modes there
 		t.Errorf("%s: mode %v, want 0600 (%v)", got, fi.Mode().Perm(), err)
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -161,7 +162,7 @@ func TestConditionalGetKeepsTheLastGoodCopy(t *testing.T) {
 	if strings.Join(fs.calls, "|") != strings.Join(want, "|") {
 		t.Errorf("requests %q, want %q", fs.calls, want)
 	}
-	if fi, err := os.Stat(path); err != nil || fi.Mode().Perm() != 0o600 {
+	if fi, err := os.Stat(path); err != nil || (runtime.GOOS != "windows" && fi.Mode().Perm() != 0o600) {
 		t.Errorf("cached copy: %v %v", fi, err)
 	}
 }

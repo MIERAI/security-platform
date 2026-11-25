@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -222,7 +223,7 @@ func assertPrivateWithoutSecrets(t *testing.T, dir string) {
 		if bytes.Contains(b, []byte("k8s-conformance-env-canary")) || bytes.Contains(b, []byte("k8s-conformance-secret-canary")) {
 			t.Errorf("%s holds a secret value", p)
 		}
-		if fi, _ := d.Info(); fi.Mode().Perm() != 0o600 {
+		if fi, _ := d.Info(); runtime.GOOS != "windows" && fi.Mode().Perm() != 0o600 { // no POSIX modes there
 			t.Errorf("%s: mode %v, want 0600", p, fi.Mode().Perm())
 		}
 		return nil
