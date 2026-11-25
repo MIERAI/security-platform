@@ -1,0 +1,39 @@
+{
+ "routes": {
+  "/api/v1/moved/lab/repos": {
+   "items": [
+    {
+     "archived": false,
+     "default_branch": "main",
+     "full_name": "lab/app",
+     "internal": false,
+     "mirror": false,
+     "name": "app",
+     "owner": {
+      "login": "lab"
+     },
+     "private": false
+    }
+   ]
+  },
+  "/api/v1/orgs/lab/repos": {
+   "redirect": "/api/v1/moved/lab/repos"
+  },
+  "/api/v1/repos/lab/app/branch_protections": {
+   "body": [
+    {
+     "branch_name": "main",
+     "enable_push": false,
+     "enable_push_whitelist": false,
+     "enable_status_check": false,
+     "required_approvals": 1,
+     "rule_name": "main"
+    }
+   ]
+  },
+  "/api/v1/users/lab/repos": {
+   "redirect": "/api/v1/moved/lab/repos"
+  }
+ },
+ "token": "{canary_token}"
+}

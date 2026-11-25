@@ -1,0 +1,17 @@
+{
+ "codehost": [
+  {
+   "api": "{svc_codehost}",
+   "gh_user": "bot",
+   "owner": "acme",
+   "token_file": "{sandbox}/gh.token",
+   "type": "github"
+  },
+  {
+   "owner": "elsewhere",
+   "type": "gitea",
+   "url": "http://127.0.0.1:1"
+  }
+ ],
+ "name": "conformance"
+}

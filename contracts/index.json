@@ -102,6 +102,11 @@
   "AGENT-D1": "collector-agent-claude-code/memory-credentials-pattern-class",
   "AGENT-D2": "collector-agent-claude-code/malformed-settings-is-a-gap",
   "DETECTION-D1": "collector-detection/token-file-readable-by-others",
-  "DETECTION-D2": "collector-detection/drill-time-is-utc"
+  "DETECTION-D2": "collector-detection/drill-time-is-utc",
+  "GITHUB-D1": "collector-codehost-github/protection-unreadable-is-a-gap",
+  "GITHUB-D2": "collector-codehost-github/repositories-on-several-pages",
+  "GITHUB-D3": null,
+  "GITEA-D1": "collector-codehost-gitea/server-page-size-below-50",
+  "GITEA-D2": "collector-codehost-gitea/token-not-sent-to-another-host"
  }
 }

@@ -16,5 +16,23 @@
   "file": "^instance\\.json$",
   "path": "\\.url$",
   "reason": "input, not output: the instance names the fake service, whose port is chosen when the case starts"
+ },
+ {
+  "case": "collector-codehost-*/*",
+  "file": "^instance\\.json$",
+  "path": "^\\$\\.codehost\\[\\d+\\]\\.(api|url)$",
+  "reason": "input, not output: the fake API's port is chosen per run ({svc_codehost})"
+ },
+ {
+  "case": "collector-codehost-github/*",
+  "file": "codehost-github\\.findings\\.json$",
+  "path": "^\\$\\.coverage\\[\\d+\\]\\.reason$",
+  "reason": "API error text: the Python collector reports gh's stderr (\"gh: <message> (HTTP <code>)\"), the Go one calls the API itself (\"HTTP <code>: <message>\")"
+ },
+ {
+  "case": "collector-codehost-github/*",
+  "file": "repos\\.json$",
+  "path": "\\.(secret_scanning_alerts|dependabot_alerts)\\.error$",
+  "reason": "API error text: gh's \"gh: <message> (HTTP <code>)\" (Python) vs \"HTTP <code>: <message>\" (Go); the decisions on it (\"disabled\") are the same"
  }
 ]

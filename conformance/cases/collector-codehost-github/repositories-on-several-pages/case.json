@@ -1,0 +1,122 @@
+{
+ "component": "collector-codehost-github",
+ "title": "Every page of the repository list is read (Link rel=\"next\"): a repository on the second page is checked, not silently missing",
+ "contract": "collector-protocol/1.0 §4",
+ "origin": "collectors/codehost-github: the first page of 100 only",
+ "deviation": "GITHUB-D2",
+ "services": [
+  {
+   "name": "codehost",
+   "argv": [
+    "{python}",
+    "{case}/mock_codehost.py",
+    "--fixture",
+    "{sandbox}/codehost-api.json"
+   ]
+  }
+ ],
+ "files": {
+  "instance.json": "instance.json",
+  "codehost-api.json": "api.json",
+  "gh-status.txt": "gh-status.txt",
+  "gh.token": {
+   "text": "{canary_token}\n",
+   "mode": "0600"
+  },
+  "bin/gh": {
+   "text": "#!/bin/sh\nexec \"{python}\" \"{case}/fake_gh.py\" \"$@\"\n",
+   "mode": "0755"
+  },
+  "data/.keep": {
+   "text": ""
+  }
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-codehost-github",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance",
+     "FAKE_GH_API": "{svc_codehost}",
+     "FAKE_GH_TOKEN_FILE": "{sandbox}/gh.token",
+     "FAKE_GH_STATUS_FILE": "{sandbox}/gh-status.txt"
+    },
+    "writes_only_under": [
+     "run"
+    ],
+    "path_prepend": [
+     "{sandbox}/bin"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "run/codehost-github.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "codehost-github"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "no_secret": [
+      "{canary_token}"
+     ],
+     "in": "run"
+    },
+    {
+     "absent": ".svc-codehost-mutations.log"
+    },
+    {
+     "no_secret": [
+      "{canary_token}"
+     ],
+     "in": ".svc-codehost-leaks"
+    },
+    {
+     "json": "run/codehost-github.findings.json",
+     "subset": {
+      "coverage": {
+       "$contains": [
+        {
+         "asset": "repo:github/acme/a",
+         "status": "ok"
+        },
+        {
+         "asset": "repo:github/acme/b",
+         "status": "ok"
+        },
+        {
+         "asset": "repo:github/acme/c",
+         "status": "ok"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "prom": "run/codehost-github.prom",
+     "has": [
+      {
+       "name": "security_repos_total",
+       "labels": {
+        "owner": "acme"
+       },
+       "value": 3
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}
