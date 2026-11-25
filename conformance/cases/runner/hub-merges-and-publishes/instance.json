@@ -1,0 +1,29 @@
+{
+ "name": "conformance",
+ "runner": {
+  "jobs": {
+   "host": {
+    "argv": [
+     "/bin/sh",
+     "{case}/emit.sh"
+    ],
+    "collector": "host",
+    "env": {
+     "EMIT_DOC": "{case}/host.json",
+     "EMIT_MARK": "{sandbox}/runs.log"
+    },
+    "schedule": "0 * * * *",
+    "type": "command"
+   }
+  },
+  "role": "hub",
+  "sinks": [
+   {
+    "path": "{sandbox}/sink/m.prom",
+    "type": "textfile"
+   }
+  ],
+  "site": "hub",
+  "tick_stale_after": "2h"
+ }
+}

@@ -1,0 +1,24 @@
+[
+ {
+  "id": "7eafa19e3d35",
+  "check": "host.ssh_password_auth",
+  "layer": "host",
+  "asset": "host:web-1",
+  "title": "SSH accepts passwords",
+  "severity": "high",
+  "status": "open",
+  "first_seen": "2026-11-20T02:15:40Z",
+  "last_seen": "2026-11-25T02:15:40Z",
+  "fixed_at": null,
+  "reopened_count": 0,
+  "collector": "host",
+  "collector_version": "0.3.0",
+  "kind": "compliance",
+  "evidence": "raw/host/web-1.json#ssh",
+  "remediation": "PasswordAuthentication no",
+  "needs_human": false,
+  "owner": "platform",
+  "refs": [],
+  "attributes": {}
+ }
+]

@@ -1,0 +1,29 @@
+{
+ "collector": {
+  "name": "host",
+  "version": "1.0.0"
+ },
+ "coverage": [
+  {
+   "asset": "host:a",
+   "status": "ok"
+  },
+  {
+   "asset": "host:phone",
+   "reason": "offline",
+   "status": "gap"
+  },
+  {
+   "asset": "host:b",
+   "reason": "ssh refused",
+   "status": "gap"
+  }
+ ],
+ "findings": [],
+ "run": {
+  "finished_at": "2026-11-01T09:00:00Z",
+  "instance": "conformance",
+  "started_at": "2026-11-01T09:00:00Z"
+ },
+ "schema_version": "1.2"
+}

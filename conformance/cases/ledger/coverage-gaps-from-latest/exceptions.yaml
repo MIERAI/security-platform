@@ -1,0 +1,2 @@
+coverage_exceptions:
+  host|host:phone: {approved_by: alice, reason: personal device, expires: '2099-01-01'}

@@ -1,0 +1,42 @@
+{
+ "component": "ledger",
+ "title": "A newer minor (1.9) with unknown fields is accepted (unknown fields are ignored, never fatal)",
+ "contract": "ledger/1.0",
+ "origin": "tests/test_contract.py::test_minor_with_unknown_fields_accepted; docs/upgrade.md",
+ "steps": [
+  {
+   "name": "merge run1",
+   "files": {
+    "run1/host.findings.json": "run1.json"
+   },
+   "exec": {
+    "impl": "ledger",
+    "args": [
+     "--run",
+     "{sandbox}/run1",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/ledger.json",
+     "subset": {
+      "entries": {
+       "4a8faf0efd8f": {
+        "status": "open"
+       }
+      },
+      "runs": [
+       {
+        "invalid": {}
+       }
+      ]
+     },
+     "schema": "ledger"
+    }
+   ]
+  }
+ ]
+}

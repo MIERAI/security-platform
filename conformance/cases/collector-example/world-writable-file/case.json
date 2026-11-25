@@ -1,0 +1,86 @@
+{
+ "component": "collector-example",
+ "title": "The POSIX sh example collector (contracts/collector-protocol/examples/collector.sh) honours the protocol: a document per run, ok/gap coverage, stable ids, writes only into SP_RUN_DIR",
+ "contract": "collector-protocol/1.0",
+ "origin": "contracts/collector-protocol/examples/collector.sh",
+ "files": {
+  "target/open.conf": {
+   "text": "x\n",
+   "mode": "0666"
+  },
+  "target/fine.conf": {
+   "text": "x\n",
+   "mode": "0644"
+  }
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-example",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance",
+     "EXAMPLE_FILES": "{sandbox}/target/open.conf:{sandbox}/target/fine.conf:{sandbox}/target/missing.conf",
+     "EXAMPLE_HOST": "lab"
+    },
+    "writes_only_under": [
+     "run"
+    ]
+   },
+   "expect": [
+    {
+     "json": "run/example-files.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "example-files"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "json": "run/example-files.findings.json",
+     "subset": {
+      "coverage": {
+       "$unordered": [
+        {
+         "asset": {
+          "$regex": "^file:lab:.*/open.conf$"
+         },
+         "status": "ok"
+        },
+        {
+         "asset": {
+          "$regex": "^file:lab:.*/fine.conf$"
+         },
+         "status": "ok"
+        },
+        {
+         "asset": {
+          "$regex": "^file:lab:.*/missing.conf$"
+         },
+         "status": "gap"
+        }
+       ]
+      },
+      "findings": [
+       {
+        "check": "example.world_writable_file",
+        "asset": {
+         "$regex": "open.conf$"
+        }
+       }
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}

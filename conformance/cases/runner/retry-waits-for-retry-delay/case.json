@@ -1,0 +1,89 @@
+{
+ "component": "runner",
+ "title": "TARGET: with --now, a retry waits retry_delay measured on the same clock (the scheduling clock), not on the wall clock",
+ "contract": "runner/1.0",
+ "deviation": "RUNNER-D1",
+ "origin": "found while writing the contracts: last_attempt is written from the wall clock while `due` uses --now",
+ "files": {
+  "instance.json": "instance.json"
+ },
+ "steps": [
+  {
+   "name": "tick at 2030-01-07T03:30:00Z",
+   "exec": {
+    "impl": "runner",
+    "args": [
+     "tick",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1893987000"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/state/runner/flaky.json",
+     "schema": "runner-state",
+     "subset": {
+      "runs_total": 1
+     }
+    }
+   ]
+  },
+  {
+   "name": "5 minutes later: waiting to retry",
+   "exec": {
+    "impl": "runner",
+    "args": [
+     "tick",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1893987300"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/state/runner/flaky.json",
+     "schema": "runner-state",
+     "subset": {
+      "runs_total": 1
+     }
+    }
+   ]
+  },
+  {
+   "name": "status at 2030-01-07T03:35:00Z",
+   "exec": {
+    "impl": "runner",
+    "args": [
+     "status",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1893987300"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "json": {
+       "flaky": {
+        "due": "waiting to retry"
+       }
+      }
+     }
+    }
+   ]
+  }
+ ]
+}

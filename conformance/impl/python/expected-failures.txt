@@ -1,0 +1,11 @@
+# Cases the reference (Python) implementation is ALLOWED to fail: each one specifies the TARGET behaviour of a known
+# deviation recorded in contracts/<contract>/SPEC.md ("Known deviations"). A new implementation MUST pass them.
+# When the reference is fixed, the suite reports XPASS and fails until the line is removed here.
+ledger/finding-without-kind              LEDGER-D1  kind missing -> KeyError, exit 1
+ledger/due-date-on-first-record          LEDGER-D2  due date only after the remediation job
+ledger/gap-matches-asset-not-substring   LEDGER-D3  gap matched as a substring of any asset
+ledger/time-arithmetic-is-utc            LEDGER-D4  local-time parsing, DST hour
+runner/retry-waits-for-retry-delay       RUNNER-D1  retry delay measured on the wall clock under --now
+runner/missed-slot-is-visible            RUNNER-D2  skipped / given-up slots not counted anywhere
+cli/status-shows-missed-slot             CLI-D1     status shows "ok" for a job whose slot was missed
+ledger/removed-exception-reopens         LEDGER-D5  an exception deleted by a human leaves the finding accepted

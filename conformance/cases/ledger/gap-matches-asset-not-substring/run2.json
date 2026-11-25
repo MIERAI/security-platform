@@ -1,0 +1,24 @@
+{
+ "collector": {
+  "name": "vuln-intel",
+  "version": "1.0.0"
+ },
+ "coverage": [
+  {
+   "asset": "image:registry.example/web:1",
+   "status": "ok"
+  },
+  {
+   "asset": "host:web",
+   "reason": "sbom unreadable",
+   "status": "gap"
+  }
+ ],
+ "findings": [],
+ "run": {
+  "finished_at": "2026-11-02T09:00:00Z",
+  "instance": "conformance",
+  "started_at": "2026-11-02T09:00:00Z"
+ },
+ "schema_version": "1.2"
+}

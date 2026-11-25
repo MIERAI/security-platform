@@ -1,0 +1,106 @@
+{
+ "component": "remediation",
+ "title": "An item closes when the ledger says fixed (closed_at = fixed_at); a regression reopens it and the SLO clock restarts at reopened_at",
+ "contract": "ledger/1.0 (tracker)",
+ "origin": "tests/test_remediation.py::test_lifecycle_due_overdue_close_reopen",
+ "files": {
+  "data/ledger.json": "open.json",
+  "instance.json": "instance.json"
+ },
+ "steps": [
+  {
+   "name": "track at 2026-11-02T00:00:00Z",
+   "exec": {
+    "impl": "remediation",
+    "args": [
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1793577600",
+     "--instance",
+     "{sandbox}/instance.json"
+    ]
+   },
+   "expect": []
+  },
+  {
+   "name": "track at 2026-11-04T00:00:00Z",
+   "exec": {
+    "impl": "remediation",
+    "args": [
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1793750400",
+     "--instance",
+     "{sandbox}/instance.json"
+    ]
+   },
+   "expect": [
+    {
+     "json": "data/tracker/items.json",
+     "schema": "tracker",
+     "subset": {
+      "items": {
+       "233790a18561": {
+        "status": "fixed",
+        "closed_at": "2026-11-03T08:00:00Z",
+        "time_to_remediate_days": 2.0,
+        "overdue": false
+       }
+      }
+     }
+    }
+   ],
+   "files": {
+    "data/ledger.json": "fixed.json"
+   }
+  },
+  {
+   "name": "track at 2026-11-10T00:00:00Z",
+   "exec": {
+    "impl": "remediation",
+    "args": [
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1794268800",
+     "--instance",
+     "{sandbox}/instance.json"
+    ]
+   },
+   "expect": [
+    {
+     "json": "data/tracker/items.json",
+     "schema": "tracker",
+     "subset": {
+      "items": {
+       "233790a18561": {
+        "status": "open",
+        "reopened_at": "2026-11-10T00:00:00Z",
+        "reopen_reason": "regression",
+        "due_at": "2026-11-17T00:00:00Z",
+        "closed_at": null,
+        "overdue": false,
+        "history": {
+         "$contains": [
+          {
+           "status": "fixed"
+          },
+          {
+           "status": "open",
+           "at": "2026-11-10T00:00:00Z"
+          }
+         ]
+        }
+       }
+      }
+     }
+    }
+   ],
+   "files": {
+    "data/ledger.json": "reopened.json"
+   }
+  }
+ ]
+}

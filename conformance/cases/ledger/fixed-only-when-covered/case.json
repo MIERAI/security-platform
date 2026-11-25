@@ -1,0 +1,86 @@
+{
+ "component": "ledger",
+ "title": "A finding is fixed only by a run that covered its asset (not_observed), with time_to_fix_days",
+ "contract": "ledger/1.0",
+ "origin": "tests/test_ledger.py::test_lifecycle",
+ "steps": [
+  {
+   "name": "merge run1",
+   "files": {
+    "run1/host.findings.json": "run1.json"
+   },
+   "exec": {
+    "impl": "ledger",
+    "args": [
+     "--run",
+     "{sandbox}/run1",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": []
+  },
+  {
+   "name": "merge run2",
+   "files": {
+    "run2/host.findings.json": "run2.json"
+   },
+   "exec": {
+    "impl": "ledger",
+    "args": [
+     "--run",
+     "{sandbox}/run2",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/ledger.json",
+     "subset": {
+      "entries": {
+       "4a8faf0efd8f": {
+        "status": "fixed",
+        "fixed_at": "2026-11-03T08:00:00Z",
+        "fixed_reason": "not_observed",
+        "time_to_fix_days": 2.0,
+        "first_seen": "2026-11-01T08:00:00Z"
+       }
+      }
+     },
+     "schema": "ledger"
+    },
+    {
+     "prom": "data/metrics/ledger.prom",
+     "has": [
+      {
+       "name": "security_findings",
+       "labels": {
+        "layer": "host",
+        "severity": "high",
+        "status": "fixed"
+       },
+       "value": 1
+      },
+      {
+       "name": "security_time_to_fix_days",
+       "labels": {
+        "quantile": "0.5"
+       },
+       "value": 2
+      },
+      {
+       "name": "security_time_to_fix_days",
+       "labels": {
+        "quantile": "1"
+       },
+       "value": 2
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,145 @@
+{
+ "component": "runner",
+ "title": "A failed slot is retried `retries` times at least retry_delay apart, then given up until the next slot",
+ "contract": "runner/1.0",
+ "origin": "tests/test_runner.py::test_catch_up_jitter_retry_max_delay",
+ "files": {
+  "instance.json": "instance.json"
+ },
+ "steps": [
+  {
+   "name": "tick at 2030-01-07T03:30:00Z",
+   "exec": {
+    "impl": "runner",
+    "args": [
+     "tick",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1893987000"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/state/runner/flaky.json",
+     "schema": "runner-state",
+     "subset": {
+      "runs_total": 1,
+      "failures_total": 1,
+      "attempts": 1,
+      "slot": 1893987000,
+      "last_rc": 3
+     }
+    }
+   ]
+  },
+  {
+   "name": "retry after retry_delay",
+   "exec": {
+    "impl": "runner",
+    "args": [
+     "tick",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1893988260"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/state/runner/flaky.json",
+     "schema": "runner-state",
+     "subset": {
+      "runs_total": 2,
+      "attempts": 2,
+      "done_slot": 1893987000
+     }
+    }
+   ]
+  },
+  {
+   "name": "retries exhausted",
+   "exec": {
+    "impl": "runner",
+    "args": [
+     "tick",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1893989520"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/state/runner/flaky.json",
+     "schema": "runner-state",
+     "subset": {
+      "runs_total": 2
+     }
+    }
+   ]
+  },
+  {
+   "name": "status at 2030-01-07T04:12:00Z",
+   "exec": {
+    "impl": "runner",
+    "args": [
+     "status",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1893989520"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "json": {
+       "flaky": {
+        "due": "done"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "next slot tries again",
+   "exec": {
+    "impl": "runner",
+    "args": [
+     "tick",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1894073460"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/state/runner/flaky.json",
+     "schema": "runner-state",
+     "subset": {
+      "runs_total": 3,
+      "attempts": 1
+     }
+    }
+   ]
+  }
+ ]
+}

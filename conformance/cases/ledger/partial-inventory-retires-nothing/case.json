@@ -1,0 +1,86 @@
+{
+ "component": "ledger",
+ "title": "Without complete_scope (partial or failed inventory) an unlisted asset is unknown: nothing closes; a gap on the asset also blocks retirement; complete_scope only covers its own prefix",
+ "contract": "ledger/1.0",
+ "origin": "tests/test_retired.py::test_partial_or_failed_inventory_does_not_close, test_scope_limits_retirement",
+ "steps": [
+  {
+   "name": "merge run1",
+   "files": {
+    "run1/vuln-intel.findings.json": "run1.json"
+   },
+   "exec": {
+    "impl": "ledger",
+    "args": [
+     "--run",
+     "{sandbox}/run1",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": []
+  },
+  {
+   "name": "inventory without complete_scope",
+   "files": {
+    "run2/vuln-intel.findings.json": "run2.json"
+   },
+   "exec": {
+    "impl": "ledger",
+    "args": [
+     "--run",
+     "{sandbox}/run2",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/ledger.json",
+     "subset": {
+      "entries": {
+       "d610b9b1761d": {
+        "status": "open"
+       }
+      }
+     },
+     "schema": "ledger"
+    }
+   ]
+  },
+  {
+   "name": "complete_scope image: with a gap on the old image; repo: is outside the scope",
+   "files": {
+    "run3/vuln-intel.findings.json": "run3.json"
+   },
+   "exec": {
+    "impl": "ledger",
+    "args": [
+     "--run",
+     "{sandbox}/run3",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/ledger.json",
+     "subset": {
+      "entries": {
+       "d610b9b1761d": {
+        "status": "open"
+       },
+       "e68f2007067c": {
+        "status": "open"
+       }
+      }
+     },
+     "schema": "ledger"
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,104 @@
+{
+ "component": "collector-agent-claude-code",
+ "title": "Collector protocol on a hermetic input: one valid document named after the collector, ids derived from (layer, asset, check), writes only into SP_RUN_DIR, no secret value copied",
+ "contract": "collector-protocol/1.0",
+ "origin": "tests/test_runner.py::test_as_renames_the_report_not_the_program; collector-protocol",
+ "files": {
+  "instance.json": "instance.json",
+  "home/.claude/settings.json": "settings.json",
+  "data/.keep": {
+   "text": ""
+  }
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-agent-claude-code",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance"
+    },
+    "writes_only_under": [
+     "run"
+    ]
+   },
+   "expect": [
+    {
+     "json": "run/agent-claude-code.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "agent-claude-code"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "no_secret": [
+      "sk-conformance-canary-0123456789"
+     ],
+     "in": "run"
+    },
+    {
+     "json": "run/agent-claude-code.findings.json",
+     "subset": {
+      "coverage": {
+       "$contains": [
+        {
+         "asset": "agent-guard:claude-code",
+         "status": "ok"
+        }
+       ]
+      },
+      "findings": {
+       "$contains": [
+        {
+         "check": "agent.no_credential_deny_rules",
+         "layer": "ai-agents"
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "collect as another name (SP_COLLECTOR_NAME)",
+   "remove": [
+    "run"
+   ],
+   "exec": {
+    "impl": "collector-agent-claude-code",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance",
+     "SP_COLLECTOR_NAME": "agent-b"
+    }
+   },
+   "expect": [
+    {
+     "json": "run/agent-b.findings.json",
+     "schema": "findings",
+     "subset": {
+      "collector": {
+       "name": "agent-b"
+      }
+     }
+    },
+    {
+     "absent": "run/agent-claude-code.findings.json"
+    }
+   ]
+  }
+ ]
+}

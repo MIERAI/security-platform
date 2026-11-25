@@ -1,0 +1,138 @@
+{
+ "component": "runner",
+ "title": "Role hub: a successful job is merged into the ledger and the metrics are published to every sink, with the runner's own families and labels",
+ "contract": "runner/1.0 / metrics/1.0",
+ "origin": "tests/test_runner.py::test_tick_runs_command_job_promotes_merges_and_publishes",
+ "files": {
+  "instance.json": "instance.json"
+ },
+ "steps": [
+  {
+   "name": "tick at 2030-01-07T12:30:00Z",
+   "exec": {
+    "impl": "runner",
+    "args": [
+     "tick",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1894019400"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/state/runner/host.json",
+     "schema": "runner-state",
+     "subset": {
+      "last_rc": 0
+     }
+    },
+    {
+     "json": "data/ledger.json",
+     "schema": "ledger",
+     "subset": {
+      "entries": {
+       "$len": 1
+      }
+     }
+    },
+    {
+     "prom": "sink/m.prom",
+     "has": [
+      {
+       "name": "security_runner_job_last_success_timestamp_seconds",
+       "labels": {
+        "site": "hub",
+        "job": "host"
+       }
+      },
+      {
+       "name": "security_runner_job_runs_total",
+       "labels": {
+        "site": "hub",
+        "job": "host"
+       },
+       "value": 1
+      },
+      {
+       "name": "security_runner_job_failures_total",
+       "labels": {
+        "site": "hub",
+        "job": "host"
+       },
+       "value": 0
+      },
+      {
+       "name": "security_runner_job_last_exit_code",
+       "labels": {
+        "site": "hub",
+        "job": "host"
+       },
+       "value": 0
+      },
+      {
+       "name": "security_runner_job_expected_interval_seconds",
+       "labels": {
+        "site": "hub",
+        "job": "host"
+       },
+       "value": 3600
+      },
+      {
+       "name": "security_collector_expected_interval_seconds",
+       "labels": {
+        "collector": "host"
+       },
+       "value": 3600
+      },
+      {
+       "name": "security_runner_tick_max_gap_seconds",
+       "labels": {
+        "site": "hub"
+       },
+       "value": 7200
+      },
+      {
+       "name": "security_runner_info",
+       "labels": {
+        "site": "hub"
+       },
+       "value": 1
+      },
+      {
+       "name": "security_collector_last_run_timestamp_seconds",
+       "labels": {
+        "collector": "host"
+       }
+      },
+      {
+       "name": "security_findings",
+       "labels": {
+        "status": "open"
+       }
+      }
+     ],
+     "families": [
+      "security_runner_tick_timestamp_seconds",
+      "security_metrics_published_timestamp_seconds",
+      "security_ledger_last_update_timestamp_seconds",
+      "security_runner_job_duration_seconds",
+      "security_runner_job_last_attempt_timestamp_seconds"
+     ],
+     "types": {
+      "security_runner_job_runs_total": "counter"
+     }
+    },
+    {
+     "prom": "data/metrics/security-platform.prom",
+     "families": [
+      "security_runner_tick_timestamp_seconds"
+     ]
+    }
+   ]
+  }
+ ]
+}

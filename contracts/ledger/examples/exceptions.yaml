@@ -1,0 +1,8 @@
+# Human-approved risk acceptances (contracts/ledger/SPEC.md "Exceptions"). An entry needs approved_by AND expires.
+exceptions:
+  4a8faf0efd8f:
+    approved_by: alice
+    reason: lab machine, isolated network; replaced in Q1
+    expires: '2027-01-31'
+coverage_exceptions:
+  host|host:personal-phone: {approved_by: alice, reason: personal device, scanned by exposure only, expires: '2027-03-01'}

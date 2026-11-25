@@ -1,0 +1,51 @@
+{
+ "component": "runner",
+ "title": "A collector job gets SP_RUN_DIR (fresh, under DATA/runs/), SP_DATA, SP_INSTANCE, SP_INPUT_DIR (DATA/latest), SP_INSTANCE_NAME, its `env`, and SP_COLLECTOR_NAME when `as:` is set",
+ "contract": "runner/1.0 / collector-protocol/1.0",
+ "origin": "runner env(); docs/adapters.md collector section",
+ "files": {
+  "instance.json": "instance.json"
+ },
+ "steps": [
+  {
+   "name": "tick at 2030-01-07T12:30:00Z",
+   "exec": {
+    "impl": "runner",
+    "args": [
+     "tick",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1894019400"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/state/runner/renamed.json",
+     "schema": "runner-state",
+     "subset": {
+      "last_rc": 0
+     }
+    },
+    {
+     "file": "env.txt",
+     "regex": [
+      "^SP_RUN_DIR={sandbox}/data/runs/.+",
+      "^SP_DATA={sandbox}/data$",
+      "^SP_INSTANCE={sandbox}/instance.json$",
+      "^SP_INPUT_DIR={sandbox}/data/latest$",
+      "^SP_INSTANCE_NAME=conformance$",
+      "^SP_COLLECTOR_NAME=host-b$",
+      "^MY_SETTING=x$"
+     ]
+    },
+    {
+     "exists": "data/latest/host-b.findings.json"
+    }
+   ]
+  }
+ ]
+}

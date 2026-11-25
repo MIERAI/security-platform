@@ -1,0 +1,70 @@
+{
+ "collector": {
+  "name": "x",
+  "version": "1.0.0"
+ },
+ "coverage": [
+  {
+   "asset": "host:h1",
+   "status": "ok"
+  },
+  {
+   "asset": "k8s-cluster:prod",
+   "status": "ok"
+  },
+  {
+   "asset": "net-endpoint:h1@192.0.2.10",
+   "status": "ok"
+  }
+ ],
+ "findings": [
+  {
+   "asset": "secret-file:h1:/etc/app/key.pem",
+   "check": "secrets.private_key_readable",
+   "evidence": "raw/x/secrets.private_key_readable.json",
+   "id": "387c1205b48c",
+   "kind": "compliance",
+   "layer": "data-secrets",
+   "needs_human": false,
+   "observed_at": "2026-11-01T08:00:00Z",
+   "owner": "platform",
+   "remediation": "fix secrets.private_key_readable",
+   "severity": "high",
+   "title": "secrets.private_key_readable on secret-file:h1:/etc/app/key.pem"
+  },
+  {
+   "asset": "k8s-workload:prod/ns1/deploy/web",
+   "check": "k8s.privileged",
+   "evidence": "raw/x/k8s.privileged.json",
+   "id": "995fc24b0bef",
+   "kind": "compliance",
+   "layer": "workload",
+   "needs_human": false,
+   "observed_at": "2026-11-01T08:00:00Z",
+   "owner": "platform",
+   "remediation": "fix k8s.privileged",
+   "severity": "high",
+   "title": "k8s.privileged on k8s-workload:prod/ns1/deploy/web"
+  },
+  {
+   "asset": "net-endpoint:h1@192.0.2.10:22",
+   "check": "exposure.ssh_open",
+   "evidence": "raw/x/exposure.ssh_open.json",
+   "id": "34d7321e4a3b",
+   "kind": "compliance",
+   "layer": "network",
+   "needs_human": false,
+   "observed_at": "2026-11-01T08:00:00Z",
+   "owner": "platform",
+   "remediation": "fix exposure.ssh_open",
+   "severity": "high",
+   "title": "exposure.ssh_open on net-endpoint:h1@192.0.2.10:22"
+  }
+ ],
+ "run": {
+  "finished_at": "2026-11-01T09:00:00Z",
+  "instance": "conformance",
+  "started_at": "2026-11-01T09:00:00Z"
+ },
+ "schema_version": "1.2"
+}

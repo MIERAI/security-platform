@@ -1,0 +1,39 @@
+{
+ "component": "runner",
+ "title": "Exit 0 without a findings document is a failure (no document != secure)",
+ "contract": "runner/1.0",
+ "origin": "runner job_collector: `rc != 0 or not document`",
+ "files": {
+  "instance.json": "instance.json"
+ },
+ "steps": [
+  {
+   "name": "tick at 2030-01-07T12:30:00Z",
+   "exec": {
+    "impl": "runner",
+    "args": [
+     "tick",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1894019400"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/state/runner/empty.json",
+     "schema": "runner-state",
+     "subset": {
+      "last_rc": {
+       "$ge": 1
+      },
+      "failures_total": 1
+     }
+    }
+   ]
+  }
+ ]
+}

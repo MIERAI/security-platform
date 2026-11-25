@@ -1,0 +1,108 @@
+{
+ "component": "ledger",
+ "title": "<run>/ocsf.jsonl holds one OCSF 1.x finding event per ledger entry (class by kind, severity_id, status_id)",
+ "contract": "ledger/1.0 + findings/1.2 OCSF mapping",
+ "origin": "tests/test_contract.py::test_ocsf_mapping; core/ocsf.py",
+ "steps": [
+  {
+   "name": "merge run1",
+   "files": {
+    "run1/x.findings.json": "run1.json"
+   },
+   "exec": {
+    "impl": "ledger",
+    "args": [
+     "--run",
+     "{sandbox}/run1",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "jsonl": "run1/ocsf.jsonl",
+     "subset": {
+      "$unordered": [
+       {
+        "class_uid": 2002,
+        "class_name": "Vulnerability Finding",
+        "category_uid": 2,
+        "activity_id": 1,
+        "severity_id": 5,
+        "status_id": 1,
+        "status": "open",
+        "time": "2026-11-01T08:00:00Z",
+        "metadata": {
+         "version": {
+          "$regex": "^1\\."
+         },
+         "product": {
+          "name": "security-platform/x",
+          "version": "1.0.0"
+         }
+        },
+        "finding_info": {
+         "uid": "5019cea0153d",
+         "types": [
+          "vuln.cve-2099-1111"
+         ],
+         "first_seen_time": "2026-11-01T08:00:00Z"
+        },
+        "resources": [
+         {
+          "type": "image",
+          "name": "a"
+         }
+        ],
+        "vulnerabilities": [
+         {
+          "cve": {
+           "uid": "CVE-2099-1111",
+           "cvss": [
+            {
+             "base_score": 9.8
+            }
+           ],
+           "epss": {
+            "score": 0.5
+           }
+          },
+          "is_exploit_available": true,
+          "affected_packages": [
+           {
+            "name": "libx",
+            "version": "1.0",
+            "fixed_in_version": "1.1"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "class_uid": 2004,
+        "severity_id": 2,
+        "finding_info": {
+         "uid": "62877bd47fa8"
+        }
+       },
+       {
+        "class_uid": 2003,
+        "severity_id": 3,
+        "compliance": {
+         "control": "host.ssh_root_login",
+         "standards": [
+          "cis:5.2.10"
+         ]
+        },
+        "finding_info": {
+         "uid": "42eb82d129d4"
+        }
+       }
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}

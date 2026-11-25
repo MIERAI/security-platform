@@ -1,0 +1,42 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "security-platform/cli-findings/v1",
+ "title": "stdout of `sp findings --json`: ledger entries, worst first",
+ "type": "array",
+ "items": {
+  "type": "object",
+  "required": [
+   "id",
+   "check",
+   "layer",
+   "asset",
+   "title",
+   "severity",
+   "status",
+   "first_seen",
+   "last_seen"
+  ],
+  "properties": {
+   "id": {
+    "type": "string",
+    "pattern": "^[0-9a-f]{12}$"
+   },
+   "severity": {
+    "enum": [
+     "critical",
+     "high",
+     "medium",
+     "low",
+     "info"
+    ]
+   },
+   "status": {
+    "enum": [
+     "open",
+     "fixed",
+     "accepted"
+    ]
+   }
+  }
+ }
+}

@@ -1,0 +1,48 @@
+{
+ "collector": {
+  "name": "host",
+  "version": "1.0.0"
+ },
+ "coverage": [
+  {
+   "asset": "host:laptop",
+   "status": "ok"
+  }
+ ],
+ "findings": [
+  {
+   "asset": "host:laptop",
+   "check": "host.os_updates_pending",
+   "evidence": "raw/x/host.os_updates_pending.json",
+   "id": "dd248e1cc165",
+   "kind": "compliance",
+   "layer": "host",
+   "needs_human": false,
+   "observed_at": "2026-11-01T08:00:00Z",
+   "owner": "platform",
+   "remediation": "fix host.os_updates_pending",
+   "severity": "medium",
+   "title": "host.os_updates_pending on host:laptop"
+  },
+  {
+   "asset": "host:laptop",
+   "check": "host.firewall_off",
+   "evidence": "raw/x/host.firewall_off.json",
+   "id": "42d0f4800992",
+   "kind": "compliance",
+   "layer": "host",
+   "needs_human": false,
+   "observed_at": "2026-11-01T08:00:00Z",
+   "owner": "platform",
+   "remediation": "fix host.firewall_off",
+   "severity": "high",
+   "title": "host.firewall_off on host:laptop"
+  }
+ ],
+ "run": {
+  "finished_at": "2026-11-01T09:00:00Z",
+  "instance": "conformance",
+  "started_at": "2026-11-01T09:00:00Z"
+ },
+ "schema_version": "1.2"
+}

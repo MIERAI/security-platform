@@ -1,0 +1,52 @@
+{
+ "collector": {
+  "name": "vuln-intel",
+  "version": "1.0.0"
+ },
+ "coverage": [
+  {
+   "asset": "image:registry.example/app:1.0",
+   "status": "ok"
+  },
+  {
+   "asset": "repo:acme/app",
+   "status": "ok"
+  }
+ ],
+ "findings": [
+  {
+   "asset": "image:registry.example/app:1.0",
+   "check": "vuln.cve-2099-0001",
+   "evidence": "raw/x/vuln.cve-2099-0001.json",
+   "id": "d610b9b1761d",
+   "kind": "vulnerability",
+   "layer": "supply-chain",
+   "needs_human": false,
+   "observed_at": "2026-11-24T08:00:00Z",
+   "owner": "platform",
+   "remediation": "fix vuln.cve-2099-0001",
+   "severity": "critical",
+   "title": "vuln.cve-2099-0001 on image:registry.example/app:1.0"
+  },
+  {
+   "asset": "repo:acme/app",
+   "check": "vuln.cve-2099-0002",
+   "evidence": "raw/x/vuln.cve-2099-0002.json",
+   "id": "e68f2007067c",
+   "kind": "vulnerability",
+   "layer": "supply-chain",
+   "needs_human": false,
+   "observed_at": "2026-11-01T08:00:00Z",
+   "owner": "platform",
+   "remediation": "fix vuln.cve-2099-0002",
+   "severity": "high",
+   "title": "vuln.cve-2099-0002 on repo:acme/app"
+  }
+ ],
+ "run": {
+  "finished_at": "2026-11-24T09:00:00Z",
+  "instance": "conformance",
+  "started_at": "2026-11-24T09:00:00Z"
+ },
+ "schema_version": "1.2"
+}

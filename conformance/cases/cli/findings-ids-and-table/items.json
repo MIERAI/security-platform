@@ -1,0 +1,21 @@
+{
+ "items": {
+  "7eafa19e3d35": {
+   "due_at": "2026-11-08T08:00:00Z",
+   "id": "7eafa19e3d35",
+   "overdue": true,
+   "owner": "ops",
+   "severity": "critical",
+   "status": "open"
+  },
+  "d610b9b1761d": {
+   "due_at": "2099-12-01T08:00:00Z",
+   "id": "d610b9b1761d",
+   "overdue": false,
+   "owner": "ops",
+   "severity": "high",
+   "status": "open"
+  }
+ },
+ "schema": "security-platform/tracker/v1"
+}

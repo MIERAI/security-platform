@@ -1,0 +1,51 @@
+{
+ "schema_version": "1.1",
+ "collector": {
+  "name": "vuln-intel",
+  "version": "0.3.0",
+  "tools": {}
+ },
+ "run": {
+  "started_at": "2026-11-25T03:30:00Z",
+  "finished_at": "2026-11-25T03:31:05Z",
+  "instance": "example"
+ },
+ "coverage": [
+  {
+   "asset": "inventory:container-image",
+   "status": "ok",
+   "complete_scope": "image:"
+  },
+  {
+   "asset": "image:registry.example/app:1.1",
+   "status": "ok"
+  }
+ ],
+ "findings": [
+  {
+   "id": "94a40afc65ef",
+   "check": "vuln.cve-2099-0001",
+   "layer": "supply-chain",
+   "asset": "image:registry.example/app:1.1",
+   "title": "vuln.cve-2099-0001 on image:registry.example/app:1.1",
+   "severity": "critical",
+   "evidence": "raw/host/registry.example/app:1.1.json#vuln.cve-2099-0001",
+   "remediation": "see sp explain",
+   "needs_human": false,
+   "owner": "platform",
+   "observed_at": "2026-11-25T03:31:02Z",
+   "kind": "vulnerability",
+   "attributes": {
+    "cve": "CVE-2099-0001",
+    "package": "libx",
+    "installed": "1.0",
+    "fixed": "1.1",
+    "kev": true,
+    "published_at": "2026-11-20T00:00:00Z"
+   },
+   "refs": [
+    "CVE-2099-0001"
+   ]
+  }
+ ]
+}

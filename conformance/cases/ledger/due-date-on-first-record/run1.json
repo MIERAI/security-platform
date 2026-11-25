@@ -1,0 +1,34 @@
+{
+ "collector": {
+  "name": "host",
+  "version": "1.0.0"
+ },
+ "coverage": [
+  {
+   "asset": "host:h1",
+   "status": "ok"
+  }
+ ],
+ "findings": [
+  {
+   "asset": "host:h1",
+   "check": "host.critical_thing",
+   "evidence": "raw/x/host.critical_thing.json",
+   "id": "c7b307ff3734",
+   "kind": "compliance",
+   "layer": "host",
+   "needs_human": false,
+   "observed_at": "2026-11-01T08:00:00Z",
+   "owner": "platform",
+   "remediation": "fix host.critical_thing",
+   "severity": "critical",
+   "title": "host.critical_thing on host:h1"
+  }
+ ],
+ "run": {
+  "finished_at": "2026-11-01T09:00:00Z",
+  "instance": "conformance",
+  "started_at": "2026-11-01T09:00:00Z"
+ },
+ "schema_version": "1.2"
+}

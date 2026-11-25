@@ -1,0 +1,138 @@
+{
+ "component": "ledger",
+ "title": "A finding seen for the first time is open; outputs and their schemas",
+ "contract": "ledger/1.0",
+ "origin": "tests/test_ledger.py::test_lifecycle",
+ "files": {
+  "data/.keep": {
+   "text": ""
+  }
+ },
+ "steps": [
+  {
+   "name": "merge run1",
+   "files": {
+    "run1/host.findings.json": "run1.json"
+   },
+   "exec": {
+    "impl": "ledger",
+    "args": [
+     "--run",
+     "{sandbox}/run1",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/ledger.json",
+     "subset": {
+      "schema": "security-platform/ledger/v1",
+      "entries": {
+       "4a8faf0efd8f": {
+        "status": "open",
+        "first_seen": "2026-11-01T08:00:00Z",
+        "last_seen": "2026-11-01T08:00:00Z",
+        "fixed_at": null,
+        "reopened_count": 0,
+        "collector": "host",
+        "collector_version": "1.0.0",
+        "check": "host.ssh_password_auth",
+        "layer": "host",
+        "asset": "host:h1",
+        "severity": "high",
+        "kind": "compliance",
+        "ttk_counted": false
+       }
+      },
+      "collectors": {
+       "host": {
+        "last_run": "2026-11-01T09:00:00Z",
+        "last_good_run": "2026-11-01T09:00:00Z"
+       }
+      },
+      "runs": [
+       {
+        "collectors": {
+         "host": "1.0.0"
+        },
+        "invalid": {},
+        "run_dir": {
+         "$regex": "run1$"
+        }
+       }
+      ]
+     },
+     "schema": "ledger"
+    },
+    {
+     "prom": "data/metrics/ledger.prom",
+     "families": [
+      "security_findings",
+      "security_findings_reopened_total",
+      "security_exceptions_active",
+      "security_exceptions_expired",
+      "security_time_to_fix_days",
+      "security_contract_invalid_documents",
+      "security_ledger_last_update_timestamp_seconds",
+      "security_collector_last_good_run_timestamp_seconds",
+      "security_sli",
+      "security_sli_objective",
+      "security_sli_ok",
+      "security_sli_new_total"
+     ],
+     "has": [
+      {
+       "name": "security_findings",
+       "labels": {
+        "layer": "host",
+        "severity": "high",
+        "status": "open"
+       },
+       "value": 1
+      },
+      {
+       "name": "security_collector_last_good_run_timestamp_seconds",
+       "labels": {
+        "collector": "host"
+       },
+       "value": 1793523600
+      },
+      {
+       "name": "security_contract_invalid_documents",
+       "value": 0
+      }
+     ],
+     "types": {
+      "security_findings_reopened_total": "counter",
+      "security_findings": "gauge"
+     },
+     "forbidden_labels": [
+      "asset",
+      "id",
+      "host",
+      "instance_name"
+     ]
+    },
+    {
+     "exists": "run1/sli.prom"
+    },
+    {
+     "jsonl": "run1/ocsf.jsonl",
+     "subset": [
+      {
+       "finding_info": {
+        "uid": "4a8faf0efd8f"
+       },
+       "status": "open"
+      }
+     ]
+    },
+    {
+     "exists": "data/reports/latest-auto.md"
+    }
+   ]
+  }
+ ]
+}

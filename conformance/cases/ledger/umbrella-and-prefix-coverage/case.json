@@ -1,0 +1,60 @@
+{
+ "component": "ledger",
+ "title": "Coverage matching: host:h covers secret-file:h:...; k8s-cluster:c covers k8s-workload:c/...; an entry covers assets it prefixes up to ':' '/' '@'",
+ "contract": "ledger/1.0",
+ "origin": "tests/test_ledger.py::test_coverage_rules",
+ "steps": [
+  {
+   "name": "merge run1",
+   "files": {
+    "run1/x.findings.json": "run1.json"
+   },
+   "exec": {
+    "impl": "ledger",
+    "args": [
+     "--run",
+     "{sandbox}/run1",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": []
+  },
+  {
+   "name": "merge run2",
+   "files": {
+    "run2/x.findings.json": "run2.json"
+   },
+   "exec": {
+    "impl": "ledger",
+    "args": [
+     "--run",
+     "{sandbox}/run2",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/ledger.json",
+     "subset": {
+      "entries": {
+       "387c1205b48c": {
+        "status": "fixed"
+       },
+       "995fc24b0bef": {
+        "status": "fixed"
+       },
+       "34d7321e4a3b": {
+        "status": "fixed"
+       }
+      }
+     },
+     "schema": "ledger"
+    }
+   ]
+  }
+ ]
+}

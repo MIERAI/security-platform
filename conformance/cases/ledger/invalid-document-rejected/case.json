@@ -1,0 +1,61 @@
+{
+ "component": "ledger",
+ "title": "A document that fails the findings contract (unknown major, bad field) is not merged, is recorded, and does not fail the merge of the valid ones",
+ "contract": "ledger/1.0",
+ "origin": "tests/test_contract.py::test_unknown_major_rejected",
+ "steps": [
+  {
+   "name": "merge run1",
+   "files": {
+    "run1/host.findings.json": "bad.json",
+    "run1/k8s.findings.json": "badfield.json",
+    "run1/exposure.findings.json": "good.json"
+   },
+   "exec": {
+    "impl": "ledger",
+    "args": [
+     "--run",
+     "{sandbox}/run1",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/ledger.json",
+     "subset": {
+      "entries": {
+       "$len": 1
+      },
+      "runs": [
+       {
+        "invalid": {
+         "host.findings.json": {
+          "$type": "array"
+         },
+         "k8s.findings.json": {
+          "$type": "array"
+         }
+        },
+        "collectors": {
+         "exposure": "1.0.0"
+        }
+       }
+      ]
+     },
+     "schema": "ledger"
+    },
+    {
+     "prom": "data/metrics/ledger.prom",
+     "has": [
+      {
+       "name": "security_contract_invalid_documents",
+       "value": 2
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

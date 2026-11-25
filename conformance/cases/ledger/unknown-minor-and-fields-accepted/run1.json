@@ -1,0 +1,39 @@
+{
+ "collector": {
+  "name": "host",
+  "version": "1.0.0"
+ },
+ "coverage": [
+  {
+   "asset": "host:h1",
+   "future": true,
+   "status": "ok"
+  }
+ ],
+ "findings": [
+  {
+   "asset": "host:h1",
+   "check": "host.ssh_password_auth",
+   "evidence": "raw/x/host.ssh_password_auth.json",
+   "future_field": 1,
+   "id": "4a8faf0efd8f",
+   "kind": "compliance",
+   "layer": "host",
+   "needs_human": false,
+   "observed_at": "2026-11-01T08:00:00Z",
+   "owner": "platform",
+   "remediation": "fix host.ssh_password_auth",
+   "severity": "high",
+   "title": "host.ssh_password_auth on host:h1"
+  }
+ ],
+ "future_field": {
+  "x": 1
+ },
+ "run": {
+  "finished_at": "2026-11-01T09:00:00Z",
+  "instance": "conformance",
+  "started_at": "2026-11-01T09:00:00Z"
+ },
+ "schema_version": "1.9"
+}

@@ -1,0 +1,50 @@
+{
+ "core": "0.9.0",
+ "items": {
+  "233790a18561": {
+   "asset": "host:h1",
+   "check": "host.crit",
+   "closed_at": null,
+   "due_at": "2026-11-17T00:00:00Z",
+   "exception": null,
+   "history": [
+    {
+     "at": "2026-11-02T00:00:00Z",
+     "status": "open"
+    },
+    {
+     "at": "2026-11-04T00:00:00Z",
+     "status": "fixed"
+    },
+    {
+     "at": "2026-11-10T00:00:00Z",
+     "status": "open"
+    }
+   ],
+   "id": "233790a18561",
+   "layer": "host",
+   "needs_human": false,
+   "opened_at": "2026-11-01T08:00:00Z",
+   "overdue": false,
+   "owner": "security-oncall",
+   "owner_source": "default",
+   "remediation": "fix host.crit",
+   "reopen_reason": "regression",
+   "reopened_at": "2026-11-10T00:00:00Z",
+   "severity": "critical",
+   "slo_class": "critical",
+   "status": "open",
+   "time_to_remediate_days": null,
+   "title": "host.crit on host:h1"
+  }
+ },
+ "schema": "security-platform/tracker/v1",
+ "slo_seconds": {
+  "critical": 604800,
+  "high": 2592000,
+  "kev_exposed": 86400,
+  "low": 15552000,
+  "medium": 7776000
+ },
+ "updated_at": "2026-11-10T00:00:00Z"
+}

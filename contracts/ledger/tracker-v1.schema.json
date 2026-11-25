@@ -1,0 +1,181 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "security-platform/tracker/v1",
+ "title": "tracker/items.json: one remediation item per finding that is or was open",
+ "type": "object",
+ "required": [
+  "schema",
+  "items"
+ ],
+ "properties": {
+  "schema": {
+   "const": "security-platform/tracker/v1"
+  },
+  "core": {
+   "type": "string"
+  },
+  "updated_at": {
+   "type": "string",
+   "format": "date-time"
+  },
+  "slo_seconds": {
+   "type": "object",
+   "additionalProperties": {
+    "type": "integer"
+   }
+  },
+  "items": {
+   "type": "object",
+   "additionalProperties": {
+    "$ref": "#/$defs/item"
+   }
+  }
+ },
+ "$defs": {
+  "item": {
+   "type": "object",
+   "required": [
+    "id",
+    "status",
+    "opened_at",
+    "due_at",
+    "overdue",
+    "owner",
+    "severity"
+   ],
+   "properties": {
+    "id": {
+     "type": "string",
+     "pattern": "^[0-9a-f]{12}$"
+    },
+    "status": {
+     "enum": [
+      "open",
+      "accepted",
+      "fixed",
+      "false_positive"
+     ]
+    },
+    "opened_at": {
+     "type": "string",
+     "format": "date-time"
+    },
+    "reopened_at": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "reopen_reason": {
+     "type": [
+      "string",
+      "null"
+     ],
+     "description": "regression | exception expired | reopened by the ledger"
+    },
+    "closed_at": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "time_to_remediate_days": {
+     "type": [
+      "number",
+      "null"
+     ]
+    },
+    "due_at": {
+     "type": [
+      "string",
+      "null"
+     ],
+     "description": "(reopened_at or opened_at) + SLO of slo_class; null when the class has no SLO (info by default)."
+    },
+    "overdue": {
+     "type": "boolean",
+     "description": "status open and now > due_at (accepted items are never overdue)."
+    },
+    "slo_class": {
+     "type": "string",
+     "description": "kev_exposed (attributes kev and exposed) or the severity"
+    },
+    "owner": {
+     "type": "string"
+    },
+    "owner_source": {
+     "enum": [
+      "rule",
+      "finding",
+      "default",
+      "none"
+     ]
+    },
+    "check": {
+     "type": "string"
+    },
+    "layer": {
+     "enum": [
+      "identity",
+      "network",
+      "host",
+      "workload",
+      "supply-chain",
+      "data-secrets",
+      "ai-agents",
+      "detection"
+     ]
+    },
+    "asset": {
+     "type": "string"
+    },
+    "title": {
+     "type": "string"
+    },
+    "severity": {
+     "enum": [
+      "critical",
+      "high",
+      "medium",
+      "low",
+      "info"
+     ]
+    },
+    "remediation": {
+     "type": "string"
+    },
+    "needs_human": {
+     "type": "boolean"
+    },
+    "exception": {
+     "type": [
+      "object",
+      "null"
+     ]
+    },
+    "advisor_draft": {
+     "type": "string"
+    },
+    "history": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "required": [
+       "at",
+       "status"
+      ],
+      "properties": {
+       "at": {
+        "type": "string",
+        "format": "date-time"
+       },
+       "status": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   }
+  }
+ }
+}

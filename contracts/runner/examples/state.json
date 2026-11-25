@@ -1,0 +1,15 @@
+{
+ "attempts": 1,
+ "done_slot": 1893987000,
+ "failures_total": 3,
+ "job": "flaky",
+ "last_attempt": 1795595805,
+ "last_duration": 0.0,
+ "last_note": "collector exited rc=3, document=no",
+ "last_rc": 3,
+ "last_run_dir": "runs/2026-11-25/083645-flaky",
+ "runner_version": "0.9.0",
+ "runs_total": 3,
+ "schema": "security-platform/runner-state/v1",
+ "slot": 1894073400
+}

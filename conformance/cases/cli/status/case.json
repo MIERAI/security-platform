@@ -1,0 +1,61 @@
+{
+ "component": "cli",
+ "title": "`sp status` before any scan says so; with data it shows open findings, overdue fixes and every job",
+ "contract": "cli/1.0",
+ "origin": "tests/test_cli.py::test_status",
+ "files": {
+  "empty/instance.json": "instance.json"
+ },
+ "steps": [
+  {
+   "name": "sp status --data {sandbox}/empty",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "status",
+     "--data",
+     "{sandbox}/empty"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "regex": [
+       "no scan yet"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "sp status --data {sandbox}/data",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "status",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "regex": [
+       "Open findings: .*critical 1",
+       "Overdue fixes: 1",
+       "^\\s+never\\s+host",
+       "^\\s+never\\s+remediation"
+      ]
+     }
+    }
+   ],
+   "files": {
+    "data/ledger.json": "ledger.json",
+    "data/tracker/items.json": "items.json",
+    "data/instance.json": "instance.json"
+   }
+  }
+ ]
+}

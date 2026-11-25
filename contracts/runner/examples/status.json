@@ -1,0 +1,20 @@
+{
+ "host": {
+  "schema": "security-platform/runner-state/v1",
+  "job": "host",
+  "runs_total": 12,
+  "failures_total": 1,
+  "last_rc": 0,
+  "last_duration": 41.3,
+  "last_note": "ledger merged",
+  "last_run_dir": "runs/2026-11-25/021512-host",
+  "runner_version": "0.9.0",
+  "last_attempt": 1795659312,
+  "last_success": 1795659353,
+  "slot": 1795659300,
+  "attempts": 1,
+  "done_slot": 1795659300,
+  "due": "done",
+  "schedule": "15 2 * * *"
+ }
+}

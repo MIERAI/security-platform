@@ -1,0 +1,75 @@
+{
+ "component": "remediation",
+ "title": "Accepted items are not overdue; when the ledger reopens one because its exception expired, the item reopens with reason 'exception expired'",
+ "contract": "ledger/1.0 (tracker)",
+ "origin": "tests/test_remediation.py::test_exception_accepts_then_expiry_reopens",
+ "files": {
+  "data/ledger.json": "accepted.json",
+  "instance.json": "instance.json"
+ },
+ "steps": [
+  {
+   "name": "track at 2026-12-01T00:00:00Z",
+   "exec": {
+    "impl": "remediation",
+    "args": [
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1796083200",
+     "--instance",
+     "{sandbox}/instance.json"
+    ]
+   },
+   "expect": [
+    {
+     "json": "data/tracker/items.json",
+     "schema": "tracker",
+     "subset": {
+      "items": {
+       "233790a18561": {
+        "status": "accepted",
+        "overdue": false,
+        "exception": {
+         "approved_by": "alice"
+        }
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "track at 2026-12-02T00:00:00Z",
+   "exec": {
+    "impl": "remediation",
+    "args": [
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1796169600",
+     "--instance",
+     "{sandbox}/instance.json"
+    ]
+   },
+   "expect": [
+    {
+     "json": "data/tracker/items.json",
+     "schema": "tracker",
+     "subset": {
+      "items": {
+       "233790a18561": {
+        "status": "open",
+        "reopen_reason": "exception expired",
+        "reopened_at": "2026-12-02T00:00:00Z"
+       }
+      }
+     }
+    }
+   ],
+   "files": {
+    "data/ledger.json": "expired.json"
+   }
+  }
+ ]
+}

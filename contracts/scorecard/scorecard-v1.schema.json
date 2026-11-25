@@ -1,0 +1,310 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "security-platform/scorecard/v1",
+ "title": "reports/scorecard.json (contracts/scorecard/SPEC.md)",
+ "type": "object",
+ "required": [
+  "schema",
+  "computed_at",
+  "threshold",
+  "status",
+  "overall",
+  "mean",
+  "weakest",
+  "dimensions",
+  "not_applicable",
+  "pillars",
+  "functions",
+  "attestations",
+  "controls"
+ ],
+ "properties": {
+  "schema": {
+   "const": "security-platform/scorecard/v1"
+  },
+  "scorecard_version": {
+   "type": "string"
+  },
+  "computed_at": {
+   "type": "string",
+   "format": "date-time"
+  },
+  "threshold": {
+   "type": "number"
+  },
+  "status": {
+   "enum": [
+    "PASS",
+    "FAIL"
+   ],
+   "description": "PASS only when every applicable dimension is PASS (and there is at least one)."
+  },
+  "overall": {
+   "type": "number",
+   "minimum": 0,
+   "maximum": 100,
+   "description": "The weakest applicable dimension's score."
+  },
+  "mean": {
+   "type": "number"
+  },
+  "weakest": {
+   "type": [
+    "string",
+    "null"
+   ]
+  },
+  "dimensions": {
+   "type": "object",
+   "additionalProperties": {
+    "type": "object",
+    "required": [
+     "title",
+     "score",
+     "status",
+     "threshold",
+     "weight_total",
+     "weight_passed",
+     "controls",
+     "failing"
+    ],
+    "properties": {
+     "title": {
+      "type": "string"
+     },
+     "order": {},
+     "owner": {},
+     "threshold": {
+      "type": "number"
+     },
+     "pillars": {
+      "type": "array",
+      "items": {
+       "enum": [
+        "network",
+        "device",
+        "people",
+        "software"
+       ]
+      }
+     },
+     "functions": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100
+     },
+     "status": {
+      "enum": [
+       "PASS",
+       "FAIL"
+      ]
+     },
+     "weight_total": {
+      "type": "number"
+     },
+     "weight_passed": {
+      "type": "number"
+     },
+     "controls": {
+      "type": "integer"
+     },
+     "failing": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  },
+  "not_applicable": {
+   "type": "object",
+   "additionalProperties": {
+    "type": "object",
+    "required": [
+     "reason"
+    ],
+    "properties": {
+     "title": {
+      "type": "string"
+     },
+     "reason": {
+      "type": "string"
+     },
+     "controls": {
+      "type": "integer"
+     }
+    }
+   }
+  },
+  "pillars": {
+   "type": "object",
+   "additionalProperties": {
+    "type": "object",
+    "required": [
+     "score",
+     "controls",
+     "status"
+    ],
+    "properties": {
+     "score": {
+      "type": "number"
+     },
+     "controls": {
+      "type": "integer"
+     },
+     "status": {
+      "enum": [
+       "PASS",
+       "FAIL"
+      ]
+     },
+     "failing": {
+      "type": "array"
+     }
+    }
+   }
+  },
+  "functions": {
+   "type": "object",
+   "additionalProperties": {
+    "type": "object",
+    "required": [
+     "score",
+     "controls"
+    ],
+    "properties": {
+     "title": {
+      "type": "string"
+     },
+     "score": {
+      "type": "number"
+     },
+     "controls": {
+      "type": "integer"
+     }
+    }
+   }
+  },
+  "dimension_pillar": {
+   "type": "object",
+   "additionalProperties": {
+    "type": "number"
+   }
+  },
+  "attestations": {
+   "type": "object",
+   "required": [
+    "valid",
+    "expiring",
+    "expired",
+    "missing"
+   ],
+   "additionalProperties": {
+    "type": "integer",
+    "minimum": 0
+   }
+  },
+  "regressions_total": {
+   "type": "object",
+   "additionalProperties": {
+    "type": "integer",
+    "minimum": 0
+   }
+  },
+  "controls": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "id",
+     "dimension",
+     "status",
+     "weight",
+     "check"
+    ],
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "dimension": {
+      "type": "string"
+     },
+     "title": {
+      "type": "string"
+     },
+     "pillars": {
+      "type": "array",
+      "items": {
+       "enum": [
+        "network",
+        "device",
+        "people",
+        "software"
+       ]
+      }
+     },
+     "csf": {},
+     "function": {
+      "type": "string"
+     },
+     "cis": {
+      "type": "array"
+     },
+     "check": {
+      "enum": [
+       "automated",
+       "attested",
+       "evidence"
+      ]
+     },
+     "weight": {
+      "type": "number",
+      "minimum": 0
+     },
+     "status": {
+      "enum": [
+       "pass",
+       "fail",
+       "unknown",
+       "unattested",
+       "expired",
+       "not_implemented",
+       "na"
+      ]
+     },
+     "detail": {
+      "type": "string"
+     },
+     "needs_human": {
+      "type": "boolean"
+     },
+     "attestable": {
+      "type": "boolean"
+     },
+     "question": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "remediation": {
+      "type": "string"
+     },
+     "expires": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    }
+   }
+  }
+ }
+}

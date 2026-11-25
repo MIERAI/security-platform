@@ -1,0 +1,34 @@
+{
+ "collector": {
+  "name": "exposure",
+  "version": "1.0.0"
+ },
+ "coverage": [
+  {
+   "asset": "net-endpoint:h@192.0.2.1",
+   "status": "ok"
+  }
+ ],
+ "findings": [
+  {
+   "asset": "net-endpoint:h@192.0.2.1:22",
+   "check": "exposure.ssh_open",
+   "evidence": "raw/x/exposure.ssh_open.json",
+   "id": "5a48a5dffaff",
+   "kind": "compliance",
+   "layer": "network",
+   "needs_human": false,
+   "observed_at": "2026-11-01T08:00:00Z",
+   "owner": "platform",
+   "remediation": "fix exposure.ssh_open",
+   "severity": "high",
+   "title": "exposure.ssh_open on net-endpoint:h@192.0.2.1:22"
+  }
+ ],
+ "run": {
+  "finished_at": "2026-11-01T09:00:00Z",
+  "instance": "conformance",
+  "started_at": "2026-11-01T09:00:00Z"
+ },
+ "schema_version": "1.2"
+}

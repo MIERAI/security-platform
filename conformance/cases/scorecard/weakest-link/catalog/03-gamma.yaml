@@ -1,0 +1,4 @@
+schema: security-platform/scorecard-catalog/v1
+dimension: {id: gamma, order: 3, title: Gamma (cloud only), pillars: [software], applies_when: {instance: cloud.accounts}}
+controls:
+  - {id: gamma.thing, title: Thing, csf: PR.PS, pillars: [software], check: attested, weight: 1, validity: 30d, question: "Thing?"}

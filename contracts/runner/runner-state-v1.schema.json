@@ -1,0 +1,70 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "security-platform/runner-state/v1",
+ "title": "state/runner/<job>.json: one job's state (also forward-<i>)",
+ "type": "object",
+ "required": [
+  "runs_total",
+  "failures_total"
+ ],
+ "properties": {
+  "schema": {
+   "const": "security-platform/runner-state/v1"
+  },
+  "job": {
+   "type": "string"
+  },
+  "runs_total": {
+   "type": "integer",
+   "minimum": 0
+  },
+  "failures_total": {
+   "type": "integer",
+   "minimum": 0
+  },
+  "last_rc": {
+   "type": "integer"
+  },
+  "last_duration": {
+   "type": "number",
+   "minimum": 0
+  },
+  "last_note": {
+   "type": "string"
+  },
+  "last_run_dir": {
+   "type": "string",
+   "description": "relative to the data directory: runs/<YYYY-MM-DD>/<HHMMSS>-<job>"
+  },
+  "runner_version": {
+   "type": "string"
+  },
+  "last_attempt": {
+   "type": "integer",
+   "description": "epoch seconds, start of the last attempt"
+  },
+  "last_success": {
+   "type": "integer",
+   "description": "epoch seconds, end of the last successful run"
+  },
+  "slot": {
+   "type": "integer",
+   "description": "epoch of the scheduled slot of the current/last attempt"
+  },
+  "attempts": {
+   "type": "integer",
+   "minimum": 0
+  },
+  "done_slot": {
+   "type": "integer",
+   "description": "newest slot that is finished (succeeded, or given up after retries)"
+  },
+  "pending": {
+   "type": "integer"
+  },
+  "pushed": {
+   "type": "object"
+  },
+  "last_snapshot": {}
+ }
+}

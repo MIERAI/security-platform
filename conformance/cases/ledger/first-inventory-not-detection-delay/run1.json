@@ -1,0 +1,38 @@
+{
+ "collector": {
+  "name": "vuln-intel",
+  "version": "1.0.0"
+ },
+ "coverage": [
+  {
+   "asset": "image:a",
+   "status": "ok"
+  }
+ ],
+ "findings": [
+  {
+   "asset": "image:a",
+   "attributes": {
+    "cve": "CVE-2099-1111",
+    "published_at": "2026-10-01T00:00:00Z"
+   },
+   "check": "vuln.cve-2099-1111",
+   "evidence": "raw/x/vuln.cve-2099-1111.json",
+   "id": "5019cea0153d",
+   "kind": "vulnerability",
+   "layer": "supply-chain",
+   "needs_human": false,
+   "observed_at": "2026-11-10T08:00:00Z",
+   "owner": "platform",
+   "remediation": "fix vuln.cve-2099-1111",
+   "severity": "critical",
+   "title": "vuln.cve-2099-1111 on image:a"
+  }
+ ],
+ "run": {
+  "finished_at": "2026-11-10T09:00:00Z",
+  "instance": "conformance",
+  "started_at": "2026-11-10T09:00:00Z"
+ },
+ "schema_version": "1.2"
+}

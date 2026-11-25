@@ -1,0 +1,66 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "security-platform/metrics-registry/v1",
+ "type": "object",
+ "required": [
+  "schema",
+  "metrics"
+ ],
+ "properties": {
+  "schema": {
+   "const": "security-platform/metrics-registry/v1"
+  },
+  "metrics": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "name",
+     "type",
+     "labels",
+     "producer",
+     "stability",
+     "meaning"
+    ],
+    "properties": {
+     "name": {
+      "type": "string",
+      "pattern": "^security_[a-z0-9_]+$"
+     },
+     "type": {
+      "enum": [
+       "gauge",
+       "counter"
+      ]
+     },
+     "labels": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "producer": {
+      "type": "string"
+     },
+     "stability": {
+      "enum": [
+       "stable",
+       "collector",
+       "target",
+       "deprecated"
+      ]
+     },
+     "meaning": {
+      "type": "string"
+     },
+     "used_by_generated": {
+      "type": "boolean"
+     },
+     "replaced_by": {
+      "type": "string"
+     }
+    }
+   }
+  }
+ }
+}

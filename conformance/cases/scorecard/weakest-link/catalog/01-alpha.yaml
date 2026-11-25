@@ -1,0 +1,11 @@
+schema: security-platform/scorecard-catalog/v1
+dimension: {id: alpha, order: 1, title: Alpha, pillars: [network, device]}
+controls:
+  - {id: alpha.reviewed, title: Reviewed, csf: GV.OC, pillars: [network], check: attested, weight: 2, validity: 90d, question: "Was it reviewed?"}
+  - id: alpha.no-critical
+    title: No open critical finding
+    csf: ID.RA
+    pillars: [device]
+    check: automated
+    weight: 1
+    source: {type: findings, severity_in: [critical]}

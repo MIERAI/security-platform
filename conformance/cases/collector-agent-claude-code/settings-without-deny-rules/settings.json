@@ -1,0 +1,10 @@
+{
+ "env": {
+  "API_KEY": "sk-conformance-canary-0123456789"
+ },
+ "permissions": {
+  "allow": [
+   "Bash(ls:*)"
+  ]
+ }
+}

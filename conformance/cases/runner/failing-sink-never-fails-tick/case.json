@@ -1,0 +1,81 @@
+{
+ "component": "runner",
+ "title": "A failing sink is counted (consecutive and total) and retried on every tick; other sinks still get the metrics; the tick exits 0",
+ "contract": "runner/1.0",
+ "origin": "tests/test_runner.py::test_failing_sink_is_retried_counted_and_never_fails_the_tick",
+ "files": {
+  "instance.json": "instance.json",
+  "blocker": {
+   "text": "a regular file: every write under it fails"
+  }
+ },
+ "steps": [
+  {
+   "name": "tick at 2030-01-07T12:30:00Z",
+   "exec": {
+    "impl": "runner",
+    "args": [
+     "tick",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1894019400"
+    ]
+   },
+   "exit": 0,
+   "expect": []
+  },
+  {
+   "name": "tick at 2030-01-07T12:45:00Z",
+   "exec": {
+    "impl": "runner",
+    "args": [
+     "tick",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1894020300"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "prom": "data/metrics/security-platform.prom",
+     "has": [
+      {
+       "name": "security_runner_sink_consecutive_failures",
+       "labels": {
+        "site": "hub",
+        "sink": "0-textfile"
+       },
+       "value": 2
+      },
+      {
+       "name": "security_runner_sink_failures_total",
+       "labels": {
+        "site": "hub",
+        "sink": "0-textfile"
+       },
+       "value": 2
+      },
+      {
+       "name": "security_runner_sink_consecutive_failures",
+       "labels": {
+        "site": "hub",
+        "sink": "1-textfile"
+       },
+       "value": 0
+      }
+     ]
+    },
+    {
+     "exists": "good.prom"
+    }
+   ]
+  }
+ ]
+}

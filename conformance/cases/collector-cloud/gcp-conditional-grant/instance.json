@@ -1,0 +1,35 @@
+{
+ "cloud": {
+  "accounts": [
+   {
+    "engines": [],
+    "iamcredentials_url": "{svc_gcp}/iam",
+    "identity_token": {
+     "path": "{sandbox}/token.jwt",
+     "type": "file"
+    },
+    "project_id": "cond",
+    "provider": "gcp",
+    "resourcemanager_url": "{svc_gcp}/crm",
+    "service_account": "a@p.iam.gserviceaccount.com",
+    "sts_url": "{svc_gcp}/sts",
+    "workload_identity_provider": "projects/1/locations/global/workloadIdentityPools/p/providers/x"
+   },
+   {
+    "engines": [],
+    "iamcredentials_url": "{svc_gcp}/iam",
+    "identity_token": {
+     "path": "{sandbox}/token.jwt",
+     "type": "file"
+    },
+    "project_id": "cond-over",
+    "provider": "gcp",
+    "resourcemanager_url": "{svc_gcp}/crm",
+    "service_account": "a@p.iam.gserviceaccount.com",
+    "sts_url": "{svc_gcp}/sts",
+    "workload_identity_provider": "projects/1/locations/global/workloadIdentityPools/p/providers/x"
+   }
+  ]
+ },
+ "name": "conformance"
+}

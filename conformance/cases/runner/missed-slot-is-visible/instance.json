@@ -1,0 +1,23 @@
+{
+ "name": "conformance",
+ "runner": {
+  "jobs": {
+   "nightly": {
+    "argv": [
+     "/bin/sh",
+     "{case}/emit.sh"
+    ],
+    "collector": "host",
+    "env": {
+     "EMIT_DOC": "{case}/host.json",
+     "EMIT_MARK": "{sandbox}/runs.log"
+    },
+    "max_delay": "3h",
+    "schedule": "30 3 * * *",
+    "type": "command"
+   }
+  },
+  "role": "hub",
+  "site": "hub"
+ }
+}

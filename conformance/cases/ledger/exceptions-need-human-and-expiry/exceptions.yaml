@@ -1,0 +1,8 @@
+exceptions:
+  6bad575931fc: {approved_by: alice, reason: lab machine, expires: '2099-01-01'}
+  3cf9971fb136: {reason: no approver, expires: '2099-01-01'}
+  2c0da62c41fb: {approved_by: alice, reason: no expiry}
+  023e87e149c8:
+    approved_by: alice
+    reason: block style YAML
+    expires: 2099-01-01

@@ -1,0 +1,43 @@
+{
+ "component": "runner",
+ "title": "TARGET: a slot that will never run (skipped by max_delay, or given up after retries) is counted in security_runner_job_missed_slots_total{site,job}",
+ "contract": "runner/1.0 / metrics/1.0",
+ "deviation": "RUNNER-D2",
+ "origin": "continuity test: after downtime nothing showed that a scheduled run had been missed",
+ "files": {
+  "instance.json": "instance.json"
+ },
+ "steps": [
+  {
+   "name": "tick at 2030-01-07T12:00:00Z",
+   "exec": {
+    "impl": "runner",
+    "args": [
+     "tick",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1894017600"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "prom": "data/metrics/security-platform.prom",
+     "has": [
+      {
+       "name": "security_runner_job_missed_slots_total",
+       "labels": {
+        "site": "hub",
+        "job": "nightly"
+       },
+       "value": 1
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

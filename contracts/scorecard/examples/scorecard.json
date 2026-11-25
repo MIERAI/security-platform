@@ -1,0 +1,279 @@
+{
+ "attestations": {
+  "expired": 1,
+  "expiring": 0,
+  "missing": 1,
+  "valid": 2
+ },
+ "computed_at": "2030-01-10T00:00:00Z",
+ "controls": [
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "ID.RA",
+   "detail": "0 matching finding(s) (max 0)",
+   "dimension": "alpha",
+   "expires": null,
+   "function": "ID",
+   "id": "alpha.no-critical",
+   "needs_human": false,
+   "pillars": [
+    "device"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "pass",
+   "title": "No open critical finding",
+   "weight": 1
+  },
+  {
+   "attestable": true,
+   "check": "attested",
+   "cis": [],
+   "csf": "GV.OC",
+   "detail": "attested by alice until 2030-03-01",
+   "dimension": "alpha",
+   "expires": "2030-03-01",
+   "function": "GV",
+   "id": "alpha.reviewed",
+   "needs_human": true,
+   "pillars": [
+    "network"
+   ],
+   "question": "Was it reviewed?",
+   "remediation": "",
+   "status": "pass",
+   "title": "Reviewed",
+   "weight": 2
+  },
+  {
+   "attestable": true,
+   "check": "attested",
+   "cis": [],
+   "csf": "PR.AA",
+   "detail": "attestation by bob expired 2029-11-01: re-attest",
+   "dimension": "beta",
+   "expires": "2029-11-01",
+   "function": "PR",
+   "id": "beta.expired",
+   "needs_human": true,
+   "pillars": [
+    "people"
+   ],
+   "question": "Holds?",
+   "remediation": "",
+   "status": "expired",
+   "title": "Expired attestation",
+   "weight": 1
+  },
+  {
+   "attestable": true,
+   "check": "attested",
+   "cis": [],
+   "csf": "PR.AA",
+   "detail": "not attested: a human answers \"Holds?\" (scorecard.py attest)",
+   "dimension": "beta",
+   "expires": null,
+   "function": "PR",
+   "id": "beta.missing",
+   "needs_human": true,
+   "pillars": [
+    "people"
+   ],
+   "question": "Holds?",
+   "remediation": "",
+   "status": "unattested",
+   "title": "Never attested",
+   "weight": 1
+  },
+  {
+   "attestable": true,
+   "check": "attested",
+   "cis": [],
+   "csf": "PR.AT",
+   "detail": "attested by bob until 2031-01-01",
+   "dimension": "beta",
+   "expires": "2031-01-01",
+   "function": "PR",
+   "id": "beta.trained",
+   "needs_human": true,
+   "pillars": [
+    "people"
+   ],
+   "question": "Trained?",
+   "remediation": "",
+   "status": "pass",
+   "title": "Trained",
+   "weight": 2
+  },
+  {
+   "attestable": true,
+   "check": "attested",
+   "cis": [],
+   "csf": "PR.AA",
+   "detail": "not applicable (approved by carol): not used here",
+   "dimension": "beta",
+   "expires": null,
+   "function": "PR",
+   "id": "beta.waived",
+   "needs_human": true,
+   "pillars": [
+    "people"
+   ],
+   "question": "Holds?",
+   "remediation": "",
+   "status": "na",
+   "title": "Waived by a human",
+   "weight": 5
+  },
+  {
+   "attestable": true,
+   "check": "attested",
+   "cis": [],
+   "csf": "PR.PS",
+   "detail": "not applicable: instance has no cloud.accounts",
+   "dimension": "gamma",
+   "expires": null,
+   "function": "PR",
+   "id": "gamma.thing",
+   "needs_human": true,
+   "pillars": [
+    "software"
+   ],
+   "question": "Thing?",
+   "remediation": "",
+   "status": "na",
+   "title": "Thing",
+   "weight": 1
+  }
+ ],
+ "dimension_pillar": {
+  "alpha|device": 100.0,
+  "alpha|network": 100.0,
+  "beta|people": 50.0
+ },
+ "dimensions": {
+  "alpha": {
+   "controls": 2,
+   "failing": [],
+   "functions": [
+    "GV",
+    "ID"
+   ],
+   "order": 1,
+   "owner": null,
+   "pillars": [
+    "device",
+    "network"
+   ],
+   "score": 100.0,
+   "status": "PASS",
+   "threshold": 75.0,
+   "title": "Alpha",
+   "weight_passed": 3,
+   "weight_total": 3
+  },
+  "beta": {
+   "controls": 4,
+   "failing": [
+    "beta.expired",
+    "beta.missing"
+   ],
+   "functions": [
+    "PR"
+   ],
+   "order": 2,
+   "owner": null,
+   "pillars": [
+    "people"
+   ],
+   "score": 50.0,
+   "status": "FAIL",
+   "threshold": 75.0,
+   "title": "Beta",
+   "weight_passed": 2,
+   "weight_total": 4
+  }
+ },
+ "functions": {
+  "DE": {
+   "controls": 0,
+   "score": 0.0,
+   "title": "Detect"
+  },
+  "GV": {
+   "controls": 1,
+   "score": 100.0,
+   "title": "Govern"
+  },
+  "ID": {
+   "controls": 1,
+   "score": 100.0,
+   "title": "Identify"
+  },
+  "PR": {
+   "controls": 5,
+   "score": 50.0,
+   "title": "Protect"
+  },
+  "RC": {
+   "controls": 0,
+   "score": 0.0,
+   "title": "Recover"
+  },
+  "RS": {
+   "controls": 0,
+   "score": 0.0,
+   "title": "Respond"
+  }
+ },
+ "mean": 75.0,
+ "not_applicable": {
+  "gamma": {
+   "controls": 1,
+   "order": 3,
+   "reason": "instance has no cloud.accounts",
+   "title": "Gamma (cloud only)"
+  }
+ },
+ "overall": 50.0,
+ "pillars": {
+  "device": {
+   "controls": 1,
+   "failing": [],
+   "score": 100.0,
+   "status": "PASS"
+  },
+  "network": {
+   "controls": 1,
+   "failing": [],
+   "score": 100.0,
+   "status": "PASS"
+  },
+  "people": {
+   "controls": 4,
+   "failing": [
+    "beta.expired",
+    "beta.missing"
+   ],
+   "score": 50.0,
+   "status": "FAIL"
+  },
+  "software": {
+   "controls": 1,
+   "failing": [],
+   "score": 0.0,
+   "status": "FAIL"
+  }
+ },
+ "regressions_total": {
+  "alpha": 0,
+  "beta": 0
+ },
+ "schema": "security-platform/scorecard/v1",
+ "scorecard_version": "0.4.0",
+ "status": "FAIL",
+ "threshold": 75.0,
+ "weakest": "beta"
+}

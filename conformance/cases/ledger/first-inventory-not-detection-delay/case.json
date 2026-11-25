@@ -1,0 +1,93 @@
+{
+ "component": "ledger",
+ "title": "time_to_know is computed for advisories, but only counted (ttk_counted) on an asset the collector had already covered: a first inventory is a baseline",
+ "contract": "ledger/1.0",
+ "origin": "incident: adding a new image reported a 40-day time-to-know",
+ "steps": [
+  {
+   "name": "merge run1",
+   "files": {
+    "run1/vuln-intel.findings.json": "run1.json"
+   },
+   "exec": {
+    "impl": "ledger",
+    "args": [
+     "--run",
+     "{sandbox}/run1",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/ledger.json",
+     "subset": {
+      "entries": {
+       "5019cea0153d": {
+        "ttk_counted": false,
+        "disclosed_at": "2026-10-01T00:00:00Z",
+        "time_to_know_hours": {
+         "$approx": [
+          968.0,
+          0.05
+         ]
+        }
+       }
+      }
+     },
+     "schema": "ledger"
+    }
+   ]
+  },
+  {
+   "name": "merge run2",
+   "files": {
+    "run2/vuln-intel.findings.json": "run2.json"
+   },
+   "exec": {
+    "impl": "ledger",
+    "args": [
+     "--run",
+     "{sandbox}/run2",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/ledger.json",
+     "subset": {
+      "entries": {
+       "3a837ce415d0": {
+        "ttk_counted": true,
+        "time_to_know_hours": {
+         "$approx": [
+          6.0,
+          0.05
+         ]
+        }
+       },
+       "e84a0ee352cc": {
+        "ttk_counted": false
+       }
+      }
+     },
+     "schema": "ledger"
+    },
+    {
+     "json": "data/ledger.json",
+     "subset": {
+      "coverage_seen": {
+       "vuln-intel": [
+        "image:a",
+        "image:b"
+       ]
+      }
+     }
+    }
+   ]
+  }
+ ]
+}

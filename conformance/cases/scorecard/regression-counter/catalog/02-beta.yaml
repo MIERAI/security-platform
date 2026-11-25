@@ -1,0 +1,7 @@
+schema: security-platform/scorecard-catalog/v1
+dimension: {id: beta, order: 2, title: Beta, pillars: [people]}
+controls:
+  - {id: beta.trained, title: Trained, csf: PR.AT, pillars: [people], check: attested, weight: 2, validity: 365d, question: "Trained?", tags: [people]}
+  - {id: beta.expired, title: Expired attestation, csf: PR.AA, pillars: [people], check: attested, weight: 1, validity: 30d, question: "Holds?"}
+  - {id: beta.missing, title: Never attested, csf: PR.AA, pillars: [people], check: attested, weight: 1, validity: 30d, question: "Holds?"}
+  - {id: beta.waived, title: Waived by a human, csf: PR.AA, pillars: [people], check: attested, weight: 5, validity: 30d, question: "Holds?"}

@@ -1,0 +1,30 @@
+{
+ "name": "conformance",
+ "runner": {
+  "jobs": {
+   "renamed": {
+    "argv": [
+     "/bin/sh",
+     "{case}/emit.sh"
+    ],
+    "as": "host-b",
+    "collector": "host",
+    "env": {
+     "EMIT_AS": "host-b",
+     "EMIT_DOC": "{case}/host.json",
+     "EMIT_ENV": "{sandbox}/env.txt",
+     "EMIT_MARK": "{sandbox}/runs.log",
+     "MY_SETTING": "x"
+    },
+    "schedule": "0 * * * *",
+    "type": "command"
+   }
+  },
+  "outbox": {
+   "dir": "{sandbox}/outbox",
+   "type": "local"
+  },
+  "role": "site",
+  "site": "s1"
+ }
+}

@@ -1,0 +1,59 @@
+{
+ "schema_version": "1.2",
+ "collector": {
+  "name": "host",
+  "version": "0.3.0",
+  "tools": {}
+ },
+ "run": {
+  "started_at": "2026-11-25T03:30:00Z",
+  "finished_at": "2026-11-25T03:31:05Z",
+  "instance": "example"
+ },
+ "coverage": [
+  {
+   "asset": "host:web-1",
+   "status": "ok"
+  },
+  {
+   "asset": "host:web-1/os-updates",
+   "status": "gap",
+   "reason": "probe timed out after 60s",
+   "checks": [
+    "host.os_update*"
+   ]
+  },
+  {
+   "asset": "host:laptop",
+   "status": "gap",
+   "reason": "offline at scan time"
+  }
+ ],
+ "findings": [
+  {
+   "id": "7eafa19e3d35",
+   "check": "host.ssh_password_auth",
+   "layer": "host",
+   "asset": "host:web-1",
+   "title": "host.ssh_password_auth on host:web-1",
+   "severity": "high",
+   "evidence": "raw/host/web-1.json#host.ssh_password_auth",
+   "remediation": "see sp explain",
+   "needs_human": false,
+   "owner": "platform",
+   "observed_at": "2026-11-25T03:31:02Z",
+   "kind": "compliance",
+   "refs": [
+    "cis:5.2.8"
+   ]
+  }
+ ],
+ "metrics": [
+  {
+   "name": "security_host_wildcard_listeners",
+   "value": 2,
+   "labels": {},
+   "help": "Services listening on every address"
+  }
+ ]
+}

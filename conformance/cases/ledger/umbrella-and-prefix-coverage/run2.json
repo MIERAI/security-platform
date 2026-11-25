@@ -1,0 +1,27 @@
+{
+ "collector": {
+  "name": "x",
+  "version": "1.0.0"
+ },
+ "coverage": [
+  {
+   "asset": "host:h1",
+   "status": "ok"
+  },
+  {
+   "asset": "k8s-cluster:prod",
+   "status": "ok"
+  },
+  {
+   "asset": "net-endpoint:h1@192.0.2.10",
+   "status": "ok"
+  }
+ ],
+ "findings": [],
+ "run": {
+  "finished_at": "2026-11-02T09:00:00Z",
+  "instance": "conformance",
+  "started_at": "2026-11-02T09:00:00Z"
+ },
+ "schema_version": "1.2"
+}

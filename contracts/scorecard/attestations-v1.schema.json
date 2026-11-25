@@ -1,0 +1,39 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "security-platform/attestations/v1",
+ "title": "attestations.yaml: human statements that expire (YAML; written by `scorecard attest`)",
+ "type": "object",
+ "properties": {
+  "schema": {
+   "const": "security-platform/attestations/v1"
+  },
+  "attestations": {
+   "type": "object",
+   "additionalProperties": {
+    "type": "object",
+    "properties": {
+     "attested_by": {
+      "type": "string",
+      "minLength": 1
+     },
+     "at": {
+      "type": "string"
+     },
+     "expires": {
+      "type": "string"
+     },
+     "value": {
+      "type": "boolean"
+     },
+     "note": {
+      "type": "string"
+     },
+     "not_applicable": {
+      "type": "string",
+      "description": "a reason: the control is excluded while attested_by and expires are set and unexpired"
+     }
+    }
+   }
+  }
+ }
+}

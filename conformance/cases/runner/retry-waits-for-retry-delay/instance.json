@@ -1,0 +1,29 @@
+{
+ "name": "conformance",
+ "runner": {
+  "jobs": {
+   "flaky": {
+    "argv": [
+     "/bin/sh",
+     "{case}/emit.sh"
+    ],
+    "collector": "host",
+    "env": {
+     "EMIT_DOC": "{case}/host.json",
+     "EMIT_FAIL": "3",
+     "EMIT_MARK": "{sandbox}/runs.log"
+    },
+    "retries": 1,
+    "retry_delay": "20m",
+    "schedule": "30 3 * * *",
+    "type": "command"
+   }
+  },
+  "outbox": {
+   "dir": "{sandbox}/outbox",
+   "type": "local"
+  },
+  "role": "site",
+  "site": "s1"
+ }
+}

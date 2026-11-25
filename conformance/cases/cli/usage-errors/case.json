@@ -1,0 +1,48 @@
+{
+ "component": "cli",
+ "title": "No data directory, or a missing one: exit 2 with a one-line `sp: ...` message on stderr",
+ "contract": "cli/1.0",
+ "origin": "cli/sp.py Ctx/die",
+ "steps": [
+  {
+   "name": "sp status",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "status"
+    ]
+   },
+   "exit": 2,
+   "expect": [
+    {
+     "stderr": {
+      "regex": [
+       "^sp: .*SP_DATA"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "sp findings --data {sandbox}/nope",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "findings",
+     "--data",
+     "{sandbox}/nope"
+    ]
+   },
+   "exit": 2,
+   "expect": [
+    {
+     "stderr": {
+      "regex": [
+       "^sp: .*does not exist"
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,34 @@
+{
+ "collector": {
+  "name": "host",
+  "version": "1.0.0"
+ },
+ "coverage": [
+  {
+   "asset": "host:h1",
+   "status": "ok"
+  }
+ ],
+ "findings": [
+  {
+   "asset": "host:h1",
+   "check": "host.firewall_off",
+   "evidence": "raw/x/host.firewall_off.json",
+   "id": "6bad575931fc",
+   "kind": "compliance",
+   "layer": "host",
+   "needs_human": false,
+   "observed_at": "2026-11-01T08:00:00Z",
+   "owner": "platform",
+   "remediation": "fix host.firewall_off",
+   "severity": "medium",
+   "title": "host.firewall_off on host:h1"
+  }
+ ],
+ "run": {
+  "finished_at": "2026-11-01T09:00:00Z",
+  "instance": "conformance",
+  "started_at": "2026-11-01T09:00:00Z"
+ },
+ "schema_version": "1.2"
+}

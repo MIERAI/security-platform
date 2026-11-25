@@ -1,0 +1,56 @@
+{
+ "component": "ledger",
+ "title": "With --latest, open coverage gaps per collector are counted from the newest document of every collector; a human-approved unexpired coverage exception takes a gap out",
+ "contract": "ledger/1.0",
+ "origin": "tests/test_coverage.py::test_gap_excepted_only_with_human_and_expiry",
+ "files": {
+  "latest/host.findings.json": "host-latest.json",
+  "latest/k8s.findings.json": "k8s-latest.json",
+  "data/exceptions.yaml": "exceptions.yaml"
+ },
+ "steps": [
+  {
+   "name": "merge run1",
+   "files": {
+    "run1/exposure.findings.json": "run1.json"
+   },
+   "exec": {
+    "impl": "ledger",
+    "args": [
+     "--run",
+     "{sandbox}/run1",
+     "--data",
+     "{sandbox}/data",
+     "--latest",
+     "{sandbox}/latest"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "prom": "data/metrics/ledger.prom",
+     "has": [
+      {
+       "name": "security_coverage_gaps_open",
+       "labels": {
+        "collector": "host"
+       },
+       "value": 1
+      },
+      {
+       "name": "security_coverage_gaps_open",
+       "labels": {
+        "collector": "k8s"
+       },
+       "value": 0
+      },
+      {
+       "name": "security_coverage_gaps_excepted",
+       "value": 1
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

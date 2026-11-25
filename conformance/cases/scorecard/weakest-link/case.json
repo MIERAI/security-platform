@@ -1,0 +1,183 @@
+{
+ "component": "scorecard",
+ "title": "Score = weighted pass ratio per dimension; overall = the weakest dimension; FAIL when one dimension is below the threshold; expired/unattested fail; human-approved not_applicable is excluded; a dimension whose applies_when does not hold is not applicable (never a penalty)",
+ "contract": "scorecard/1.0",
+ "origin": "tests/test_scorecard.py::test_weakest_link_and_weights, test_attestations_expire_and_need_a_human",
+ "files": {
+  "catalog/01-alpha.yaml": "catalog/01-alpha.yaml",
+  "catalog/02-beta.yaml": "catalog/02-beta.yaml",
+  "catalog/03-gamma.yaml": "catalog/03-gamma.yaml",
+  "instance.json": "instance.json",
+  "data/attestations.yaml": "attestations.yaml",
+  "data/ledger.json": "ledger.json"
+ },
+ "steps": [
+  {
+   "name": "compute at 2030-01-10T00:00:00Z",
+   "exec": {
+    "impl": "scorecard",
+    "args": [
+     "compute",
+     "--data",
+     "{sandbox}/data",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--now",
+     "1894233600"
+    ]
+   },
+   "expect": [
+    {
+     "json": "data/reports/scorecard.json",
+     "schema": "scorecard",
+     "subset": {
+      "schema": "security-platform/scorecard/v1",
+      "computed_at": "2030-01-10T00:00:00Z",
+      "threshold": 75.0,
+      "status": "FAIL",
+      "overall": 50.0,
+      "mean": 75.0,
+      "weakest": "beta",
+      "dimensions": {
+       "alpha": {
+        "score": 100.0,
+        "status": "PASS",
+        "weight_total": 3,
+        "weight_passed": 3,
+        "failing": []
+       },
+       "beta": {
+        "score": 50.0,
+        "status": "FAIL",
+        "weight_total": 4,
+        "weight_passed": 2,
+        "failing": {
+         "$unordered": [
+          "beta.expired",
+          "beta.missing"
+         ]
+        }
+       },
+       "gamma": {
+        "$absent": true
+       }
+      },
+      "not_applicable": {
+       "gamma": {
+        "reason": {
+         "$regex": "cloud.accounts"
+        }
+       }
+      },
+      "attestations": {
+       "valid": 2,
+       "expired": 1,
+       "missing": 1,
+       "expiring": 0
+      },
+      "controls": {
+       "$contains": [
+        {
+         "id": "alpha.reviewed",
+         "status": "pass",
+         "expires": "2030-03-01"
+        },
+        {
+         "id": "alpha.no-critical",
+         "status": "pass"
+        },
+        {
+         "id": "beta.expired",
+         "status": "expired"
+        },
+        {
+         "id": "beta.missing",
+         "status": "unattested"
+        },
+        {
+         "id": "beta.waived",
+         "status": "na"
+        },
+        {
+         "id": "gamma.thing",
+         "status": "na"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "prom": "data/metrics/scorecard.prom",
+     "has": [
+      {
+       "name": "security_score",
+       "labels": {
+        "dimension": "alpha"
+       },
+       "value": 100,
+       "exact_labels": true
+      },
+      {
+       "name": "security_score",
+       "labels": {
+        "dimension": "beta"
+       },
+       "value": 50,
+       "exact_labels": true
+      },
+      {
+       "name": "security_score_overall",
+       "value": 50
+      },
+      {
+       "name": "security_score_pass",
+       "value": 0
+      },
+      {
+       "name": "security_score_threshold",
+       "value": 75
+      },
+      {
+       "name": "security_score_controls",
+       "labels": {
+        "dimension": "beta",
+        "status": "fail"
+       },
+       "value": 2
+      },
+      {
+       "name": "security_score_controls",
+       "labels": {
+        "dimension": "beta",
+        "status": "na"
+       },
+       "value": 1
+      },
+      {
+       "name": "security_attestations",
+       "labels": {
+        "state": "expired"
+       },
+       "value": 1
+      },
+      {
+       "name": "security_scorecard_last_compute_timestamp_seconds",
+       "value": 1894233600
+      }
+     ],
+     "absent": [
+      {
+       "name": "security_score",
+       "labels": {
+        "dimension": "gamma"
+       }
+      }
+     ]
+    },
+    {
+     "exists": "data/reports/scorecard.md"
+    }
+   ]
+  }
+ ]
+}

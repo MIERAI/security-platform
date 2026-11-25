@@ -1,0 +1,44 @@
+{
+ "component": "runner",
+ "title": "A job whose document fails the findings contract is a failure (65); nothing reaches latest/ or the outbox",
+ "contract": "runner/1.0",
+ "origin": "tests/test_runner.py::test_failure_timeout_and_contract",
+ "files": {
+  "instance.json": "instance.json"
+ },
+ "steps": [
+  {
+   "name": "tick at 2030-01-07T12:30:00Z",
+   "exec": {
+    "impl": "runner",
+    "args": [
+     "tick",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1894019400"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/state/runner/bad.json",
+     "schema": "runner-state",
+     "subset": {
+      "last_rc": 65,
+      "failures_total": 1
+     }
+    },
+    {
+     "absent": "data/latest/host.findings.json"
+    },
+    {
+     "glob": "outbox/*.findings.json",
+     "count": 0
+    }
+   ]
+  }
+ ]
+}
