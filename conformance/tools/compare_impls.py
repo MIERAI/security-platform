@@ -106,6 +106,12 @@ def normalised_text(path, sandbox):
             pass
     slug = re.sub(r"[^a-z0-9]+", "-", sandbox.lower()).strip("-")
     data = data.replace(sandbox, "<sandbox>").replace(slug, "<sandbox>")
+    for pf in sorted(os.listdir(sandbox)):     # the harness's services listen on a port chosen per run
+        m = re.fullmatch(r"\.svc-(.+)\.port", pf)
+        if m:
+            port = open(os.path.join(sandbox, pf)).read().strip()
+            if port.isdigit():
+                data = re.sub(rf"(?<!\d){port}(?!\d)", f"<port:{m.group(1)}>", data)
     data = re.sub(r"(security_collector_last_run_timestamp_seconds\{[^}]*\}) \d+", r"\1 <time>", data)
     return ISO.sub("<t>", data)
 
