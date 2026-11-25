@@ -10,7 +10,7 @@ your servers, clusters and code hosts one section at a time.
 
 ```sh
 git clone https://github.com/MIERAI/security-platform.git ~/security-platform
-cd ~/security-platform && git checkout v0.2.0            # a release tag; `git tag` lists them
+cd ~/security-platform && git checkout v0.3.0            # a release tag; `git tag` lists them
 python3 -m venv ~/.venvs/security-platform                # its own Python environment (PyYAML only)
 ~/.venvs/security-platform/bin/pip install --require-hashes -r deploy/requirements.lock
 mkdir -p ~/bin && ln -sf ~/security-platform/bin/sp ~/bin/sp
