@@ -18,7 +18,7 @@ import (
 )
 
 // Version is the collector's version (collectors/identity/VERSION).
-const Version = "0.1.0"
+const Version = "0.2.0"
 
 // adapterVersion is the version of the identity adapter the document reports as the tool "identity-adapter"
 // (adapters/identity.py VERSION: this package implements that adapter's interface).
