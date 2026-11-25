@@ -17,7 +17,7 @@ ARG TARGETOS=linux
 ARG TARGETARCH=amd64
 ARG RELEASE=""
 WORKDIR /src
-COPY go.mod ./
+COPY go.mod go.sum ./
 COPY cmd cmd
 COPY internal internal
 # no .git in the build: VCS facts come from the RELEASE file instead; GOTOOLCHAIN=local: the image's Go, no download

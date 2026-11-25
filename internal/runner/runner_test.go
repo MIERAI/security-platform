@@ -117,7 +117,7 @@ func TestTimeoutKillsTheProcessGroup(t *testing.T) {
 		t.Fatal(err)
 	}
 	pid, _ := strconv.Atoi(strings.TrimSpace(string(data)))
-	if pid > 0 && syscall.Kill(pid, 0) == nil {
+	if pid > 0 && !gone(pid, 10*time.Second) {
 		t.Errorf("the job's background process %d survived", pid)
 	}
 	logs, _ := filepath.Glob(filepath.Join(f.data, "runs", "*", "*-slow", "slow.log"))
@@ -299,4 +299,22 @@ func TestRunDirIsFresh(t *testing.T) {
 	if a == b || filepath.Base(b) != filepath.Base(a)+".2" || !strings.HasPrefix(r.rel(a), "runs/2030-01-07/1200") {
 		t.Errorf("run dirs %s, %s", r.rel(a), r.rel(b))
 	}
+}
+
+// gone waits until a process no longer runs: it does not exist, or it is a zombie its new parent has not reaped
+// yet (an orphaned child of the killed job is reparented, and reaping takes a moment on some systems).
+func gone(pid int, limit time.Duration) bool {
+	deadline := time.Now().Add(limit)
+	for time.Now().Before(deadline) {
+		if syscall.Kill(pid, 0) != nil {
+			return true
+		}
+		if stat, err := os.ReadFile("/proc/" + strconv.Itoa(pid) + "/stat"); err == nil {
+			if _, rest, ok := strings.Cut(string(stat), ") "); ok && strings.HasPrefix(rest, "Z") {
+				return true
+			}
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	return false
 }
