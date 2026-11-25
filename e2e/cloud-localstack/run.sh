@@ -27,7 +27,7 @@ NAME=${SP_CLOUD_E2E_NAME:-sp-cloud-e2e}
 LS_IMAGE=${SP_CLOUD_E2E_LOCALSTACK:-localstack/localstack:4.14.0@sha256:3ebc37595918b8accb852f8048fef2aff047d465167edd655528065b07bc364a}
 OIDC_IMAGE=${SP_CLOUD_E2E_OIDC:-ghcr.io/navikt/mock-oauth2-server:6.1.5@sha256:d88e445d55c4ff6eed59b02d86adfece47d985233b1616fb712669b98328c8a2}
 LS_PORT=${SP_CLOUD_E2E_LS_PORT:-14566} OIDC_PORT=18080 MOCK_PORT=18090   # the mock scenario names the issuer port
-KEEP= DOWN=
+KEEP='' DOWN=''
 while [[ $# -gt 0 ]]; do case $1 in --keep) KEEP=1; shift;; --down) DOWN=1; shift;; *) sed -n '2,22p' "$0"; exit 2;; esac; done
 STATE=${TMPDIR:-/tmp}/$NAME.state
 

@@ -1,5 +1,7 @@
 # host-sbom profile: Linux (dpkg / apk / rpm). READ-ONLY, no sudo. Output: key=value lines + "pkg<TAB>..." lines:
 #   pkg  <ecosystem>  <name>  <version>  <source name>  <source version>  <arch>
+# shellcheck shell=sh
+# shellcheck disable=SC1091  # the host's own file, read at run time
 . /etc/os-release 2>/dev/null
 echo "os.family=$ID"; echo "os.version=$VERSION_ID"; echo "os.codename=$VERSION_CODENAME"; echo "os.name=$PRETTY_NAME"
 echo "kernel.running=$(uname -r)"; echo "arch=$(uname -m)"

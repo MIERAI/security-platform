@@ -19,12 +19,13 @@
 #   --keep     leave everything running (inspect, then run again with --down)
 #   --down     tear down only
 # Needs: docker, kind, kubectl, helm, network access (images, chart, the public repository). ~10 minutes.
+# shellcheck disable=SC2016  # commands for the operator's container are single-quoted on purpose (ops evaluates them there)
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/../.." && pwd)
 NAME=${SP_E2E_NAME:-sp-e2e}
 REPO=${SP_E2E_REPO:-https://github.com/MIERAI/security-platform.git}
-REF=main LOCAL= KEEP= DOWN=
+REF=main LOCAL='' KEEP='' DOWN=''
 while [[ $# -gt 0 ]]; do case $1 in
   --local) LOCAL=1; shift;; --ref) REF=$2; shift 2;; --keep) KEEP=1; shift;; --down) DOWN=1; shift;;
   *) sed -n '2,24p' "$0"; exit 2;; esac; done

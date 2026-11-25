@@ -1,7 +1,9 @@
 # host-sbom profile: macOS. READ-ONLY, no sudo. OS version/build + Homebrew formulae and casks.
+# shellcheck shell=sh
 echo "os.family=macos"; echo "os.version=$(sw_vers -productVersion)"; echo "os.build=$(sw_vers -buildVersion)"
 echo "os.name=macOS $(sw_vers -productVersion)"; echo "os.rsr=$(sw_vers -productVersionExtra 2>/dev/null)"
 echo "kernel.running=$(uname -r)"; echo "arch=$(uname -m)"
+# shellcheck disable=SC2012  # two fixed paths: ls only reports which exists
 B=$(command -v brew || ls /opt/homebrew/bin/brew /usr/local/bin/brew 2>/dev/null | head -1)
 if [ -n "$B" ]; then
   echo "brew.prefix=$($B --prefix)"
