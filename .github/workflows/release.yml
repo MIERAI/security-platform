@@ -1,0 +1,163 @@
+# Release of the sp binaries (docs/install.md): on a PRODUCT tag vX.Y.Z[-PRE] only, never a component tag
+# (<component>/vX.Y.Z; the patterns below cannot match a "/").
+#
+#   build      reproducible static builds for every platform, SHA256SUMS, SPDX SBOM     (read-only, no OIDC token)
+#   reproduce  the same build on another operating system must give the same SHA256SUMS
+#   publish    SLSA build provenance and SBOM attestations (GitHub), a keyless cosign signature of SHA256SUMS
+#              (Sigstore), all uploaded to a DRAFT GitHub release that a maintainer publishes
+#
+# Dry runs: every pull request that touches the build, and `workflow_dispatch` (dry-run defaults to true), run build
+# and reproduce and stop before publish. Publishing happens only for a product tag: on its push, or on a dispatch
+# from the tag with dry-run unticked (to retry a failed run).
+name: release
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+", "v[0-9]+.[0-9]+.[0-9]+-*"]
+  pull_request:
+    paths: [.github/workflows/release.yml, scripts/build-release.sh, go.mod, go.sum, cmd/**, internal/**]
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: Build, check reproducibility and stop (untick only on a product tag, to publish)
+        type: boolean
+        default: true
+permissions: {}
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+env:
+  SYFT_VERSION: "1.57.0"
+  SYFT_SHA256: "9c077a7d43029b3b13e98a8db720661e700c4d58db6352153a06395ae4a2a704" # linux_amd64.tar.gz
+  COSIGN_VERSION: "v3.1.4"
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions: { contents: read }
+    outputs:
+      release: ${{ steps.name.outputs.release }}
+      publish: ${{ steps.name.outputs.publish }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0, persist-credentials: false }   # tags and main: the release name is checked
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with: { go-version-file: go.mod, cache: false }     # no shared cache in a release build
+      - id: name
+        name: Release name (cli/release.py) and whether this run publishes
+        env:
+          EVENT: ${{ github.event_name }}
+          DRY_RUN: ${{ inputs.dry-run }}
+        run: |
+          publish=false
+          if [[ $GITHUB_REF == refs/tags/v* ]] && { [[ $EVENT == push ]] || [[ $EVENT == workflow_dispatch && $DRY_RUN == false ]]; }; then
+            publish=true
+            release=$(python3 cli/release.py --ref "$GITHUB_REF_NAME")
+            # the highest product tag of its commit, and that commit is on main
+            test "$release" = "$GITHUB_REF_NAME"
+            git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+          else
+            release=$(python3 cli/release.py --dev)
+          fi
+          echo "release=$release publish=$publish"
+          echo "release=$release" >> "$GITHUB_OUTPUT"
+          echo "publish=$publish" >> "$GITHUB_OUTPUT"
+      - name: Build (scripts/build-release.sh)
+        env: { RELEASE: "${{ steps.name.outputs.release }}" }
+        run: scripts/build-release.sh "$RELEASE" "$RUNNER_TEMP/dist"
+      - name: The binaries say what they are
+        env: { RELEASE: "${{ steps.name.outputs.release }}" }
+        run: |
+          bin="$RUNNER_TEMP/dist/sp-$RELEASE-linux-amd64"
+          file "$RUNNER_TEMP"/dist/sp-*
+          SP_PY_HOME="$GITHUB_WORKSPACE" "$bin" version --json | tee "$RUNNER_TEMP/version.json"
+          python3 - "$RUNNER_TEMP/version.json" "$RELEASE" <<'EOF'
+          import json, re, sys
+          b = json.load(open(sys.argv[1]))["binary"]
+          assert not b["modified"], b
+          want = sys.argv[2] if re.match(r"^v\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$", sys.argv[2]) else "dev-g" + b["commit"][:7]
+          assert b["release"] == want, (b, want)
+          EOF
+      - name: SBOM (syft, official release, SHA-256 pinned)
+        env: { RELEASE: "${{ steps.name.outputs.release }}" }
+        run: |
+          cd "$RUNNER_TEMP"
+          f="syft_${SYFT_VERSION}_linux_amd64.tar.gz"
+          curl -sSfLO "https://github.com/anchore/syft/releases/download/v${SYFT_VERSION}/$f"
+          echo "${SYFT_SHA256}  $f" | sha256sum -c -
+          mkdir syft && tar -xzf "$f" -C syft syft
+          SYFT_CHECK_FOR_APP_UPDATE=false ./syft/syft scan "dir:$RUNNER_TEMP/dist" \
+            --source-name security-platform-sp --source-version "$RELEASE" \
+            -o "spdx-json=$RUNNER_TEMP/dist/sp-$RELEASE.spdx.json"
+          python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(len(d["packages"]), "packages in the SBOM")' \
+            "$RUNNER_TEMP/dist/sp-$RELEASE.spdx.json"
+      - name: Summary
+        env: { RELEASE: "${{ steps.name.outputs.release }}", PUBLISH: "${{ steps.name.outputs.publish }}" }
+        run: |
+          {
+            echo "### sp $RELEASE (publish: $PUBLISH)"
+            echo '```'; cat "$RUNNER_TEMP/dist/SHA256SUMS"; echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist
+          path: ${{ runner.temp }}/dist
+          if-no-files-found: error
+          retention-days: 7
+
+  reproduce:
+    needs: build
+    runs-on: macos-latest
+    permissions: { contents: read }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with: { go-version-file: go.mod, cache: false }
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with: { name: dist, path: "${{ runner.temp }}/linux-build" }
+      - name: Rebuild on macOS and compare with the Linux build
+        env: { RELEASE: "${{ needs.build.outputs.release }}" }
+        run: |
+          scripts/build-release.sh "$RELEASE" "$RUNNER_TEMP/dist"
+          diff "$RUNNER_TEMP/linux-build/SHA256SUMS" "$RUNNER_TEMP/dist/SHA256SUMS"
+          echo "reproducible: identical SHA256SUMS on Linux and macOS" | tee -a "$GITHUB_STEP_SUMMARY"
+
+  publish:
+    needs: [build, reproduce]
+    if: needs.build.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write      # create the draft release, upload assets
+      id-token: write      # Sigstore keyless signing (cosign, attestations)
+      attestations: write  # GitHub artifact attestations
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }   # CHANGELOG.md for the release notes; nothing is built here
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with: { name: dist, path: dist }
+      - name: Checksums still match
+        run: cd dist && sha256sum -c SHA256SUMS
+      - name: SLSA build provenance (GitHub attestation)
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with: { subject-checksums: dist/SHA256SUMS }
+      - name: SBOM attestation
+        uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
+        with:
+          subject-checksums: dist/SHA256SUMS
+          sbom-path: dist/sp-${{ needs.build.outputs.release }}.spdx.json
+      - uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+        with: { cosign-release: "${{ env.COSIGN_VERSION }}" }
+      - name: Keyless signature of SHA256SUMS (cosign bundle)
+        run: cosign sign-blob --yes --bundle dist/SHA256SUMS.sigstore.json dist/SHA256SUMS
+      - name: Draft GitHub release with the assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE: ${{ needs.build.outputs.release }}
+        run: |
+          # release notes: the CHANGELOG section of this release (docs/upgrade.md, Releasing)
+          awk -v h="## $RELEASE " 'index($0, h) == 1 {on = 1; next} on && /^## / {exit} on' CHANGELOG.md > notes.md
+          test -s notes.md || echo "See CHANGELOG.md." > notes.md
+          if ! gh release view "$RELEASE" >/dev/null 2>&1; then
+            gh release create "$RELEASE" --draft --verify-tag --title "security-platform $RELEASE" --notes-file notes.md
+          fi
+          gh release upload "$RELEASE" dist/*   # no --clobber: an asset that exists is never replaced
