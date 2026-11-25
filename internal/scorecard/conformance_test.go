@@ -71,8 +71,8 @@ func replay(t *testing.T, root, casePath string) {
 	if c.Deviation != "" {
 		t.Skip("specifies a target behaviour the reference does not have yet (" + c.Deviation + ")")
 	}
-	if runtime.GOOS == "windows" && strings.Contains(string(data), "mode_max") {
-		t.Skip("permission bits are not comparable on Windows")
+	if runtime.GOOS == "windows" && strings.Contains(string(data), `"mode":`) { // a fixture with a file mode
+		t.Skip("file modes and data paths in details are system-specific; the reference ran on Unix")
 	}
 	sandbox := t.TempDir()
 	caseDir := filepath.Dir(casePath)
