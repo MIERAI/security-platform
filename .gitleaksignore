@@ -3,7 +3,7 @@
 # the fixture now builds it at run time ({fake_jwt}, conformance/run.py).
 dd27a89886920faa93c1c7c11b600faf21500604:conformance/cases/collector-cloud/gcp-conditional-grant/case.json:jwt:9
 dd27a89886920faa93c1c7c11b600faf21500604:conformance/cases/collector-cloud/gcp-conditional-grant/case.json:jwt:57
-# A canary string standing in for a kubeconfig client key (no key material, it checks that no output copies it) in the
-# identity collector's conformance fixture.
+# Test data only: a canary string standing in for a kubeconfig client key (no key material; it checks that no output
+# copies it) in the identity collector's conformance fixture; the fixture now builds it at run time ({fake_key}).
 0a16ff57ce91b1df34fe9a323145ed867fb3afbb:conformance/tools/collector_identity.py:generic-api-key:17
 0a16ff57ce91b1df34fe9a323145ed867fb3afbb:conformance/cases/collector-identity/people-pillar-across-providers/case.json:generic-api-key:38

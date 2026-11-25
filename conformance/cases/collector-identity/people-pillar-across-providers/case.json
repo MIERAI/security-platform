@@ -35,7 +35,7 @@
   },
   "tailscale-status.json": "tailscale-status.json",
   "home/.kube/config.yaml": {
-   "text": "apiVersion: v1\nkind: Config\nusers:\n- name: admin\n  user:\n    client-certificate-data: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUJyRENDQVZLZ0F3SUJBZ0lVV3E5aFRnL1VuRU1XZmY3R2cycE5WYzNXOUt3d0NnWUlLb1pJemowRUF3SXcKUERFWE1CVUdBMVVFQ2d3T2MzbHpkR1Z0T20xaGMzUmxjbk14RVRBUEJnTlZCQW9NQ0dSbGRpMTBaV0Z0TVE0dwpEQVlEVlFRRERBVmhaRzFwYmpBZUZ3MHlNREF4TURFd01EQXdNREJhRncweU1UQXhNREV3TURBd01EQmFNRHd4CkZ6QVZCZ05WQkFvTURuTjVjM1JsYlRwdFlYTjBaWEp6TVJFd0R3WURWUVFLREFoa1pYWXRkR1ZoYlRFT01Bd0cKQTFVRUF3d0ZZV1J0YVc0d1dUQVRCZ2NxaGtqT1BRSUJCZ2dxaGtqT1BRTUJCd05DQUFUN3c2MnU2b2JucXdBMgpSaUQ1eEI3VkF3Y1MyK0hmUFhXS3BYa3FCUUo5WjBCZG83eFFjWnZZTXQrc3ppYnN3M2VxOC9BenNlUFhkRE5kCmwxdmc4NFRxb3pJd01EQWRCZ05WSFE0RUZnUVUvdS80aWNBbHEySmhLa2ZVdUtEZ3UwQU9VWU13RHdZRFZSMFQKQVFIL0JBVXdBd0VCL3pBS0JnZ3Foa2pPUFFRREFnTklBREJGQWlFQThEWVJBK2ZwNDNzVkZwb2ZuUlJxQjBVUwpsTU9uWHVCVkdyVmtTOXJHZElJQ0lGbFI0WVBub3ZOUnJ6MzdYZm9DY28rcEFJcTBlTXlBYlBlWVVUMlVxNHNUCi0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K\n    client-key-data: PRIVATE-KEY-CANARY-77c1\n- name: ci\n  user:\n    token: kube-conformance-token-canary-51aa\n- name: sso\n  user:\n    exec:\n      apiVersion: client.authentication.k8s.io/v1\n      command: /usr/local/bin/kubelogin\n      args: [get-token]\n",
+   "text": "apiVersion: v1\nkind: Config\nusers:\n- name: admin\n  user:\n    client-certificate-data: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUJyRENDQVZLZ0F3SUJBZ0lVV3E5aFRnL1VuRU1XZmY3R2cycE5WYzNXOUt3d0NnWUlLb1pJemowRUF3SXcKUERFWE1CVUdBMVVFQ2d3T2MzbHpkR1Z0T20xaGMzUmxjbk14RVRBUEJnTlZCQW9NQ0dSbGRpMTBaV0Z0TVE0dwpEQVlEVlFRRERBVmhaRzFwYmpBZUZ3MHlNREF4TURFd01EQXdNREJhRncweU1UQXhNREV3TURBd01EQmFNRHd4CkZ6QVZCZ05WQkFvTURuTjVjM1JsYlRwdFlYTjBaWEp6TVJFd0R3WURWUVFLREFoa1pYWXRkR1ZoYlRFT01Bd0cKQTFVRUF3d0ZZV1J0YVc0d1dUQVRCZ2NxaGtqT1BRSUJCZ2dxaGtqT1BRTUJCd05DQUFUN3c2MnU2b2JucXdBMgpSaUQ1eEI3VkF3Y1MyK0hmUFhXS3BYa3FCUUo5WjBCZG83eFFjWnZZTXQrc3ppYnN3M2VxOC9BenNlUFhkRE5kCmwxdmc4NFRxb3pJd01EQWRCZ05WSFE0RUZnUVUvdS80aWNBbHEySmhLa2ZVdUtEZ3UwQU9VWU13RHdZRFZSMFQKQVFIL0JBVXdBd0VCL3pBS0JnZ3Foa2pPUFFRREFnTklBREJGQWlFQThEWVJBK2ZwNDNzVkZwb2ZuUlJxQjBVUwpsTU9uWHVCVkdyVmtTOXJHZElJQ0lGbFI0WVBub3ZOUnJ6MzdYZm9DY28rcEFJcTBlTXlBYlBlWVVUMlVxNHNUCi0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K\n    client-key-data: {fake_key}\n- name: ci\n  user:\n    token: kube-conformance-token-canary-51aa\n- name: sso\n  user:\n    exec:\n      apiVersion: client.authentication.k8s.io/v1\n      command: /usr/local/bin/kubelogin\n      args: [get-token]\n",
    "mode": "0600"
   },
   "home/.kube/excluded.yaml": {
@@ -43,7 +43,7 @@
    "mode": "0600"
   },
   "home/.ssh/id_ed25519": {
-   "text": "PRIVATE-KEY-CANARY-77c1\n",
+   "text": "{fake_key}\n",
    "mode": "0600"
   },
   "home/.ssh/id_ed25519.pub": {
@@ -51,11 +51,11 @@
    "mode": "0644"
   },
   "home/.ssh/id_rsa_nopub": {
-   "text": "PRIVATE-KEY-CANARY-77c1\n",
+   "text": "{fake_key}\n",
    "mode": "0600"
   },
   "home/.ssh/work_key": {
-   "text": "PRIVATE-KEY-CANARY-77c1\n",
+   "text": "{fake_key}\n",
    "mode": "0600"
   },
   "home/.ssh/work_key.pub": {
@@ -123,7 +123,7 @@
       "conformanceCanary",
       "kube-conformance-token-canary-51aa",
       "docker-conformance-auth-canary-2f0e",
-      "PRIVATE-KEY-CANARY-77c1",
+      "{fake_key}",
       "token-file-canary-0b3d",
       "ts-conformance-api-key-canary-4b2e",
       "ts-conformance-oauth-secret-canary-9a3c",
@@ -495,7 +495,7 @@
       "conformanceCanary",
       "kube-conformance-token-canary-51aa",
       "docker-conformance-auth-canary-2f0e",
-      "PRIVATE-KEY-CANARY-77c1",
+      "{fake_key}",
       "token-file-canary-0b3d",
       "ts-conformance-api-key-canary-4b2e",
       "ts-conformance-oauth-secret-canary-9a3c",

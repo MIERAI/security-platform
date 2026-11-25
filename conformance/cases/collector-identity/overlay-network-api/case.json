@@ -87,7 +87,7 @@
       "conformanceCanary",
       "kube-conformance-token-canary-51aa",
       "docker-conformance-auth-canary-2f0e",
-      "PRIVATE-KEY-CANARY-77c1",
+      "{fake_key}",
       "token-file-canary-0b3d",
       "ts-conformance-api-key-canary-4b2e",
       "ts-conformance-oauth-secret-canary-9a3c",

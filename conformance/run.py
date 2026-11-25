@@ -257,8 +257,8 @@ class CaseError(Exception):
 
 
 PROTOCOL_ENV = {"SP_DATA", "SP_INSTANCE", "SP_RUN_DIR", "SP_INPUT_DIR", "SP_INSTANCE_NAME", "SP_COLLECTOR_NAME"}
-# {sandbox} {case} {python} {path} {now_epoch} {fake_jwt} {svc_<name>} {epoch:+-N} {utc:+-N}; anything else in braces is left alone
-TEMPLATE = re.compile(r"\{(sandbox|case|python|path|now_epoch|fake_jwt|svc_[a-z0-9_]+|epoch:[+-]?\d+|utc:[+-]?\d+)\}")
+# {sandbox} {case} {python} {path} {now_epoch} {fake_jwt} {fake_key} {svc_<name>} {epoch:+-N} {utc:+-N}; anything else in braces is left alone
+TEMPLATE = re.compile(r"\{(sandbox|case|python|path|now_epoch|fake_jwt|fake_key|svc_[a-z0-9_]+|epoch:[+-]?\d+|utc:[+-]?\d+)\}")
 
 
 def fake_jwt():
@@ -276,7 +276,8 @@ class Sandbox:
         self.root = tempfile.mkdtemp(prefix="spconf-")
         self.keep = keep
         self.vars = {"sandbox": self.root, "case": case_dir, "python": sys.executable, "path": os.environ.get("PATH", ""),
-                     "now_epoch": str(int(time.time())), "fake_jwt": fake_jwt()}
+                     "now_epoch": str(int(time.time())), "fake_jwt": fake_jwt(),
+                     "fake_key": "fake-private-key-" + os.urandom(8).hex()}
         self.services, self.background = [], {}
 
     def render(self, s):

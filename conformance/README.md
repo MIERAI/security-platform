@@ -63,7 +63,8 @@ builders by `tools/gen_cases.py` (edit there, re-run, commit both); the generate
 ```
 
 - Templates in arguments, env values and text fixtures: `{sandbox}`, `{case}`, `{python}` (the suite's interpreter, for
-  mocks only), `{path}` (the suite's own `PATH`, to put fake tools in front of it: `{sandbox}/bin:{path}`), `{now_epoch}`, `{fake_jwt}` (an unsigned JWT built at run time: fixtures never contain token-shaped strings), `{epoch:-2820}` / `{utc:+3600}` (real clock + offset), `{svc_<name>}` (a service URL).
+  mocks only), `{path}` (the suite's own `PATH`, to put fake tools in front of it: `{sandbox}/bin:{path}`), `{now_epoch}`, `{fake_jwt}` (an unsigned JWT built at run time: fixtures never contain token-shaped strings), `{fake_key}` (a
+  random stand-in for private key material, built at run time for the same reason), `{epoch:-2820}` / `{utc:+3600}` (real clock + offset), `{svc_<name>}` (a service URL).
 - `exit`: a number, `{"in": [..]}` or `{"not": n}`.
 - Assertions (`expect`):
   - `{"json": path, "schema": name, "subset": {...} | "file", "findings_ids": true}`; `{"jsonl": path, ...}`.
