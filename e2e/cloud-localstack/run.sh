@@ -123,7 +123,7 @@ say "8. no credential on disk; temporary directories removed"
 DUR=$(( $(date +%s) - T_START ))
 "$PY" -I - "$HERE/last-pass.json" "$DUR" "$LS_IMAGE" "$OIDC_IMAGE" \
   "$("$TPY" -c 'import importlib.metadata as m; print(m.version("prowler"))')" \
-  "$("$TOOLS/tools/steampipe/current/bin/steampipe" --version | awk '{print $NF}' | tr -d v)" "$(git -C "$ROOT" describe --tags --match 'v[0-9]*' --always --dirty)" <<'EOF'
+  "$("$TOOLS/tools/steampipe/current/bin/steampipe" --version | awk '{print $NF}' | tr -d v)" "$(python3 "$ROOT/cli/release.py" --repo "$ROOT" --dev)" <<'EOF'
 import json, sys, time
 p, dur, ls, oidc, prowler, steampipe, ref = sys.argv[1:]
 json.dump({"schema": "security-platform/e2e-result/v1", "test": "e2e/cloud-localstack/run.sh", "result": "pass",

@@ -30,6 +30,36 @@ already been measured. Now each probe has its own limit and only the check that 
   without `stdin` reads `/dev/null` instead of inheriting the caller's stdin.
 - **docs**: quickstart (the first macOS run can take a few minutes; a timed-out check is "could not check", not safe),
   instance-reference (`hosts` time limits), design §1 (narrow gaps).
+## 2026-11-25 — release names from product tags only, everywhere
+
+`git describe --tags` on a release commit prints a component tag (`collectors/codehost-gitea/v0.1.0` on `v0.2.0`):
+all tags of a release are annotated and created in the same second, and describe prefers the newest. The installer
+shipped **in v0.2.0** still used it, so `git checkout v0.2.0 && bin/sp-install` installed the product as
+`releases/collectors/codehost-gitea/v0.1.0` (the earlier fix below only reached commits after v0.2.0). That fix also
+fell back to an abbreviated hash or `vX.Y.Z-N-g<hash>` without saying so, and its pattern accepted any `v<digit>…` tag.
+
+- **cli 0.3.0**: `cli/release.py` names the product version of a commit: the highest product tag
+  (`vMAJOR.MINOR.PATCH[-PRERELEASE]`, strict) pointing at exactly that commit, annotated or lightweight, in any
+  creation order; component tags are never used. No product tag: an error that says so (exit 2), or with `--dev` an
+  explicit development name `dev-<nearest vX.Y.Z>-<n>-g<commit>`. `sp --version` prints the product release too:
+  `sp 0.3.0 (security-platform v0.3.0)` (from the install's `RELEASE` file, or the checkout's tags).
+- **bin/sp-install**: the release directory is `releases/<product version>/` with a `RELEASE` file (`version=`,
+  `commit=`); an untagged commit is refused unless `--dev`; `--ref <tag>` installs another commit with this installer
+  (re-install v0.2.0 correctly: `bin/sp-install --ref v0.2.0 <root>`). A release directory an older installer named
+  after a component tag is reported, `current` moves to the correctly named one, and the old directory is **kept**
+  (it may be the running one) with the `rm -rf` command printed.
+- **runner 0.9.0**: `security_runner_info` gains the label `release` (the installed product version; empty in a
+  checkout or the image). Additive (docs/upgrade.md: adding a label is a minor change).
+- **e2e**: kind and cloud tests record the installed version through `cli/release.py --dev`; the kind test installs
+  with `sp-install --dev` (it runs any `--ref`, a branch included).
+- **docs**: upgrade.md: release naming, repairing an install named after a component tag, and the release procedure
+  step by step (tags, checks, pushing the tags only).
+- **tests**: `tests/test_release.py`: a temporary repository with a product tag and component tags on one commit
+  (annotated and lightweight, every creation order), pre-releases, several product tags, untagged and component-only
+  commits; the installer end to end including the migration of a component-named release.
+- **Upgrade (existing installs)**: if `current` points at `releases/<component>/<…>/vX.Y.Z`, install again with a
+  current installer (docs/upgrade.md); remove the old directory once a tick ran from the new `current`.
+
 
 ## 2026-11-25 — retired assets close their findings
 

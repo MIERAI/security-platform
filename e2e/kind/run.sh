@@ -129,7 +129,7 @@ else
 fi
 ops "set -e; rm -rf security-platform; git -c init.defaultBranch=main clone -q '$SRC' security-platform && cd security-platform && git -c advice.detachedHead=false checkout -q '$CO'
   python3 -m venv ~/.venvs/security-platform && ~/.venvs/security-platform/bin/pip install -q --require-hashes -r deploy/requirements.lock
-  echo installed \$(git describe --tags --always)"
+  echo installed \$(python3 cli/release.py --dev)"
 ops 'mkdir -p ~/bin && ln -sf ~/security-platform/bin/sp ~/bin/sp'
 ops 'PATH=~/.venvs/security-platform/bin:$PATH sp init ~/acme-security --name acme >/dev/null'
 docker exec -i "$OPS" bash -c 'cat > ~/acme-security/instance.yaml' < "$HERE/instance.yaml"
@@ -188,7 +188,7 @@ p = sys.argv[1]; d = yaml.safe_load(open(p))
 d["runner"]["jobs"]["notify"] = {"type": "notify", "schedule": "* * * * *"}
 yaml.safe_dump(d, open(p, "w"), sort_keys=False)
 EOF
-~/security-platform/bin/sp-install $I >/dev/null
+~/security-platform/bin/sp-install --dev $I >/dev/null   # --dev: --ref may be a branch (no product tag)
 $I/current/deploy/render.py env --install $I >/dev/null
 $I/current/deploy/render.py wrapper --install $I --instance $S/instance.yaml --data $S > $I/tick.sh
 sh $I/tick.sh
@@ -218,7 +218,7 @@ g -H 'Content-Type: application/json' http://127.0.0.1:13000/api/ds/query -d "{\
 unset GPW
 
 DUR=$(( $(date +%s) - T_START ))
-python3 - "$HERE/last-pass.json" "$(ops 'git -C ~/security-platform describe --tags --match "v[0-9]*" --always')" "$FIRST_FINDINGS" "$DUR" \
+python3 - "$HERE/last-pass.json" "$(ops 'python3 ~/security-platform/cli/release.py --dev')" "$FIRST_FINDINGS" "$DUR" \
   "$KPS_VERSION" "$GITEA_IMAGE" "$(kubectl --context "$KCTX" version -o json | python3 -c 'import json,sys; print(json.load(sys.stdin)["serverVersion"]["gitVersion"])')" <<'EOF'
 import json, sys, time
 p, ref, first, dur, kps, gitea, k8s = sys.argv[1:]
