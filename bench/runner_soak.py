@@ -46,7 +46,8 @@ D1 = "RUNNER-D1 one clock: the Python runner records wall-clock times under --no
 D2 = "RUNNER-D2 missed/pending slots: emitted by the Go runner only"
 D7 = "RUNNER-D7 the Go runner logs the names of credential-like variables it withholds from jobs"
 VOLATILE = "timing: durations measured on the real clock"
-LEDGER_WALL = "the ledger and remediation programs (the same for both runners) stamp their updates with the wall clock"
+LEDGER_WALL = ("the ledger and remediation programs and the shadow comparison (the same code for both runners) stamp "
+               "their updates with the wall clock")
 D1_SCORECARD = ("RUNNER-D1 one clock: the scorecard is computed with --now = the runner clock (Python: wall clock); "
                 "every control that differs is judged by an age (checked after every tick)")
 D8 = ("RUNNER-D8 the Python runner reuses a run directory when a job runs twice within one wall-clock second "
@@ -80,7 +81,7 @@ def make_docs(work, n_findings, n_assets, t0):
             os.replace(os.path.join(d, f"{c}.findings.json"), os.path.join(d, f"{r}.json"))
 
 
-def instance(work, impl):
+def instance(work, impl, implementations=None, go_binary=None):
     emit = os.path.join(work, "emit.sh")
     jobs = {}
     for c, sched in COLS.items():
@@ -96,7 +97,8 @@ def instance(work, impl):
     jobs["secrets-files"]["env"]["FAIL_RUNS"] = "4 5"       # fails twice in a row: given up
     jobs["remediation"] = {"type": "remediation", "schedule": "*/30 * * * *"}
     jobs["digest"] = {"type": "digest", "schedule": "0 9 * * *"}
-    return {"name": "soak", "runner": {"site": "hub", "role": "hub", "tick_stale_after": "1h", "retention": "2d",
+    extra = {"implementations": implementations, "go_binary": go_binary} if implementations else {}
+    return {"name": "soak", "runner": {**extra, "site": "hub", "role": "hub", "tick_stale_after": "1h", "retention": "2d",
                                        "sinks": [{"type": "textfile", "path": os.path.join(work, impl, "sink", "sp.prom")}],
                                        "jobs": jobs}}
 
@@ -158,6 +160,35 @@ def compare_state(job, p, g, now, diffs):
             diffs.add(D1, f"{job}.last_run_dir {a} / {b}")
         else:
             diffs.add("UNEXPLAINED", f"state {job}.{k}: Python {a!r} / Go {b!r} at {now}")
+
+
+def compare_shadow(sp, sg, now, diffs):
+    """state/runner/shadow/<component>.json (contract runner §7): the same comparison result on both sides."""
+    names = set()
+    for d in (sp, sg):
+        if os.path.isdir(os.path.join(d, "shadow")):
+            names |= set(os.listdir(os.path.join(d, "shadow")))
+    for n in sorted(names):
+        sides = []
+        for d in (sp, sg):
+            try:
+                with open(os.path.join(d, "shadow", n)) as f:
+                    sides.append(json.load(f))
+            except (OSError, ValueError):
+                sides.append(None)
+        if None in sides:
+            diffs.add("UNEXPLAINED", f"shadow state {n} only on one side at {now}")
+            continue
+        for k in sorted(set(sides[0]) | set(sides[1])):
+            a, b = sides[0].get(k), sides[1].get(k)
+            if a == b:
+                continue
+            if k == "at" and is_wall(a) and is_wall(b):
+                diffs.add(LEDGER_WALL, f"shadow {n}.at")
+            elif k == "run_dir" and a.rsplit("-", 1)[-1] == b.rsplit("-", 1)[-1]:
+                diffs.add(D1, f"shadow {n}.run_dir {a} / {b}")
+            else:
+                diffs.add("UNEXPLAINED", f"shadow state {n}.{k}: Python {a!r} / Go {b!r} at {now}")
 
 
 def is_wall(v):
@@ -224,7 +255,8 @@ def compare_metrics(pp, gp, now, diffs, stale=(), scorecard_ok=False):
             diffs.add(VOLATILE, f"{n}{lab}")
         elif any(f'collector="{c}"' in lab for c in stale):
             diffs.add(D8, f"{n}{lab} Python {va} / Go {vb}")
-        elif n in ("security_ledger_last_update_timestamp_seconds", "security_remediation_last_update_timestamp_seconds") \
+        elif n in ("security_ledger_last_update_timestamp_seconds", "security_remediation_last_update_timestamp_seconds",
+                   "security_impl_shadow_last_run_timestamp_seconds") \
                 and is_wall(float(va)) and is_wall(float(vb)):
             diffs.add(LEDGER_WALL, f"{n} Python {va} / Go {vb}")
         elif n.startswith("security_score") and scorecard_ok:
@@ -311,6 +343,7 @@ def compare_tick(work, now, rp, rg, diffs):
             diffs.add("UNEXPLAINED", f"state {name}: {e}")
             continue
         compare_state(name[:-5], p, g, now, diffs)
+    compare_shadow(sp, sg, now, diffs)
     compare_status(rp["status"], rg["status"], now, diffs)
     stale = stale_proms(dp)
     scorecard_ok = verify_scorecard(work, diffs)
@@ -333,7 +366,7 @@ def prepare(work, a):
         os.makedirs(os.path.join(work, impl, "emit"))
         shutil.copytree(sd, os.path.join(work, impl, "data"))
         with open(os.path.join(work, impl, "instance.json"), "w") as f:
-            json.dump(instance(work, impl), f, indent=1)
+            json.dump(instance(work, impl, a.implementations, a.sp), f, indent=1)
     return t0
 
 
@@ -408,7 +441,10 @@ def main(argv=None):
     ap.add_argument("--findings", type=int, default=1000)
     ap.add_argument("--assets", type=int, default=100)
     ap.add_argument("--out")
+    ap.add_argument("--implementations", help="runner.implementations for both runners, e.g. ledger=shadow,remediation=go "
+                                              "(go_binary = --sp)")
     a = ap.parse_args(argv)
+    a.implementations = dict(x.split("=", 1) for x in a.implementations.split(",")) if a.implementations else None
     res = run(a)
     print(json.dumps({k: res[k] for k in ("work", "ticks", "skipped_ticks_downtime", "runs_total", "differences")}, indent=1))
     for u in res["unexplained"][:20]:
