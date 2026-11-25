@@ -1,0 +1,173 @@
+{
+ "component": "events",
+ "title": "The first run of a source is a baseline (cursor stored, nothing novel); the next run ships only the lines after the cursor, with structured metadata, and marks a login from a new address novel; every run sends a heartbeat line",
+ "contract": "events/1.0",
+ "origin": "tests/test_events.py; events/ship.py CommandSource",
+ "services": [
+  {
+   "name": "obs",
+   "argv": [
+    "{python}",
+    "{case}/mock_events.py"
+   ]
+  }
+ ],
+ "files": {
+  "out/.keep": {
+   "text": ""
+  },
+  "events.json": {
+   "json": {
+    "loki": {
+     "url": "{svc_obs}/loki/api/v1/push"
+    },
+    "sources": [
+     {
+      "name": "lab-auth",
+      "type": "command",
+      "host": "lab",
+      "parser": "openssh",
+      "argv": [
+       "cat",
+       "{sandbox}/auth.log"
+      ]
+     }
+    ]
+   }
+  },
+  "auth.log": {
+   "text": "2026-11-25T11:40:00+00:00 lab sshd[101]: Accepted publickey for ops from 10.0.0.1 port 50000 ssh2\n2026-11-25T11:41:00+00:00 lab sshd[102]: Failed password for invalid user admin from 192.0.2.7 port 50001 ssh2\n2026-11-25T11:42:00+00:00 lab sudo:      ops : TTY=pts/0 ; PWD=/home/ops ; USER=root ; COMMAND=/usr/bin/id\n2026-11-25T11:43:00+00:00 lab cron[5]: unrelated\n"
+  }
+ },
+ "steps": [
+  {
+   "name": "first run (baseline)",
+   "exec": {
+    "impl": "events",
+    "args": [
+     "--config",
+     "{sandbox}/events.json",
+     "--state",
+     "{sandbox}/state",
+     "--summary",
+     "{sandbox}/out/summary.json",
+     "--now",
+     "1795608000"
+    ],
+    "writes_only_under": [
+     "state",
+     "out",
+     "pushed",
+     "leak"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "out/summary.json",
+     "subset": {
+      "sources": {
+       "lab-auth": {
+        "ok": true,
+        "shipped": 3,
+        "baseline": true,
+        "events": {
+         "ssh_login_success": 1,
+         "ssh_login_failure": 1,
+         "sudo": 1
+        }
+       }
+      }
+     }
+    },
+    {
+     "file": "pushed/0001.json",
+     "regex": [
+      "\"source\": \"auth\"",
+      "\"host\": \"lab\"",
+      "\"novel\": \"false\"",
+      "\"event\": \"ssh_login_failure\"",
+      "\"src_ip\": \"192.0.2.7\""
+     ]
+    },
+    {
+     "file": "pushed/0002.json",
+     "regex": [
+      "heartbeat.{1,3}: .{1,3}lab-auth",
+      "\"event\": \"heartbeat\""
+     ]
+    },
+    {
+     "exists": "state/lab-auth.json"
+    },
+    {
+     "absent": "mutations.log"
+    },
+    {
+     "writes_only_under": true
+    }
+   ]
+  },
+  {
+   "name": "second run (two new lines)",
+   "exec": {
+    "impl": "events",
+    "args": [
+     "--config",
+     "{sandbox}/events.json",
+     "--state",
+     "{sandbox}/state",
+     "--summary",
+     "{sandbox}/out/summary.json",
+     "--now",
+     "1795608000"
+    ],
+    "writes_only_under": [
+     "state",
+     "out",
+     "pushed",
+     "leak"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "out/summary.json",
+     "subset": {
+      "sources": {
+       "lab-auth": {
+        "ok": true,
+        "shipped": 2,
+        "baseline": false
+       }
+      }
+     }
+    },
+    {
+     "file": "pushed/0003.json",
+     "regex": [
+      "\"src_ip\": \"10.0.0.9\", \"novel\": \"true\"",
+      "\"src_ip\": \"10.0.0.1\", \"novel\": \"false\""
+     ]
+    },
+    {
+     "file": "pushed/0003.json",
+     "regex": [
+      "^(?!.*192\\.0\\.2\\.7)"
+     ]
+    },
+    {
+     "absent": "mutations.log"
+    },
+    {
+     "writes_only_under": true
+    }
+   ],
+   "files": {
+    "auth.log": {
+     "text": "2026-11-25T11:40:00+00:00 lab sshd[101]: Accepted publickey for ops from 10.0.0.1 port 50000 ssh2\n2026-11-25T11:41:00+00:00 lab sshd[102]: Failed password for invalid user admin from 192.0.2.7 port 50001 ssh2\n2026-11-25T11:42:00+00:00 lab sudo:      ops : TTY=pts/0 ; PWD=/home/ops ; USER=root ; COMMAND=/usr/bin/id\n2026-11-25T11:43:00+00:00 lab cron[5]: unrelated\n2026-11-25T11:55:00+00:00 lab sshd[103]: Accepted publickey for ops from 10.0.0.1 port 50002 ssh2\n2026-11-25T11:56:00+00:00 lab sshd[104]: Accepted publickey for ops from 10.0.0.9 port 50003 ssh2\n"
+    }
+   }
+  }
+ ]
+}

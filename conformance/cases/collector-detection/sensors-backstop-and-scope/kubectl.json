@@ -1,0 +1,87 @@
+{
+ "dev.yaml": {
+  "daemonsets": [],
+  "prometheusrules": []
+ },
+ "in-cluster": {
+  "daemonsets": [
+   {
+    "metadata": {
+     "name": "falco",
+     "namespace": "security"
+    },
+    "status": {
+     "desiredNumberScheduled": 3,
+     "numberReady": 3
+    }
+   },
+   {
+    "metadata": {
+     "name": "node-logs",
+     "namespace": "security"
+    },
+    "status": {
+     "desiredNumberScheduled": 3,
+     "numberReady": 2
+    }
+   },
+   {
+    "metadata": {
+     "name": "other",
+     "namespace": "security"
+    },
+    "status": {
+     "desiredNumberScheduled": 1,
+     "numberReady": 0
+    }
+   }
+  ],
+  "prometheusrules": [
+   {
+    "metadata": {
+     "name": "security-detection"
+    },
+    "spec": {
+     "groups": [
+      {
+       "rules": [
+        {
+         "alert": "a"
+        },
+        {
+         "alert": "b"
+        }
+       ]
+      },
+      {
+       "rules": [
+        {
+         "alert": "c"
+        }
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "metadata": {
+     "name": "unrelated"
+    },
+    "spec": {
+     "groups": [
+      {
+       "rules": [
+        {
+         "alert": "x"
+        }
+       ]
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "prod.yaml": {
+  "fail": "error: You must be logged in to the server (Unauthorized)"
+ }
+}

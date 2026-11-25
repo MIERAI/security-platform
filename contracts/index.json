@@ -80,6 +80,14 @@
    "conformance": [
     "cli"
    ]
+  },
+  "events": {
+   "version": "1.0",
+   "spec": "events/SPEC.md",
+   "schemas": [],
+   "conformance": [
+    "events"
+   ]
   }
  },
  "known_deviations": {
@@ -104,10 +112,18 @@
   "METRICS-D1": null,
   "SCORECARD-D1": "scorecard/attestation-expiry-is-utc",
   "SCORECARD-D2": null,
-  "CLI-D2": "cli/bad-input-is-one-line",
-  "CLI-D3": "cli/due-date-in-local-time",
-  "CLI-D4": "cli/explain-ambiguous-prefix",
-  "CLI-D5": "cli/init-files-are-private",
+  "AGENT-D1": "collector-agent-claude-code/memory-credentials-pattern-class",
+  "AGENT-D2": "collector-agent-claude-code/malformed-settings-is-a-gap",
+  "DETECTION-D1": "collector-detection/token-file-readable-by-others",
+  "DETECTION-D2": "collector-detection/drill-time-is-utc",
+  "GITHUB-D1": "collector-codehost-github/protection-unreadable-is-a-gap",
+  "GITHUB-D2": "collector-codehost-github/repositories-on-several-pages",
+  "GITHUB-D3": null,
+  "GITEA-D1": "collector-codehost-gitea/server-page-size-below-50",
+  "GITEA-D2": "collector-codehost-gitea/token-not-sent-to-another-host",
+  "EXPOSURE-D1": "collector-exposure/target-is-never-an-nmap-option",
+  "EXPOSURE-D2": "collector-exposure/timed-out-host-is-a-gap",
+  "EVENTS-D1": "events/credentials-not-sent-to-another-host",
   "K8S-D1": "collector-k8s/failing-part-is-a-gap-of-that-part",
   "K8S-D2": "collector-k8s/unreadable-policy-reports-are-a-gap",
   "K8S-D3": "collector-k8s/kube-bench-failure-keeps-cis-findings",
@@ -119,6 +135,10 @@
   "IDENTITY-D2": "collector-identity/unreadable-listings-are-gaps",
   "IDENTITY-D3": "collector-identity/rate-limit-is-a-gap-until-reset",
   "IDENTITY-D4": "collector-identity/org-members-without-2fa",
-  "IDENTITY-D5": "collector-identity/overlay-network-api"
+  "IDENTITY-D5": "collector-identity/overlay-network-api",
+  "CLI-D2": "cli/bad-input-is-one-line",
+  "CLI-D3": "cli/due-date-in-local-time",
+  "CLI-D4": "cli/explain-ambiguous-prefix",
+  "CLI-D5": "cli/init-files-are-private"
  }
 }

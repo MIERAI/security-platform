@@ -1,0 +1,71 @@
+{
+ "component": "collector-detection",
+ "title": "An instance without a `detection:` section is a coverage gap, not a clean result; the rule-content age is still measured from the catalog",
+ "contract": "collector-protocol/1.0 §4",
+ "origin": "collectors/detection main",
+ "files": {
+  "instance.json": "instance.json",
+  "data/.keep": {
+   "text": ""
+  }
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-detection",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance"
+    },
+    "writes_only_under": [
+     "run"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "run/detection.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "detection"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "json": "run/detection.findings.json",
+     "subset": {
+      "coverage": {
+       "$contains": [
+        {
+         "asset": "detection-config:instance",
+         "status": "gap",
+         "reason": "no `detection:` section in the instance"
+        },
+        {
+         "asset": "detection-ruleset:catalog",
+         "status": "ok"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "prom": "run/detection.prom",
+     "families": [
+      "security_detection_ruleset_age_days",
+      "security_detection_ruleset_info"
+     ]
+    }
+   ]
+  }
+ ]
+}

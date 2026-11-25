@@ -1,0 +1,82 @@
+{
+ "routes": {
+  "/api/v1/orgs/lab/repos": {
+   "items": [
+    {
+     "archived": false,
+     "default_branch": "main",
+     "full_name": "lab/r1",
+     "internal": false,
+     "mirror": false,
+     "name": "r1",
+     "owner": {
+      "login": "lab"
+     },
+     "private": false
+    },
+    {
+     "archived": false,
+     "default_branch": "main",
+     "full_name": "lab/r2",
+     "internal": false,
+     "mirror": false,
+     "name": "r2",
+     "owner": {
+      "login": "lab"
+     },
+     "private": false
+    },
+    {
+     "archived": false,
+     "default_branch": "main",
+     "full_name": "lab/r3",
+     "internal": false,
+     "mirror": false,
+     "name": "r3",
+     "owner": {
+      "login": "lab"
+     },
+     "private": false
+    }
+   ],
+   "page_size": 2
+  },
+  "/api/v1/repos/lab/r1/branch_protections": {
+   "body": [
+    {
+     "branch_name": "main",
+     "enable_push": false,
+     "enable_push_whitelist": false,
+     "enable_status_check": false,
+     "required_approvals": 1,
+     "rule_name": "main"
+    }
+   ]
+  },
+  "/api/v1/repos/lab/r2/branch_protections": {
+   "body": [
+    {
+     "branch_name": "main",
+     "enable_push": false,
+     "enable_push_whitelist": false,
+     "enable_status_check": false,
+     "required_approvals": 1,
+     "rule_name": "main"
+    }
+   ]
+  },
+  "/api/v1/repos/lab/r3/branch_protections": {
+   "body": [
+    {
+     "branch_name": "main",
+     "enable_push": false,
+     "enable_push_whitelist": false,
+     "enable_status_check": false,
+     "required_approvals": 1,
+     "rule_name": "main"
+    }
+   ]
+  }
+ },
+ "token": "{canary_token}"
+}

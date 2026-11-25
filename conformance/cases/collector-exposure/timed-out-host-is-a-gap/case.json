@@ -1,0 +1,142 @@
+{
+ "component": "collector-exposure",
+ "title": "An address nmap gave up on (host timeout) is a coverage gap: the ports it saw are reported, but a partial scan does not cover the address (no `fixed` for what it did not get to)",
+ "contract": "collector-protocol/1.0 §4-5",
+ "origin": "collectors/exposure: a partial nmap result counts as a complete one",
+ "deviation": "EXPOSURE-D2",
+ "files": {
+  "instance.json": {
+   "json": {
+    "name": "conformance",
+    "exposure": {
+     "discovery": [
+      {
+       "type": "static",
+       "targets": [
+        {
+         "name": "web",
+         "address": "127.0.0.1"
+        }
+       ]
+      }
+     ],
+     "vantage": {
+      "type": "local"
+     }
+    }
+   }
+  },
+  "nmap.json": {
+   "json": {
+    "hosts": {
+     "127.0.0.1": {
+      "timedout": true,
+      "ports": [
+       [
+        "svc:web:closed1",
+        "open",
+        "telnet"
+       ]
+      ]
+     }
+    }
+   }
+  },
+  "bin/nmap": {
+   "text": "#!/bin/sh\nexec \"{python}\" \"{case}/fake_nmap.py\" \"$@\"\n",
+   "mode": "0755"
+  },
+  "bin/python": {
+   "text": "#!/bin/sh\nexec \"{python}\" \"$@\"\n",
+   "mode": "0755"
+  },
+  "data/.keep": {
+   "text": ""
+  }
+ },
+ "services": [
+  {
+   "name": "web",
+   "argv": [
+    "{python}",
+    "{case}/mock_http_targets.py"
+   ]
+  }
+ ],
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-exposure",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance",
+     "FAKE_NMAP_SPEC": "{sandbox}/nmap.json"
+    },
+    "writes_only_under": [
+     "run",
+     "nmaplog"
+    ],
+    "path_prepend": [
+     "{sandbox}/bin"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "run/exposure.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "exposure"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "json": "run/exposure.findings.json",
+     "subset": {
+      "coverage": {
+       "$contains": [
+        {
+         "asset": "net-endpoint:web@127.0.0.1",
+         "status": "gap",
+         "reason": {
+          "$regex": "timed out"
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/exposure.findings.json",
+     "subset": {
+      "findings": {
+       "$contains": [
+        {
+         "check": "telnet.open",
+         "asset": {
+          "$regex": "^net-endpoint:web@127\\.0\\.0\\.1:\\d+$"
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "file": "nmaplog/argv.log",
+     "regex": [
+      "\"--host-timeout\", \"30m\""
+     ]
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,279 @@
+{
+ "component": "events",
+ "title": "Code host account: the first snapshot is a baseline; a new SSH key and a repository made public are shipped as events (source codehost); an endpoint the token cannot read is recorded as unsupported; only GET requests; the token never appears in the output",
+ "contract": "events/1.0",
+ "origin": "events/ship.py GitHubAccountSource",
+ "services": [
+  {
+   "name": "obs",
+   "argv": [
+    "{python}",
+    "{case}/mock_events.py"
+   ]
+  }
+ ],
+ "files": {
+  "out/.keep": {
+   "text": ""
+  },
+  "events.json": {
+   "json": {
+    "loki": {
+     "url": "{svc_obs}/loki/api/v1/push"
+    },
+    "sources": [
+     {
+      "name": "gh",
+      "type": "github-account",
+      "host": "acme-bot",
+      "api": "{svc_obs}",
+      "token_env": "EV_GH_TOKEN"
+     }
+    ]
+   }
+  },
+  "api.json": {
+   "json": {
+    "/user": [
+     200,
+     {
+      "login": "acme-bot"
+     }
+    ],
+    "/user/keys": [
+     200,
+     [
+      {
+       "id": 1,
+       "title": "laptop",
+       "created_at": "2026-01-01T00:00:00Z"
+      }
+     ]
+    ],
+    "/user/gpg_keys": [
+     404,
+     {
+      "message": "Not Found"
+     }
+    ],
+    "/user/ssh_signing_keys": [
+     200,
+     []
+    ],
+    "/user/repos": [
+     200,
+     [
+      {
+       "full_name": "acme-bot/site",
+       "visibility": "private",
+       "owner": {
+        "login": "acme-bot"
+       },
+       "pushed_at": "2026-11-01T00:00:00Z"
+      }
+     ]
+    ],
+    "/repos/acme-bot/site/keys": [
+     200,
+     []
+    ],
+    "/repos/acme-bot/site/hooks": [
+     200,
+     []
+    ],
+    "/user/installations": [
+     200,
+     {
+      "installations": []
+     }
+    ],
+    "/users/acme-bot/events": [
+     200,
+     []
+    ]
+   }
+  }
+ },
+ "steps": [
+  {
+   "name": "baseline",
+   "exec": {
+    "impl": "events",
+    "args": [
+     "--config",
+     "{sandbox}/events.json",
+     "--state",
+     "{sandbox}/state",
+     "--summary",
+     "{sandbox}/out/summary.json",
+     "--now",
+     "1795608000"
+    ],
+    "writes_only_under": [
+     "state",
+     "out",
+     "pushed",
+     "leak"
+    ],
+    "env": {
+     "EV_GH_TOKEN": "{canary_token}"
+    }
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "out/summary.json",
+     "subset": {
+      "sources": {
+       "gh": {
+        "ok": true,
+        "shipped": 0,
+        "baseline": true,
+        "unsupported": {
+         "/user/gpg_keys": 404
+        }
+       }
+      }
+     }
+    },
+    {
+     "absent": "mutations.log"
+    },
+    {
+     "writes_only_under": true
+    }
+   ]
+  },
+  {
+   "name": "a key added, a repository made public",
+   "exec": {
+    "impl": "events",
+    "args": [
+     "--config",
+     "{sandbox}/events.json",
+     "--state",
+     "{sandbox}/state",
+     "--summary",
+     "{sandbox}/out/summary.json",
+     "--now",
+     "1795608000"
+    ],
+    "writes_only_under": [
+     "state",
+     "out",
+     "pushed",
+     "leak"
+    ],
+    "env": {
+     "EV_GH_TOKEN": "{canary_token}"
+    }
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "out/summary.json",
+     "subset": {
+      "sources": {
+       "gh": {
+        "ok": true,
+        "shipped": 2,
+        "events": {
+         "ssh_key_added": 1,
+         "repo_made_public": 1
+        }
+       }
+      }
+     }
+    },
+    {
+     "file": "pushed/0002.json",
+     "regex": [
+      "\"source\": \"codehost\"",
+      "\"event\": \"ssh_key_added\"",
+      "\"event\": \"repo_made_public\""
+     ]
+    },
+    {
+     "no_secret": [
+      "{canary_token}"
+     ],
+     "in": "."
+    },
+    {
+     "absent": "mutations.log"
+    },
+    {
+     "writes_only_under": true
+    }
+   ],
+   "files": {
+    "api.json": {
+     "json": {
+      "/user": [
+       200,
+       {
+        "login": "acme-bot"
+       }
+      ],
+      "/user/keys": [
+       200,
+       [
+        {
+         "id": 1,
+         "title": "laptop",
+         "created_at": "2026-01-01T00:00:00Z"
+        },
+        {
+         "id": 2,
+         "title": "unknown",
+         "created_at": "2026-11-25T11:00:00Z"
+        }
+       ]
+      ],
+      "/user/gpg_keys": [
+       404,
+       {
+        "message": "Not Found"
+       }
+      ],
+      "/user/ssh_signing_keys": [
+       200,
+       []
+      ],
+      "/user/repos": [
+       200,
+       [
+        {
+         "full_name": "acme-bot/site",
+         "visibility": "public",
+         "owner": {
+          "login": "acme-bot"
+         },
+         "pushed_at": "2026-11-01T00:00:00Z"
+        }
+       ]
+      ],
+      "/repos/acme-bot/site/keys": [
+       200,
+       []
+      ],
+      "/repos/acme-bot/site/hooks": [
+       200,
+       []
+      ],
+      "/user/installations": [
+       200,
+       {
+        "installations": []
+       }
+      ],
+      "/users/acme-bot/events": [
+       200,
+       []
+      ]
+     }
+    }
+   }
+  }
+ ]
+}

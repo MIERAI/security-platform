@@ -31,6 +31,7 @@ The command line is split like a shell would (no shell runs); the case's argumen
 | `runner` | `SP_IMPL_RUNNER` | `tick\|status --instance F --data D --now EPOCH [JOB ...]` | [runner](../contracts/runner/SPEC.md) |
 | `cli` | `SP_IMPL_CLI` | `findings\|explain\|status\|digest\|init\|--version ...` | [cli](../contracts/cli/SPEC.md) |
 | `collector-<name>` | `SP_IMPL_COLLECTOR_<NAME>` (`-` → `_`) | none; `SP_RUN_DIR`, `SP_INSTANCE`, `SP_DATA`, ... in the environment | [collector-protocol](../contracts/collector-protocol/SPEC.md) |
+| `events` | `SP_IMPL_EVENTS` | `--config F --state D --summary F --now EPOCH [--dry-run]` | [events](../contracts/events/SPEC.md) |
 
 Every process runs with `TZ=UTC` (unless the case sets another), `LC_ALL=C`, `NO_COLOR=1`, `HOME=<sandbox>/home`,
 stdin closed, and without the caller's `SP_DATA`/`SP_INSTANCE`/`SP_RUN_DIR`/... (other variables, e.g. `SP_PYTHON`,
@@ -64,7 +65,12 @@ builders by `tools/gen_cases.py` (edit there, re-run, commit both); the generate
 
 - Templates in arguments, env values and text fixtures: `{sandbox}`, `{case}`, `{python}` (the suite's interpreter, for
   mocks only), `{path}` (the suite's own `PATH`, to put fake tools in front of it: `{sandbox}/bin:{path}`), `{now_epoch}`, `{fake_jwt}` (an unsigned JWT built at run time: fixtures never contain token-shaped strings), `{fake_key}` (a
-  random stand-in for private key material, built at run time for the same reason), `{epoch:-2820}` / `{utc:+3600}` (real clock + offset), `{svc_<name>}` (a service URL).
+  random stand-in for private key material, built at run time for the same reason), `{epoch:-2820}` / `{utc:+3600}` (real clock + offset), `{svc_<name>}` (a service URL),
+  `{canary_github}` / `{canary_aws}` / `{canary_privkey}` / `{canary_password}` / `{canary_token}` (credential-shaped
+  canaries assembled at run time, the same text on every run: for fixtures that must look like a real secret and must
+  never reappear in any output).
+- `exec.path_prepend: ["{sandbox}/bin"]` puts fake programs (a fake nmap, gh, kubectl; `wrapper()` in
+  `tools/cases_net.py` writes them) before the caller's `PATH`.
 - `exit`: a number, `{"in": [..]}` or `{"not": n}`.
 - Assertions (`expect`):
   - `{"json": path, "schema": name, "subset": {...} | "file", "findings_ids": true}`; `{"jsonl": path, ...}`.
@@ -84,9 +90,19 @@ builders by `tools/gen_cases.py` (edit there, re-run, commit both); the generate
   `format` date/date-time, bounds, `required`, `properties`, `patternProperties`, `additionalProperties`, `items`,
   `minItems`, `anyOf`/`oneOf`/`allOf`); a full validator gives the same verdicts on `contracts/`.
 
+## Comparing two implementations byte for byte
+
+`tools/compare_impls.py --component C --a CMD --b CMD --explained impl/go/explained-diffs.json` runs every case of a
+component with both implementations and compares every file the case leaves in its sandbox (documents, evidence,
+metrics, state, recorded requests) byte for byte after replacing what is volatile by nature (wall-clock times, the
+sandbox path, ids derived from a sandbox path). A difference not listed in the explained-differences file, with its
+reason, fails; cases of a known deviation are skipped (they differ by design). `tests/test_go_collectors_parity.py`
+runs it for the Go collectors and the Go events shipper.
+
 ## Adding a case
 
-1. Add it to `tools/gen_cases.py` (reuse `finding()`, `doc()`, `merge()`, `tick()`, ...), run
+1. Add it to `tools/gen_cases.py` (collectors exposure, codehost-*, agent-claude-code, detection and the events
+   shipper: `tools/cases_net.py`, with its fakes next to it) (reuse `finding()`, `doc()`, `merge()`, `tick()`, ...), run
    `python3 conformance/tools/gen_cases.py`.
 2. Run it against the reference: `conformance/impl/python/run.sh --case '<component>/<name>' -v`.
 3. If it documents a defect of the reference: give it a `deviation` id, describe current vs target behaviour in the

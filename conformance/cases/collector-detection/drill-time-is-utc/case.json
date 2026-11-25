@@ -1,0 +1,61 @@
+{
+ "component": "collector-detection",
+ "title": "Recorded times (drill action_at, verdict fired_at, catalog released) are UTC whatever the host's time zone: a summer drill under TZ=Europe/Berlin is at its exact UTC epoch",
+ "contract": "collector-protocol/1.0",
+ "origin": "collectors/detection: time.mktime(...) - time.timezone (local time, an hour off under DST)",
+ "deviation": "DETECTION-D2",
+ "files": {
+  "instance.json": "instance.json",
+  "data/detections/drills/a.yaml": {
+   "text": "id: summer\naction_at: \"2026-07-01T10:00:00\"\nresult: pass\nttd_seconds: 60\n"
+  }
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-detection",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance",
+     "TZ": "Europe/Berlin"
+    },
+    "writes_only_under": [
+     "run"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "run/detection.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "detection"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "json": "run/detection.findings.json",
+     "subset": {
+      "metrics": {
+       "$contains": [
+        {
+         "name": "security_detection_drill_last_timestamp_seconds",
+         "value": 1782900000
+        }
+       ]
+      }
+     }
+    }
+   ]
+  }
+ ]
+}

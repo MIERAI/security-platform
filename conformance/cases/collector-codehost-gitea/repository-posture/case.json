@@ -1,0 +1,199 @@
+{
+ "component": "collector-codehost-gitea",
+ "title": "Gitea/Forgejo repository posture, read-only: default branch without a rule or open to direct push, a protected branch without approvals, a pull mirror over plain http, write deploy keys; a glob rule (release/*) applies to its branches; archived repositories and (include_private: false) private ones skipped; an owner that is a user, not an organisation; an unreadable branch protection is a gap; the token never reaches the output",
+ "contract": "collector-protocol/1.0",
+ "origin": "collectors/codehost-gitea",
+ "services": [
+  {
+   "name": "codehost",
+   "argv": [
+    "{python}",
+    "{case}/mock_codehost.py",
+    "--fixture",
+    "{sandbox}/codehost-api.json"
+   ]
+  }
+ ],
+ "files": {
+  "instance.json": "instance.json",
+  "codehost-api.json": "api.json",
+  "gitea.token": {
+   "text": "{canary_token}\n",
+   "mode": "0600"
+  },
+  "data/.keep": {
+   "text": ""
+  }
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-codehost-gitea",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance"
+    },
+    "writes_only_under": [
+     "run"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "run/codehost-gitea.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "codehost-gitea"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "no_secret": [
+      "{canary_token}"
+     ],
+     "in": "run"
+    },
+    {
+     "absent": ".svc-codehost-mutations.log"
+    },
+    {
+     "no_secret": [
+      "{canary_token}"
+     ],
+     "in": ".svc-codehost-leaks"
+    },
+    {
+     "json": "run/codehost-gitea.findings.json",
+     "subset": {
+      "findings": {
+       "$contains": [
+        {
+         "check": "repo.protection_no_approvals",
+         "asset": "repo:gitea/127.0.0.1/lab/app",
+         "severity": "low",
+         "title": "default branch 'main' is protected but merges need no approving review"
+        },
+        {
+         "check": "repo.deploy_key_write",
+         "asset": "repo:gitea/127.0.0.1/lab/app/deploy-key/deploy",
+         "title": "write-enabled deploy key 'deploy' (created 2025-03-04)",
+         "layer": "identity"
+        },
+        {
+         "check": "repo.default_branch_unprotected",
+         "asset": "repo:gitea/127.0.0.1/lab/site",
+         "severity": "high",
+         "title": "public repo: default branch 'main' can be pushed to directly (no branch protection rule)"
+        },
+        {
+         "check": "repo.default_branch_unprotected",
+         "asset": "repo:gitea/127.0.0.1/lab/mirror",
+         "severity": "medium",
+         "title": "private repo: default branch 'main' can be pushed to directly"
+        },
+        {
+         "check": "repo.mirror_unverified_remote",
+         "asset": "repo:gitea/127.0.0.1/lab/mirror"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/codehost-gitea.findings.json",
+     "subset": {
+      "findings": {
+       "$not_contains": [
+        {
+         "asset": "repo:gitea/127.0.0.1/lab/rel"
+        },
+        {
+         "asset": "repo:forgejo/127.0.0.1/solo/pub"
+        },
+        {
+         "asset": "repo:gitea/127.0.0.1/lab/app/deploy-key/reader"
+        }
+       ]
+      },
+      "coverage": {
+       "$not_contains": [
+        {
+         "asset": "repo:gitea/127.0.0.1/lab/old"
+        },
+        {
+         "asset": "repo:forgejo/127.0.0.1/solo/secret"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/codehost-gitea.findings.json",
+     "subset": {
+      "coverage": {
+       "$contains": [
+        {
+         "asset": "repo:gitea/127.0.0.1/lab/rel",
+         "status": "ok"
+        },
+        {
+         "asset": "repo:forgejo/127.0.0.1/solo/pub",
+         "status": "ok"
+        },
+        {
+         "asset": "repo:gitea/127.0.0.1/lab/legacy",
+         "status": "gap",
+         "reason": "cannot read branch protection: HTTP 404"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/raw/codehost-gitea/repos.json",
+     "subset": {
+      "solo/pub": {
+       "protected": true,
+       "required_approvals": 1
+      }
+     }
+    },
+    {
+     "prom": "run/codehost-gitea.prom",
+     "has": [
+      {
+       "name": "security_repos_total",
+       "labels": {
+        "owner": "lab"
+       },
+       "value": 4
+      },
+      {
+       "name": "security_repos_public_without_protection",
+       "labels": {
+        "owner": "lab"
+       },
+       "value": 1
+      },
+      {
+       "name": "security_repos_total",
+       "labels": {
+        "owner": "solo"
+       },
+       "value": 1
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

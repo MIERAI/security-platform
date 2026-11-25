@@ -1,0 +1,14 @@
+{
+ "agents": [
+  {
+   "type": "cursor"
+  },
+  {
+   "transcripts_dirs": [
+    "{sandbox}/none"
+   ],
+   "type": "claude-code"
+  }
+ ],
+ "name": "conformance"
+}

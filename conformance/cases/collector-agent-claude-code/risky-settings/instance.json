@@ -1,0 +1,14 @@
+{
+ "agents": [
+  {
+   "settings": [
+    "{sandbox}/home/.claude/settings.json"
+   ],
+   "transcripts_dirs": [
+    "~/.claude/projects"
+   ],
+   "type": "claude-code"
+  }
+ ],
+ "name": "conformance"
+}

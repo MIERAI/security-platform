@@ -1,0 +1,123 @@
+{
+ "routes": {
+  "/repos/acme/a": {
+   "body": {
+    "full_name": "acme/a",
+    "security_and_analysis": null
+   }
+  },
+  "/repos/acme/a/branches/main/protection": {
+   "body": {
+    "url": "x"
+   }
+  },
+  "/repos/acme/a/rules/branches/main": {
+   "body": []
+  },
+  "/repos/acme/b": {
+   "body": {
+    "full_name": "acme/b",
+    "security_and_analysis": null
+   }
+  },
+  "/repos/acme/b/branches/main/protection": {
+   "body": {
+    "url": "x"
+   }
+  },
+  "/repos/acme/b/rules/branches/main": {
+   "body": []
+  },
+  "/repos/acme/c": {
+   "body": {
+    "full_name": "acme/c",
+    "security_and_analysis": null
+   }
+  },
+  "/repos/acme/c/branches/main/protection": {
+   "body": {
+    "url": "x"
+   }
+  },
+  "/repos/acme/c/rules/branches/main": {
+   "body": []
+  },
+  "/user/repos": {
+   "items": [
+    {
+     "archived": false,
+     "default_branch": "main",
+     "full_name": "acme/a",
+     "name": "a",
+     "owner": {
+      "login": "acme"
+     },
+     "private": false,
+     "visibility": "public"
+    },
+    {
+     "archived": false,
+     "default_branch": "main",
+     "full_name": "acme/b",
+     "name": "b",
+     "owner": {
+      "login": "acme"
+     },
+     "private": false,
+     "visibility": "public"
+    },
+    {
+     "archived": false,
+     "default_branch": "main",
+     "full_name": "acme/c",
+     "name": "c",
+     "owner": {
+      "login": "acme"
+     },
+     "private": false,
+     "visibility": "public"
+    }
+   ],
+   "page_size": 2
+  },
+  "/users/acme/repos": {
+   "items": [
+    {
+     "archived": false,
+     "default_branch": "main",
+     "full_name": "acme/a",
+     "name": "a",
+     "owner": {
+      "login": "acme"
+     },
+     "private": false,
+     "visibility": "public"
+    },
+    {
+     "archived": false,
+     "default_branch": "main",
+     "full_name": "acme/b",
+     "name": "b",
+     "owner": {
+      "login": "acme"
+     },
+     "private": false,
+     "visibility": "public"
+    },
+    {
+     "archived": false,
+     "default_branch": "main",
+     "full_name": "acme/c",
+     "name": "c",
+     "owner": {
+      "login": "acme"
+     },
+     "private": false,
+     "visibility": "public"
+    }
+   ],
+   "page_size": 2
+  }
+ },
+ "token": "{canary_token}"
+}

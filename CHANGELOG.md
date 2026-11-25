@@ -24,6 +24,28 @@ Components are versioned independently (docs/design.md §5). Entries name the co
   unreachable host, `sudo -n` refused, CRLF and non-UTF-8 PowerShell output) and a fixture home whose file contents
   are canaries that must never reach any output; COLLECTOR-D2…D6 recorded in contracts/collector-protocol;
   `conformance/impl/go/run.sh` runs them against `sp <name> collect`.
+- **Go collectors, wave 3: collectors/exposure 0.5.0, collectors/codehost-github 0.2.0, collectors/codehost-gitea
+  0.2.0, collectors/agent-claude-code 0.3.0, collectors/detection 0.2.0, events 0.2.0**: Go implementations
+  (`sp exposure collect|probe`, `sp codehost-github collect`, `sp codehost-gitea collect`, `sp agent-claude-code
+  collect`, `sp detection collect`, `sp events ship`) behind the collector protocol and the new events contract; the
+  Python implementations are unchanged and stay the default (a `command` job selects Go, docs/go.md). They pass every
+  conformance case with no expected failure, and their documents, evidence, metrics, pushed bodies and state are
+  byte-identical to the Python ones on every fixture apart from the explained differences
+  (`conformance/impl/go/explained-diffs.json`, `tests/test_go_collectors_parity.py`). Target behaviour of the new known
+  deviations: EXPOSURE-D1 (a target string is never an nmap option), EXPOSURE-D2 (a timed-out host is a gap),
+  GITHUB-D1 (a failed protection read is a gap, not an unprotected branch), GITHUB-D2 (every page of repositories),
+  GITHUB-D3 (no gh: no crash), GITEA-D1 (server page size below 50), GITEA-D2 and EVENTS-D1 (no credential on a
+  redirect to another host), AGENT-D1 (credential pattern classes of memory files), AGENT-D2 (a malformed settings file
+  is a gap), DETECTION-D1 (a token file readable by others is refused), DETECTION-D2 (recorded times are UTC). Shared
+  packages: `rundoc` (the SDK's findings document byte for byte), `credential` (0600 files or named environment
+  variables only), `roclient` (GET/HEAD only, no cross-origin redirect), `execad` (the exec adapter).
+- **contracts**: events 1.0 (new: invocation, at-least-once delivery, baseline, heartbeat, log contract, summary,
+  secrets; EVENTS-D1); collector-protocol known deviations AGENT-D1/D2, DETECTION-D1/D2, EXPOSURE-D1/D2,
+  GITHUB-D1…D3, GITEA-D1/D2, each with its conformance case.
+- **conformance**: 33 cases for exposure, codehost-github, codehost-gitea, agent-claude-code, detection and events,
+  with fakes for nmap, gh, kubectl and the GitHub, Gitea, Loki, Prometheus and Alertmanager APIs
+  (`conformance/tools/cases_net.py`); credential-shaped canaries built at run time (`{canary_*}`), `exec.path_prepend`
+  for fake programs, and `tools/compare_impls.py` (byte comparison of two implementations on the fixtures).
 - **cli 0.4.0 — the `sp` commands in Go** (`sp init|doctor|run|status|findings|explain|digest|notify`, `internal/cli`):
   every subcommand of `sp` now runs in Go; nothing a user types reaches `cli/sp.py` any more. Output is byte for byte
   the reference's, plain and on a terminal (colors), including argparse's usage and help layout

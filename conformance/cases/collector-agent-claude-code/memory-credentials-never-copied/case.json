@@ -1,0 +1,132 @@
+{
+ "component": "collector-agent-claude-code",
+ "title": "Credential-shaped lines in agent memory files are reported per FILE (count, asset), never the value: not in the document, the evidence or the output; prose after a keyword is not a credential; hidden files are not scanned",
+ "contract": "collector-protocol/1.0",
+ "origin": "collectors/agent-claude-code memory_scan",
+ "files": {
+  "home/.claude/projects/proj-a/memory/MEMORY.md": {
+   "text": "# notes\ngithub token for the bot: {canary_github}\npassword: {canary_password}\npassword = same as the admin UI\nthe deploy key lives in the vault, not here\n"
+  },
+  "home/.claude/projects/proj-b/memory/notes.md": {
+   "text": "ssh key backup\n{canary_privkey}\nAAAA\n"
+  },
+  "home/.claude/projects/proj-b/memory/.hidden.md": {
+   "text": "token: {canary_token}\n"
+  },
+  "home/.claude/projects/proj-b/memory/clean.md": {
+   "text": "nothing to see\n"
+  },
+  "home/.claude/projects/proj-a/s1.jsonl": {
+   "text": "{}\n"
+  },
+  "data/.keep": {
+   "text": ""
+  },
+  "instance.json": "instance.json",
+  "home/.claude/settings.json": "settings.json"
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-agent-claude-code",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance"
+    },
+    "writes_only_under": [
+     "run"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "run/agent-claude-code.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "agent-claude-code"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "no_secret": [
+      "{canary_github}",
+      "{canary_password}",
+      "{canary_privkey}",
+      "{canary_token}"
+     ],
+     "in": "run"
+    },
+    {
+     "json": "run/agent-claude-code.findings.json",
+     "subset": {
+      "findings": {
+       "$contains": [
+        {
+         "check": "agent.memory_secret_suspect",
+         "asset": "agent-memory:claude-code/proj-a/MEMORY.md",
+         "title": "2 line(s) shaped like a credential in agent memory file MEMORY.md",
+         "severity": "high",
+         "layer": "ai-agents",
+         "needs_human": true
+        },
+        {
+         "check": "agent.memory_secret_suspect",
+         "asset": "agent-memory:claude-code/proj-b/notes.md",
+         "title": "1 line(s) shaped like a credential in agent memory file notes.md"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/agent-claude-code.findings.json",
+     "subset": {
+      "findings": {
+       "$not_contains": [
+        {
+         "check": "agent.memory_secret_suspect",
+         "asset": "agent-memory:claude-code/proj-b/clean.md"
+        },
+        {
+         "check": "agent.memory_secret_suspect",
+         "asset": "agent-memory:claude-code/proj-b/.hidden.md"
+        },
+        {
+         "check": "agent.no_credential_deny_rules"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/raw/agent-claude-code/memory-scan.json",
+     "subset": {
+      "files": 3,
+      "suspect_files": {
+       "MEMORY.md": 2,
+       "notes.md": 1
+      }
+     }
+    },
+    {
+     "prom": "run/agent-claude-code.prom",
+     "has": [
+      {
+       "name": "security_agent_memory_files",
+       "value": 3
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

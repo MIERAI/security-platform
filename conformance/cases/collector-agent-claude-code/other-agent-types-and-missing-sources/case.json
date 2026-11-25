@@ -1,0 +1,73 @@
+{
+ "component": "collector-agent-claude-code",
+ "title": "An agent type without an adapter is a gap (not silently ignored); no memory directories and no transcript directory are gaps, not a clean result",
+ "contract": "collector-protocol/1.0 §4",
+ "origin": "collectors/agent-claude-code",
+ "files": {
+  "instance.json": "instance.json",
+  "data/.keep": {
+   "text": ""
+  }
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-agent-claude-code",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance"
+    },
+    "writes_only_under": [
+     "run"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "run/agent-claude-code.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "agent-claude-code"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "json": "run/agent-claude-code.findings.json",
+     "subset": {
+      "coverage": {
+       "$contains": [
+        {
+         "asset": "agent:cursor",
+         "status": "gap",
+         "reason": "adapter not implemented (future)"
+        },
+        {
+         "asset": "agent-memory:claude-code",
+         "status": "gap"
+        },
+        {
+         "asset": "agent-audit:claude-code",
+         "status": "gap",
+         "reason": "transcripts directory not found"
+        },
+        {
+         "asset": "agent-guard:claude-code",
+         "status": "ok"
+        }
+       ]
+      }
+     }
+    }
+   ]
+  }
+ ]
+}

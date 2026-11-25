@@ -1,0 +1,130 @@
+{
+ "component": "collector-detection",
+ "title": "The last drill (by action time) decides: detected later than the target time to detect is a failed drill; a last drill older than drill_max_age is overdue",
+ "contract": "collector-protocol/1.0",
+ "origin": "tests/test_detection_collector.py::test_slow_drill_fails",
+ "files": {
+  "instance.json": "instance.json",
+  "data/detections/drills/a.yaml": {
+   "text": "id: old\naction_at: \"2020-01-01T00:00:00\"\nresult: pass\nttd_seconds: 30\n"
+  },
+  "data/detections/drills/b.yaml": {
+   "text": "id: slow\naction_at: \"2026-01-01T00:00:00\"\nresult: pass\nttd_seconds: 900\n"
+  }
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-detection",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance"
+    },
+    "writes_only_under": [
+     "run"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "run/detection.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "detection"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "json": "run/detection.findings.json",
+     "subset": {
+      "findings": {
+       "$contains": [
+        {
+         "check": "detection.drill_failed",
+         "asset": "detection-drills:lab",
+         "severity": "high"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/raw/detection/drills.json",
+     "subset": {
+      "last": "slow",
+      "ttd_seconds": 900
+     }
+    },
+    {
+     "prom": "run/detection.prom",
+     "has": [
+      {
+       "name": "security_detection_drill_pass",
+       "labels": {},
+       "value": 0
+      },
+      {
+       "name": "security_detection_drill_ttd_seconds",
+       "labels": {},
+       "value": 900
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "only an old drill left",
+   "exec": {
+    "impl": "collector-detection",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance"
+    },
+    "writes_only_under": [
+     "run"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "run/detection.findings.json",
+     "subset": {
+      "findings": {
+       "$contains": [
+        {
+         "check": "detection.drill_overdue",
+         "title": "the last detection drill is older than 2d"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/raw/detection/drills.json",
+     "subset": {
+      "last": "old"
+     }
+    }
+   ],
+   "remove": [
+    "run",
+    "data/detections/drills/b.yaml"
+   ],
+   "files": {
+    "instance.json": "instance-2d.json"
+   }
+  }
+ ]
+}

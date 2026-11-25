@@ -1,0 +1,111 @@
+{
+ "component": "collector-codehost-gitea",
+ "title": "A server that answers fewer items per page than asked (its own maximum page size) is read to the end (Link rel=\"next\" / X-Total-Count): the repositories after the first page are checked",
+ "contract": "collector-protocol/1.0 §4",
+ "origin": "collectors/codehost-gitea: a page shorter than 50 is taken as the last one",
+ "deviation": "GITEA-D1",
+ "services": [
+  {
+   "name": "codehost",
+   "argv": [
+    "{python}",
+    "{case}/mock_codehost.py",
+    "--fixture",
+    "{sandbox}/codehost-api.json"
+   ]
+  }
+ ],
+ "files": {
+  "instance.json": "instance.json",
+  "codehost-api.json": "api.json",
+  "gitea.token": {
+   "text": "{canary_token}\n",
+   "mode": "0600"
+  },
+  "data/.keep": {
+   "text": ""
+  }
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-codehost-gitea",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance"
+    },
+    "writes_only_under": [
+     "run"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "run/codehost-gitea.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "codehost-gitea"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "no_secret": [
+      "{canary_token}"
+     ],
+     "in": "run"
+    },
+    {
+     "absent": ".svc-codehost-mutations.log"
+    },
+    {
+     "no_secret": [
+      "{canary_token}"
+     ],
+     "in": ".svc-codehost-leaks"
+    },
+    {
+     "json": "run/codehost-gitea.findings.json",
+     "subset": {
+      "coverage": {
+       "$contains": [
+        {
+         "asset": "repo:gitea/127.0.0.1/lab/r1",
+         "status": "ok"
+        },
+        {
+         "asset": "repo:gitea/127.0.0.1/lab/r2",
+         "status": "ok"
+        },
+        {
+         "asset": "repo:gitea/127.0.0.1/lab/r3",
+         "status": "ok"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "prom": "run/codehost-gitea.prom",
+     "has": [
+      {
+       "name": "security_repos_total",
+       "labels": {
+        "owner": "lab"
+       },
+       "value": 3
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

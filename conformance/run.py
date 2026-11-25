@@ -259,9 +259,9 @@ class CaseError(Exception):
 
 
 PROTOCOL_ENV = {"SP_DATA", "SP_INSTANCE", "SP_RUN_DIR", "SP_INPUT_DIR", "SP_INSTANCE_NAME", "SP_COLLECTOR_NAME"}
-# {sandbox} {case} {python} {path} {now_epoch} {fake_jwt} {fake_key} {svc_<name>} {epoch:+-N} {utc:+-N} {date:+-N};
-# anything else in braces is left alone
-TEMPLATE = re.compile(r"\{(sandbox|case|python|path|now_epoch|fake_jwt|fake_key|svc_[a-z0-9_]+|epoch:[+-]?\d+|utc:[+-]?\d+|date:[+-]?\d+)\}")
+# {sandbox} {case} {python} {path} {now_epoch} {fake_jwt} {fake_key} {canary_*} {svc_<name>} {epoch:+-N} {utc:+-N}
+# {date:+-N}; anything else in braces is left alone
+TEMPLATE = re.compile(r"\{(sandbox|case|python|path|now_epoch|fake_jwt|fake_key|canary_[a-z]+|svc_[a-z0-9_]+|epoch:[+-]?\d+|utc:[+-]?\d+|date:[+-]?\d+)\}")
 
 
 def fake_jwt():
@@ -273,6 +273,16 @@ def fake_jwt():
         base64.urlsafe_b64encode(b"signature-canary").rstrip(b"=").decode()
 
 
+def canaries():
+    """Credential-shaped canaries for fixtures that must look like a real secret to the implementation (a memory file
+    holding a token, a token file) and must never reappear in any output. Assembled here from pieces so that no
+    credential-shaped string is committed (secret scanners); the same text on every run."""
+    body = "C0nformanceCanaryValue0123456789abcdefgh"
+    return {"canary_github": "gh" + "p_" + body[:36], "canary_aws": "AK" + "IA" + "C0NF0RMANCE0CANR",
+            "canary_privkey": "-----BEGIN " + "OPENSSH PRIVATE KEY" + "-----",
+            "canary_password": "Canary-Pw-" + body[17:31], "canary_token": "conformance-token-" + body[:20]}
+
+
 class Sandbox:
     def __init__(self, case_dir, keep):
         self.case_dir = case_dir
@@ -280,7 +290,7 @@ class Sandbox:
         self.keep = keep
         self.vars = {"sandbox": self.root, "case": case_dir, "python": sys.executable, "path": os.environ.get("PATH", ""),
                      "now_epoch": str(int(time.time())), "fake_jwt": fake_jwt(),
-                     "fake_key": "fake-private-key-" + os.urandom(8).hex()}
+                     "fake_key": "fake-private-key-" + os.urandom(8).hex(), **canaries()}
         self.services, self.background = [], {}
 
     def render(self, s):
@@ -557,6 +567,8 @@ def run_case(case_dir, case, impls, keep, verbose):
                 env.update({"TZ": "UTC", "LC_ALL": "C", "NO_COLOR": "1", "HOME": sb.path("home")})
                 os.makedirs(sb.path("home"), exist_ok=True)
                 env.update({k: sb.render(v) for k, v in (ex.get("env") or {}).items()})
+                if ex.get("path_prepend"):     # fake programs first (a fake nmap, gh, kubectl), the caller's PATH after
+                    env["PATH"] = os.pathsep.join([sb.render(x) for x in ex["path_prepend"]] + [env.get("PATH", os.defpath)])
                 cwd = sb.path(ex.get("cwd", "."))
                 watch = ex.get("writes_only_under")
                 before = snapshot(sb.root, [sb.render(w) for w in watch]) if watch is not None else None
