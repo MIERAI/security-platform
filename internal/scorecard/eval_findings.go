@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	pv "github.com/MIERAI/security-platform/internal/scorecard/pyvalue"
+	pv "github.com/MIERAI/security-platform/internal/pyvalue"
 )
 
 // maxListedChecks bounds the check names a findings detail lists.

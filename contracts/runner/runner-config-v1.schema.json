@@ -43,6 +43,25 @@
      "additionalProperties": {
       "$ref": "#/$defs/job"
      }
+    },
+    "implementations": {
+     "type": "object",
+     "description": "Since 1.1: which implementation runs a component (python default, go, shadow). Unknown keys or values are logged and ignored.",
+     "properties": {
+      "ledger": {
+       "$ref": "#/$defs/impl"
+      },
+      "remediation": {
+       "$ref": "#/$defs/impl"
+      }
+     },
+     "additionalProperties": {
+      "$ref": "#/$defs/impl"
+     }
+    },
+    "go_binary": {
+     "type": "string",
+     "description": "Since 1.1: path of the Go sp binary (default /usr/local/bin/sp, then sp on PATH)"
     }
    }
   },
@@ -132,6 +151,14 @@
     "integer"
    ],
    "pattern": "^\\d+(\\.\\d+)?[smhdw]?$"
+  },
+  "impl": {
+   "enum": [
+    "python",
+    "go",
+    "shadow"
+   ],
+   "default": "python"
   }
  }
 }

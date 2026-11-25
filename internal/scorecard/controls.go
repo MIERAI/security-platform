@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strings"
 
-	pv "github.com/MIERAI/security-platform/internal/scorecard/pyvalue"
+	pv "github.com/MIERAI/security-platform/internal/pyvalue"
 )
 
 // buildControls derives every control's function (the CSF function, the part of `csf` before the first dot),

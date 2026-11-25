@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	pv "github.com/MIERAI/security-platform/internal/scorecard/pyvalue"
+	pv "github.com/MIERAI/security-platform/internal/pyvalue"
 )
 
 // evalBuiltin answers questions about the scorecard itself; evaluated after every other control.

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Writes golden.json: how the reference implementation (Python 3.12 + PyYAML) formats, rounds and sums numbers and
 types YAML scalars. The Go tests read it; regenerate after a reference change:
-    python3 internal/scorecard/pyvalue/testdata/gen_golden.py   (needs Python >= 3.12 for sum(), and PyYAML)"""
+    python3 internal/pyvalue/testdata/gen_golden.py   (needs Python >= 3.12 for sum(), and PyYAML)"""
 import json, math, os, random, struct, sys
 import yaml
 

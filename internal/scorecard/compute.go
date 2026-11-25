@@ -4,7 +4,7 @@ import (
 	"context"
 	"regexp"
 
-	pv "github.com/MIERAI/security-platform/internal/scorecard/pyvalue"
+	pv "github.com/MIERAI/security-platform/internal/pyvalue"
 )
 
 // variable is a ${name} reference in a control's source. Compiled once, never written.

@@ -57,11 +57,26 @@ data directory first if it is a git repository (the `snapshot` job does this).
   real collector's findings. Compare the two documents in `latest/` (`<name>.findings.json` vs
   `<name>-shadow.findings.json`): same ids, coverage, severities. Then remove the shadow job and point the real job's
   `argv` (type `command`) at the new program; ids are identical by contract, so the ledger continues seamlessly.
-- **Ledger / track / scorecard** (pure functions of files): copy the data directory (or use the `snapshot` job's
-  tarball), run the new program on the copy after every real run — e.g. a `command`-style wrapper or a cron line that
-  runs `new-ledger --run <the same run dir> --data <copy>` — and diff the outputs:
+- **Ledger / track** (built in): set `runner.implementations.ledger: shadow` (and/or `remediation: shadow`) in the
+  instance config. The runner keeps running the Python implementation as the source of truth and, after each run, runs
+  the Go `sp` binary on a temporary copy of the same inputs (same relative layout and `--now`; the shadow track never
+  syncs an external tracker), compares the normalized outputs (`ledger.json`, `ledger.prom`, `sli.prom`, `ocsf.jsonl`;
+  `tracker/items.json`, `remediation.prom`, `tracker/*.md`) and writes `<run>/shadow-<component>.json`. Watch
+  `security_impl_shadow_diffs{component}` (unexplained differences; must stay 0) and
+  `security_impl_shadow_last_run_timestamp_seconds` (the comparison is happening); differences that are the target
+  of a known deviation are counted separately in `security_impl_shadow_explained_diffs` and marked `explained` (with
+  the deviation id) in the report. The runner attributes them itself: LEDGER-D2 due dates by rule, a reference
+  failure on a finding without `kind` as LEDGER-D1, and the rest by re-running Go with
+  `--reference-behaviour LEDGER-D5` / `LEDGER-D3` (a difference that disappears there is that deviation's target).
+  Nothing the Go side writes reaches the real data directory. `bench/shadow.py` runs the whole procedure on a
+  realistic synthetic estate (10k findings, churn, gaps, exceptions, the conformance fixtures).
+- **Scorecard, or any component without a registered spec** (pure functions of files): copy the data directory (or
+  use the `snapshot` job's tarball), run the new program on the copy after every real run — e.g. a `command`-style
+  wrapper or a cron line that runs `new-ledger --run <the same run dir> --data <copy>` — and diff the outputs:
   `jq -S 'del(.updated_at, .runs[].at)' ledger.json` from both sides, `tracker/items.json`, `reports/scorecard.json`,
-  and the `.prom` files sorted (`sort | grep -v _timestamp_seconds`).
+  and the `.prom` files sorted (`sort | grep -v _timestamp_seconds`). Adding the component to the runner's
+  `COMPONENTS` table (argv of each implementation, inputs, outputs, normalization, explained differences) gives it
+  the built-in switch.
 - **Runner**: run the new runner as a **site** with a private outbox and its own data directory, on the same instance
   (jobs that are read-only only; leave `push`, `export`, `snapshot`, `notify` out of the shadow), with its trigger
   next to the old one. Compare `state/runner/*.json` (slots, `done_slot`, `runs_total`) and `runner status` of both
@@ -73,7 +88,8 @@ data directory first if it is a git repository (the `snapshot` job does this).
 | component | switch |
 |---|---|
 | a collector | the job's `argv` (`type: command`) in the instance config |
-| ledger, track, scorecard | today the runner calls them by path inside the release (`core/ledger.py`, `core/remediation.py`, `scorecard/scorecard.py`); a release that ships the new implementation changes that path, and the old release stays installed for rollback (`bin/sp-install`, `current` symlink). A runner that takes the program from configuration is a candidate for the next runner minor. |
+| ledger, track | `runner.implementations.{ledger,remediation}: python \| go \| shadow` in the instance config (runner contract §7; default `python`); `go` falls back to Python, logged once, when no Go `sp` binary is found. Rollback = set it back to `python`. |
+| scorecard | the runner calls it by path inside the release (`scorecard/scorecard.py`); a release that ships the new implementation changes that path, and the old release stays installed for rollback (`bin/sp-install`, `current` symlink) — or it gets a `COMPONENTS` entry in the runner and the same switch as ledger/track. |
 | runner | the trigger: `tick.sh` (`deploy/render.py wrapper`), the CronJob command in Kubernetes |
 | cli | the `sp` symlink in `PATH` |
 

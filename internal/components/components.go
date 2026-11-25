@@ -36,7 +36,7 @@ type Component struct {
 // GoImplemented returns the components whose Go implementation has replaced the Python one (each passed the
 // conformance suite first). A fresh map on every call: nothing can change the answer at run time.
 func GoImplemented() map[string]bool {
-	return map[string]bool{}
+	return map[string]bool{"internal/ledger": true}
 }
 
 // Discover lists the components of a tree, sorted by name, with their implementation.
