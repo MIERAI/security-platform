@@ -1,0 +1,209 @@
+{
+ "component": "collector-detection",
+ "title": "Sensors through read-only kubectl: a DaemonSet not ready on every node or absent is a finding, a cluster kubectl cannot list is a gap, a cluster without in-cluster backstop rules is a finding, and every cluster of the instance's kubernetes list must be under detection; no log store configured is a gap",
+ "contract": "collector-protocol/1.0",
+ "origin": "collectors/detection check_scope/check_sensors/check_backstop",
+ "files": {
+  "instance.json": "instance.json",
+  "bin/kubectl": {
+   "text": "#!/bin/sh\nexec \"{python}\" \"{case}/fake_kubectl.py\" \"$@\"\n",
+   "mode": "0755"
+  },
+  "kc/dev.yaml": {
+   "text": "{}\n"
+  },
+  "home/kc/prod.yaml": {
+   "text": "{}\n"
+  },
+  "data/.keep": {
+   "text": ""
+  }
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-detection",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance"
+    },
+    "writes_only_under": [
+     "run"
+    ],
+    "path_prepend": [
+     "{sandbox}/bin"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "run/detection.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "detection"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "json": "run/detection.findings.json",
+     "subset": {
+      "coverage": {
+       "$contains": [
+        {
+         "asset": "k8s-cluster:prod",
+         "status": "gap",
+         "reason": "cannot list DaemonSets: error: You must be logged in to the server (Unauthorized)"
+        },
+        {
+         "asset": "k8s-cluster:lab",
+         "status": "ok"
+        },
+        {
+         "asset": "k8s-cluster:edge",
+         "status": "ok"
+        },
+        {
+         "asset": "detection-ruler:log-store",
+         "status": "gap",
+         "reason": "no detection.log_store configured"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/detection.findings.json",
+     "subset": {
+      "findings": {
+       "$contains": [
+        {
+         "check": "detection.sensor_missing",
+         "asset": "k8s-cluster:lab/node-logs",
+         "severity": "high",
+         "title": "detection sensor node-logs is not ready on every node of cluster lab (2/3)"
+        },
+        {
+         "check": "detection.sensor_missing",
+         "asset": "k8s-cluster:dev/falco",
+         "title": "detection sensor falco is not ready on every node of cluster dev (0/0)"
+        },
+        {
+         "check": "detection.backstop_missing",
+         "asset": "k8s-cluster:dev/backstop",
+         "severity": "medium"
+        },
+        {
+         "check": "detection.cluster_not_covered",
+         "asset": "k8s-cluster:prod",
+         "title": "cluster prod is not under detection (audit log missing)"
+        },
+        {
+         "check": "detection.cluster_not_covered",
+         "asset": "k8s-cluster:edge",
+         "title": "cluster edge is not under detection (runtime sensor, audit log missing)"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/detection.findings.json",
+     "subset": {
+      "findings": {
+       "$not_contains": [
+        {
+         "asset": "k8s-cluster:lab/falco"
+        },
+        {
+         "asset": "k8s-cluster:lab/backstop"
+        },
+        {
+         "check": "detection.cluster_not_covered",
+         "asset": "k8s-cluster:lab"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/raw/detection/sensors-dev.json",
+     "subset": {
+      "falco": {
+       "desired": 0,
+       "ready": 0,
+       "present": false
+      }
+     }
+    },
+    {
+     "json": "run/detection.findings.json",
+     "subset": {
+      "metrics": {
+       "$contains": [
+        {
+         "name": "security_detection_sensor_ready_ratio",
+         "labels": {
+          "cluster": "lab",
+          "kind": "node-logs"
+         },
+         "value": {
+          "$approx": [
+           0.666667,
+           1e-05
+          ]
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "prom": "run/detection.prom",
+     "has": [
+      {
+       "name": "security_detection_clusters_known",
+       "labels": {},
+       "value": 4
+      },
+      {
+       "name": "security_detection_clusters_covered",
+       "labels": {},
+       "value": 2
+      },
+      {
+       "name": "security_detection_sensor_ready_ratio",
+       "labels": {
+        "cluster": "lab",
+        "kind": "falco"
+       },
+       "value": 1
+      },
+      {
+       "name": "security_detection_backstop_rules",
+       "labels": {
+        "cluster": "lab"
+       },
+       "value": 3
+      },
+      {
+       "name": "security_detection_backstop_rules",
+       "labels": {
+        "cluster": "dev"
+       },
+       "value": 0
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

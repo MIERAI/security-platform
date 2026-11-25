@@ -1,0 +1,6 @@
+{
+ "detection": {
+  "drill_max_age": "36500d"
+ },
+ "name": "conformance"
+}

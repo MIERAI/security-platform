@@ -1,0 +1,96 @@
+{
+ "component": "collector-detection",
+ "title": "A log-store token_file that grants read access to group or others is refused: the checks that need the store are gaps saying so, and the token is never sent",
+ "contract": "collector-protocol/1.0 §2",
+ "origin": "collectors/detection HTTP: token_file read without a permission check",
+ "deviation": "DETECTION-D1",
+ "files": {
+  "instance.json": "instance.json",
+  "loki.token": {
+   "text": "{canary_token}\n",
+   "mode": "0644"
+  },
+  "data/.keep": {
+   "text": ""
+  }
+ },
+ "services": [
+  {
+   "name": "obs",
+   "argv": [
+    "{python}",
+    "{case}/mock_obs.py",
+    "--config",
+    "{case}/obs.json",
+    "--token-file",
+    "{sandbox}/loki.token"
+   ]
+  }
+ ],
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-detection",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance"
+    },
+    "writes_only_under": [
+     "run"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "run/detection.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "detection"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "no_secret": [
+      "{canary_token}"
+     ],
+     "in": "run"
+    },
+    {
+     "json": "run/detection.findings.json",
+     "subset": {
+      "coverage": {
+       "$contains": [
+        {
+         "asset": "log-source:auth/web-1",
+         "status": "gap",
+         "reason": {
+          "$regex": "token_file .*group/others"
+         }
+        },
+        {
+         "asset": "detection-ruler:log-store",
+         "status": "gap",
+         "reason": {
+          "$regex": "token_file .*group/others"
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "absent": ".svc-obs-token-seen"
+    }
+   ]
+  }
+ ]
+}

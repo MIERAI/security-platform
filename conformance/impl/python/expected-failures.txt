@@ -15,3 +15,5 @@ ledger/removed-exception-reopens         LEDGER-D5  an exception deleted by a hu
 scorecard/attestation-expiry-is-utc       SCORECARD-D1  dates parsed as local time: an expiry is an hour early under DST
 collector-agent-claude-code/memory-credentials-pattern-class  AGENT-D1  a count per memory file, no pattern class
 collector-agent-claude-code/malformed-settings-is-a-gap       AGENT-D2  a malformed settings file crashes the run (exit 1)
+collector-detection/token-file-readable-by-others  DETECTION-D1  token_file read and sent without a permission check
+collector-detection/drill-time-is-utc              DETECTION-D2  recorded times parsed as local time: an hour off under DST
