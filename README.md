@@ -51,6 +51,7 @@ sp findings --open --severity high && sp explain <id>         # what, why, how t
 | [instance-reference.md](docs/instance-reference.md) | every config key and its default |
 | [integrations.md](docs/integrations.md) | a team: tickets in your issue tracker, OCSF events to your SIEM; who owns what |
 | [adapters.md](docs/adapters.md) | supporting something new: discovery, exec, sink, notifier, collector |
+| [install.md](docs/install.md) | the `sp` release binary: download, verify its signature and build provenance, rebuild it |
 | [upgrade.md](docs/upgrade.md) | versions, upgrade and rollback, two-step breaking changes |
 | [contracts.md](docs/contracts.md) | the language-neutral contracts (`contracts/`), the black-box conformance suite (`conformance/`), replacing a component in another language |
 | [faq.md](docs/faq.md) | common questions and problems |
@@ -58,6 +59,7 @@ sp findings --open --severity high && sp explain <id>         # what, why, how t
 | [scorecard.md](docs/scorecard.md) | the programme scorecard: dimensions, pillars, controls, attestations |
 | [cloud.md](docs/cloud.md) | cloud posture (AWS, GCP, Azure): short-lived read-only access, engines, imports, what is validated where |
 | [scale.md](docs/scale.md) | measured limits: time and memory per stage at 1k / 10k / 100k findings, `bench/scale.py` |
+| [go.md](docs/go.md) | contributors: the move to Go, code layout, coding standard |
 | [design.md](docs/design.md) | why it works this way (Chinese); summaries in [日本語](docs/summary.ja.md) and [中文](docs/summary.zh.md) |
 
 **Division of responsibility**: detection and alerting on raw events belong to your SIEM, cloud checks to the

@@ -142,7 +142,11 @@ For release `vX.Y.Z` (e.g. `v0.3.0`), on an up-to-date clone of `main`:
 
 4. **Verify** from the tag: `e2e/kind/run.sh --ref vX.Y.Z` passes (its `last-pass.json` records `installed: vX.Y.Z`),
    and a fresh `git clone` + `git checkout vX.Y.Z` + `bin/sp-install <scratch dir>` creates `releases/vX.Y.Z`.
-5. **GitHub release** of the tag with the CHANGELOG section as notes (no environment data, ever).
+5. **GitHub release**: pushing the product tag runs `.github/workflows/release.yml`, which builds the `sp`
+   binaries, checks that a second build on another system is identical, attests their provenance and SBOM,
+   signs `SHA256SUMS` keylessly and uploads everything to a **draft** release whose notes are the CHANGELOG
+   section. Check the draft (no environment data, ever; `docs/install.md` verification commands pass on its
+   assets), then publish it. Component tags never start this workflow.
 
 A pre-release (`vX.Y.Z-rc.N`) goes the same way; installers pick the highest version when several product tags
 point at one commit, and a release sorts above its pre-releases.

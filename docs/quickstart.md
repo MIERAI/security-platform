@@ -18,6 +18,9 @@ export PATH=~/.venvs/security-platform/bin:~/bin:$PATH    # add this line to you
 sp --version
 ```
 
+Releases also ship a single `sp` binary per platform, signed and with build provenance: how to verify and
+install it is in [install.md](install.md). It uses the Python tree installed above.
+
 ## 2. Create your private data directory (1 minute)
 
 ```sh
