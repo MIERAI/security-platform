@@ -141,7 +141,7 @@
     {
      "file": ".svc-feeds.calls",
      "not_regex": [
-      "^(?!GET )"
+      "^(?!GET ).+"
      ]
     }
    ]

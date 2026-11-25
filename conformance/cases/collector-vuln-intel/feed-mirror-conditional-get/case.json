@@ -130,7 +130,7 @@
     {
      "file": ".svc-feeds.calls",
      "not_regex": [
-      "^(?!GET )"
+      "^(?!GET ).+"
      ]
     }
    ]
@@ -186,7 +186,7 @@
      "file": ".svc-feeds.calls",
      "lines": 3,
      "regex": [
-      "GET /kev.json inm=\"kev-1\"\\nGET /kev.json inm=\"kev-1\""
+      "inm=-\\nGET /kev.json inm=\"kev-1\"$"
      ]
     }
    ]

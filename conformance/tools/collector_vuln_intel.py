@@ -456,7 +456,7 @@ def mirror_case(h, name, title, deviation, routes, feeds, stale, expect, steps2=
         files[f"data/cache/feeds/{rel}"] = {"raw": nm} if raw else nm
         files[f"data/cache/feeds/{rel}.meta.json"] = {"json": {"etag": etag, "last_modified": None, "url": "x", "checked_at": 1000}}
     steps = [{"name": "collect", "exec": {"impl": "collector-vuln-intel", "env": env(h), "writes_only_under": WRITES},
-              "expect": h.protocol_checks("vuln-intel") + expect + [{"file": ".svc-feeds.calls", "not_regex": ["^(?!GET )"]}]}]
+              "expect": h.protocol_checks("vuln-intel") + expect + [{"file": ".svc-feeds.calls", "not_regex": ["^(?!GET ).+"]}]}]
     h.write_case("collector-vuln-intel", name, {
         "title": title, "contract": C, "deviation": deviation,
         "origin": "adapters/feeds.py fetch(): fixed source URLs, cache replaced before the payload is read",
@@ -483,7 +483,7 @@ def deviation_cases(h):
          {"file": ".svc-feeds.calls", "regex": ['^GET /kev.json inm="kev-1"$', "^GET /epss.csv.gz inm=-$"], "lines": 2}],
         [{"name": "again: KEV revalidated (max_age_hours 0), EPSS still fresh", "remove": ["run"],
           "exec": {"impl": "collector-vuln-intel", "env": env(h), "writes_only_under": WRITES},
-          "expect": [kev_finding, {"file": ".svc-feeds.calls", "lines": 3, "regex": ['GET /kev.json inm="kev-1"\\nGET /kev.json inm="kev-1"']}]}])
+          "expect": [kev_finding, {"file": ".svc-feeds.calls", "lines": 3, "regex": ['inm=-\\nGET /kev.json inm="kev-1"$']}]}])
     mirror_case(
         h, "corrupt-feed-keeps-last-good-copy",
         "A download that does not parse (an HTML error page) or exceeds the feed's size limit never replaces the last "
