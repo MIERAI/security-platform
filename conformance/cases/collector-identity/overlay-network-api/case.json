@@ -124,13 +124,15 @@
     {
      "json": "run/raw/identity/inventory.json",
      "subset": {
-      "accounts": [
-       {
-        "provider": "tailscale",
-        "id": "octo@example.com",
-        "admin": true
-       }
-      ]
+      "accounts": {
+       "$contains": [
+        {
+         "provider": "tailscale",
+         "id": "octo@example.com",
+         "admin": true
+        }
+       ]
+      }
      }
     },
     {

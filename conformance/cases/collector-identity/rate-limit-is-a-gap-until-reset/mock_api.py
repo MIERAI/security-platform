@@ -4,7 +4,7 @@ Test tool, stdlib only. Writes its port to --port-file; answers from --data (rou
 "<METHOD> <path?query> auth=<yes|no> inm=<yes|no>" (never a header value).
 
 Route value: {"body": ..., "status": 200, "headers": {...}, "paginate": true, "rate_limited": true}. A route is looked up
-by path+query, then by path alone. GitHub routes need the conformance token (see fake_gh.py), /api/v2/... routes the
+by path+query, then without its page parameter, then by path alone. GitHub routes need the conformance token (see fake_gh.py), /api/v2/... routes the
 Tailscale API key of --data or the access token this mock issues at POST /api/v2/oauth/token. Lists of a `paginate`
 route are served `page_size` at a time with Link: rel="next" (servers may cap per_page; clients must follow Link).
 Every answer carries an ETag; a matching If-None-Match gets 304. Only GET (and the OAuth token POST) exist here.
@@ -66,7 +66,8 @@ def handler(data, log):
             u = urllib.parse.urlsplit(self.path)
             q = dict(urllib.parse.parse_qsl(u.query))
             routes = data["routes"]
-            r = routes.get(self.path) or routes.get(u.path)
+            unpaged = urllib.parse.urlencode([(k, v) for k, v in urllib.parse.parse_qsl(u.query) if k != "page"])
+            r = routes.get(self.path) or routes.get(u.path + ("?" + unpaged if unpaged else "")) or routes.get(u.path)
             if not self.authorized(u.path):
                 return self.reply(401, {"message": "Requires authentication"})
             if r is None:

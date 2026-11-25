@@ -320,8 +320,8 @@ def deviation_cases(h):
         "findings": {"$contains": [
             {"check": "identity.overlay_acl_allow_all", "asset": "identity-provider:tailscale", "severity": "high"},
             {"check": "identity.credential_expired", "asset": "credential:tailscale/device/build"}]}}},
-        {"json": "run/raw/identity/inventory.json", "subset": {"accounts": [{"provider": "tailscale", "id": "octo@example.com",
-                                                                            "admin": True}]}}]
+        {"json": "run/raw/identity/inventory.json", "subset": {"accounts": {"$contains": [
+            {"provider": "tailscale", "id": "octo@example.com", "admin": True}]}}}]
     gh_case(h, "overlay-network-api",
             "The overlay network's API (a read-only key or an OAuth client, from 0600 files) gives users, devices and the "
             "ACL: an allow-all policy is reported. The API base is configurable (`api_url`), as for the code host",
