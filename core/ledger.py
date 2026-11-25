@@ -47,18 +47,32 @@ def scope(asset):
     return typ, rest
 
 
+class Coverage:
+    """The "ok" coverage entries of one run, indexed so that a lookup costs O(len(asset)) instead of O(len(oks)).
+    Same rules as before (bench/scale.py measured the linear scan at minutes per run for 100k findings):
+      - exact match, or an entry that is a prefix of the asset ending right before one of ":/@";
+      - an UMBRELLA entry (host:h, k8s-cluster:c) covers its sub-asset types with the same scope."""
+
+    def __init__(self, oks):
+        self.exact = set(oks)
+        self.umbrella = {scope(c) for c in self.exact if c.partition(":")[0] in UMBRELLA}
+
+    def __contains__(self, asset):
+        if asset in self.exact:
+            return True
+        for i, ch in enumerate(asset):
+            if ch in ":/@" and asset[:i] in self.exact:
+                return True
+        t, sc = scope(asset)
+        return any(t in sub and (ct, sc) in self.umbrella for ct, sub in UMBRELLA.items())
+
+
 def covered(asset, oks, gap_names):
-    """A finding may be marked fixed only if this run COVERED its asset (design §1: no coverage = unknown)."""
+    """A finding may be marked fixed only if this run COVERED its asset (design §1: no coverage = unknown).
+    `oks`: a list of coverage assets or a prebuilt Coverage (reuse one per document: large runs)."""
     if any(g and g in asset for g in gap_names):
         return False
-    t, sc = scope(asset)
-    for c in oks:
-        if asset == c or any(asset.startswith(c + sep) for sep in ":/@"):
-            return True
-        ct, csc = scope(c)
-        if t in UMBRELLA.get(ct, ()) and sc == csc:
-            return True
-    return False
+    return asset in (oks if isinstance(oks, Coverage) else Coverage(oks))
 
 
 def urgent(e):
@@ -117,6 +131,7 @@ def main():
         gaps_total += len(gap_names)
         seen = set()
         prev_ok = cov_seen.get(col, [])
+        prev_cov = Coverage(prev_ok)
         for f in d["findings"]:
             seen.add(f["id"])
             e = E.get(f["id"])
@@ -124,7 +139,7 @@ def main():
                 # time-to-know counts only what appears on an asset this collector had ALREADY covered: the first
                 # inventory of a new asset (or the first run of a new check source) is a baseline, not a detection delay
                 e = E[f["id"]] = dict(first_seen=f["observed_at"], status="open", fixed_at=None, reopened_count=0,
-                                      ttk_counted=bool(prev_ok) and covered(f["asset"], prev_ok, []))
+                                      ttk_counted=bool(prev_ok) and f["asset"] in prev_cov)
             elif e["status"] == "fixed":
                 e.update(status="open", fixed_at=None, reopened_count=e.get("reopened_count", 0) + 1,
                          time_to_fix_days=None)
@@ -140,6 +155,7 @@ def main():
                     e["time_to_know_hours"] = round(max(0, t(e["first_seen"]) - t(disclosed)) / 3600, 1)
         oks = [g["asset"] for g in d["coverage"] if g["status"] == "ok"]
         cov_seen[col] = sorted(set(prev_ok) | set(oks))
+        oks = Coverage(oks)
         for fid_, e in E.items():
             if e.get("collector") != col or fid_ in seen or e["status"] not in ("open", "accepted"):
                 continue

@@ -53,6 +53,7 @@ sp findings --open --severity high && sp explain <id>         # what, why, how t
 | [runner.md](docs/runner.md) | operations: schedules, multi-host topologies, in-cluster hub, metrics delivery |
 | [scorecard.md](docs/scorecard.md) | the programme scorecard: dimensions, pillars, controls, attestations |
 | [cloud.md](docs/cloud.md) | cloud posture (AWS, GCP, Azure): short-lived read-only access, engines, imports, what is validated where |
+| [scale.md](docs/scale.md) | measured limits: time and memory per stage at 1k / 10k / 100k findings, `bench/scale.py` |
 | [design.md](docs/design.md) | why it works this way (Chinese); summaries in [日本語](docs/summary.ja.md) and [中文](docs/summary.zh.md) |
 
 Proof of generality: `e2e/kind/run.sh` installs a tagged release from this repository into a fictional company's
