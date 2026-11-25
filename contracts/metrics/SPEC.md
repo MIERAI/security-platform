@@ -29,7 +29,8 @@ implementation of a component MUST emit the series its producer row lists, with 
 - **Labels MUST NOT carry asset details** (host names, addresses, image names, repository names, finding ids, user
   names). Allowed label keys are those in the registry: `collector`, `site`, `job`, `sink`, `layer`, `severity`,
   `status`, `sli`, `quantile`, `dimension`, `pillar`, `function`, `state`, `asset_class`, `priority`, `result`,
-  `version`, `release`, and collector-defined ones of the same nature (`cluster`, `source`, `kind`, `feed`, `store`).
+  `version`, `release`, `component` (a product component such as `ledger`, for the implementation-switch
+  series), and collector-defined ones of the same nature (`cluster`, `source`, `kind`, `feed`, `store`).
 - `collector` is added by the runner to every collector-reported metric (findings document `metrics`).
 
 ## 3. Stability classes (registry `stability`)

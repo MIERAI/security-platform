@@ -574,6 +574,42 @@
    "used_by_generated": false
   },
   {
+   "name": "security_impl_shadow_diffs",
+   "type": "gauge",
+   "labels": [
+    "site",
+    "component"
+   ],
+   "producer": "runner",
+   "stability": "stable",
+   "meaning": "Unexplained differences between the reference (Python) and the Go implementation of a component in its last shadow comparison (runner.implementations: shadow); 0 = identical or only explained differences",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_impl_shadow_explained_diffs",
+   "type": "gauge",
+   "labels": [
+    "site",
+    "component"
+   ],
+   "producer": "runner",
+   "stability": "stable",
+   "meaning": "Differences of the last shadow comparison that are the target behaviour of a known deviation (e.g. LEDGER-D2 due dates)",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_impl_shadow_last_run_timestamp_seconds",
+   "type": "gauge",
+   "labels": [
+    "site",
+    "component"
+   ],
+   "producer": "runner",
+   "stability": "stable",
+   "meaning": "When the last shadow comparison of the component ran (heartbeat; absent while no Go binary is found)",
+   "used_by_generated": false
+  },
+  {
    "name": "security_metrics_published_timestamp_seconds",
    "type": "gauge",
    "labels": [

@@ -24,6 +24,10 @@ trigger stays dumb and the same everywhere:
     retention: 14d                  # optional: delete runs/<date>/ older than this (default: keep everything)
     tick_stale_after: 1h            # the trigger's heartbeat is overdue after this (alert SecurityRunnerStale); a
                                     # hub that sleeps at night (a laptop) sets e.g. 12h
+    implementations:                # which implementation runs a component (docs/contracts.md): python (default),
+      ledger: shadow                # go, or shadow (python writes, go runs on a copy, outputs diffed); ledger,
+      remediation: python           # remediation
+    go_binary: /usr/local/bin/sp    # optional: the Go `sp` binary (default: /usr/local/bin/sp, then `sp` on PATH)
     jobs:
       <name>:
         type: collector | command | ingest | digest | remediation | export | snapshot | push | pull-snapshot | events
@@ -68,10 +72,12 @@ import glob
 import hashlib
 import json
 import os
+import re
 import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -108,6 +114,16 @@ class Runner:
         self.latest = os.path.join(self.data, "latest")
         for d in (self.state_dir, os.path.join(self.state_dir, "locks"), self.latest):
             os.makedirs(d, exist_ok=True)
+        self._once, self._probed = set(), {}
+        impls = self.cfg.get("implementations") or {}
+        if not isinstance(impls, dict):
+            self.log_once("implementations", f"runner.implementations is not a mapping ({type(impls).__name__}): python everywhere")
+            impls = {}
+        for comp, v in impls.items():
+            if comp not in COMPONENTS or v not in IMPLS:
+                self.log_once(f"impl:{comp}", f"runner.implementations.{comp}: {v!r} ignored (components "
+                                              f"{sorted(COMPONENTS)}, values {list(IMPLS)}): python")
+        self.impls = {c: v for c, v in impls.items() if c in COMPONENTS and v in IMPLS}
         self.jobs = {}
         for name, j in (self.cfg.get("jobs") or {}).items():
             j = dict(j or {})
@@ -298,13 +314,16 @@ class Runner:
     def ledger(self, run_dir):
         lk = self.lock("ledger", blocking=True)
         try:
-            p = subprocess.run([sys.executable, os.path.join(ROOT, "core", "ledger.py"), "--run", run_dir, "--data", self.data,
-                                "--latest", self.latest], capture_output=True, text=True, timeout=600)
-            with open(os.path.join(run_dir, "ledger.log"), "w") as f:
-                f.write(p.stdout + p.stderr)
-            return (0, "ledger merged") if p.returncode == 0 else (p.returncode, f"ledger rc={p.returncode}: {p.stderr.strip()[-200:]}")
+            return self.component("ledger", {"run_dir": run_dir, "data": self.data, "latest": self.latest,
+                                             "instance": self.instance_path})
         finally:
             lk.close()
+
+    def exec_ledger(self, argv, a):
+        p = subprocess.run(argv, capture_output=True, text=True, timeout=600)
+        with open(os.path.join(a["run_dir"], "ledger.log"), "w") as f:
+            f.write(p.stdout + p.stderr)
+        return (0, "ledger merged") if p.returncode == 0 else (p.returncode, f"ledger rc={p.returncode}: {p.stderr.strip()[-200:]}")
 
     def job_ingest(self, name, j, run_dir):
         """Pull a site's outbox into the ledger (and publish an asset list to it, if configured)."""
@@ -455,10 +474,161 @@ class Runner:
         return rc, "summary sent" if rc == 0 else f"notify rc={rc} (see notify.log)"
 
     def job_remediation(self, name, j, run_dir):
-        rc = self.spawn([sys.executable, os.path.join(ROOT, "core", "remediation.py"), "--data", self.data,
-                         "--instance", self.instance_path], self.env(j, run_dir), cron.parse_duration(j.get("timeout", "10m")),
-                        os.path.join(run_dir, "remediation.log"))
+        return self.component("remediation", {"run_dir": run_dir, "data": self.data, "instance": self.instance_path, "job": j})
+
+    def exec_remediation(self, argv, a):
+        rc = self.spawn(argv, self.env(a["job"], a["run_dir"]), cron.parse_duration(a["job"].get("timeout", "10m")),
+                        os.path.join(a["run_dir"], "remediation.log"))
         return rc, "tracker synced" if rc == 0 else f"remediation rc={rc} (see remediation.log)"
+
+    # ---- implementation switch: python | go | shadow per component (docs/contracts.md) -------------------
+    def log_once(self, key, msg):
+        if key not in self._once:
+            self._once.add(key)
+            log(msg)
+
+    def go_binary(self, comp):
+        """The Go `sp` binary that implements this component's subcommand, or None. A candidate must PROVE it is the Go
+        binary (`version --json`, schema version/v1, the subcommand in go_subcommands): the tree's bin/sp is the
+        Python CLI and an unrelated `sp` on PATH must never be run as the ledger. Probed once per process."""
+        sub = COMPONENTS[comp]["subcommand"]
+        cands = [os.path.expanduser(str(self.cfg["go_binary"]))] if self.cfg.get("go_binary") else \
+            list(GO_CANDIDATES) + [shutil.which("sp")]
+        for c in cands:
+            if not c:
+                continue
+            if c not in self._probed:
+                self._probed[c] = probe_go(c)
+            if sub in self._probed[c]:
+                return c
+        return None
+
+    def component(self, comp, a):
+        """Run a component (spec COMPONENTS[comp]) with the implementation the instance selects; returns (rc, note).
+        go without a Go binary falls back to python (logged once). shadow: python writes, go runs on a copy."""
+        spec, mode = COMPONENTS[comp], self.impls.get(comp, "python")
+        run = getattr(self, spec["exec"])
+        if mode == "python":
+            return run(spec["python"](a), a)
+        binp = self.go_binary(comp)
+        if binp is None:
+            self.log_once(f"nogo:{comp}", f"implementation {mode} requested for {comp} but no Go sp binary with "
+                                          f"`{spec['subcommand']}` was found; using python" +
+                                          (" (no shadow comparison)" if mode == "shadow" else ""))
+            if mode == "shadow":
+                self.save_shadow(comp, a, {"go_available": False})
+            return run(spec["python"](a), a)
+        if mode == "go":
+            return run([binp] + spec["go"](a), a)
+        return self.shadow(comp, spec, a, binp, run)
+
+    def shadow(self, comp, spec, a, binp, run):
+        tmp = tempfile.mkdtemp(prefix=f"sp-shadow-{comp}-")
+        try:
+            try:
+                ga = shadow_copy(spec, a, os.path.join(tmp, "go"))   # BEFORE python runs: same inputs on both sides
+                gr = [shadow_copy(spec, a, os.path.join(tmp, f"ref{i}")) for i in range(len(spec.get("reference", ())))]
+            except Exception as e:  # noqa: BLE001 - the shadow never decides the job's result
+                log(f"shadow {comp}: copying the inputs: {type(e).__name__}: {str(e)[:200]}")
+                ga, gr = None, []
+            now = int(time.time())
+            if spec.get("python_now"):
+                a = dict(a, now=now)
+            rc, note = run(spec["python"](a), a)        # the source of truth, exactly as without shadow
+            if ga is not None:
+                try:
+                    self.compare(comp, spec, a, dict(ga, now=now, shadow=True), binp, rc,
+                                 [dict(g, now=now, shadow=True) for g in gr])
+                except Exception as e:  # noqa: BLE001
+                    log(f"shadow {comp}: {type(e).__name__}: {str(e)[:200]}")
+            return rc, note
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def go_diffs(self, spec, a, g, binp, py_rc, extra=()):
+        """Run the Go implementation on the copy g; its exit status, output and differences from the python side."""
+        env = dict(os.environ, SP_DATA=g["data"], SP_RUN_DIR=g["run_dir"])   # never the real directories
+        try:
+            p = subprocess.run([binp] + spec["go"](g) + list(extra), capture_output=True, text=True, env=env,
+                               timeout=spec["timeout"](a))
+            go_rc, out = p.returncode, p.stdout + p.stderr
+        except subprocess.TimeoutExpired:
+            go_rc, out = 124, "timeout"
+        diffs = [] if go_rc == py_rc else [{"file": "exit status", "path": "", "python": py_rc, "go": go_rc}]
+        for label, base, rel, kind in spec["outputs"](self, a):
+            diffs += diff_output(label, kind, [os.path.join(x[base], rel) for x in (a, g)], spec)
+        return go_rc, out, diffs
+
+    def compare(self, comp, spec, a, ga, binp, py_rc, gr=()):
+        go_rc, out, diffs = self.go_diffs(spec, a, ga, binp, py_rc)
+        with open(os.path.join(a["run_dir"], f"shadow-{comp}.log"), "w") as f:
+            f.write(out)
+        # attribution: the same Go program with known deviations switched back to the reference behaviour
+        # (--reference-behaviour), one run per entry of spec["reference"]. A difference that disappears in such a run
+        # IS that deviation's target behaviour; one that stays in all of them is unexplained.
+        refs = [({(d["file"], d["path"]) for d in self.go_diffs(spec, a, g, binp, py_rc, args)[2]}, reason)
+                for g, (args, reason) in zip(gr, spec.get("reference", ()))]
+        failed = self.reference_failure(spec, a, py_rc)
+        for d in diffs:
+            why = [r for f, pat, side, r in spec.get("explained", ()) if f == d["file"] and re.match(pat, d["path"])
+                   and d[side] == ABSENT]
+            if failed:
+                d["explained"] = failed
+            elif why:
+                d["explained"] = why[0]
+            else:
+                d["explained"] = next((r for keys, r in refs if (d["file"], d["path"]) not in keys), None)
+                if d["explained"] is None:
+                    del d["explained"]
+        n_exp = sum(1 for d in diffs if d.get("explained"))
+        by = {}
+        for d in diffs:
+            if d.get("explained"):
+                by[d["explained"]] = by.get(d["explained"], 0) + 1
+        rep = {"schema": SHADOW_SCHEMA, "at": int(time.time()), "component": comp, "go_binary": binp, "go_available": True,
+               "python_rc": py_rc, "go_rc": go_rc, "unexplained": len(diffs) - n_exp, "explained": n_exp, "explained_by": by,
+               "differences": diffs[:SHADOW_MAX_DIFFS], "truncated": len(diffs) > SHADOW_MAX_DIFFS}
+        with open(os.path.join(a["run_dir"], f"shadow-{comp}.json"), "w") as f:
+            json.dump(rep, f, indent=1, sort_keys=True, ensure_ascii=False)
+        self.save_shadow(comp, a, {k: v for k, v in rep.items() if k not in ("differences", "truncated")})
+        if rep["unexplained"]:
+            log(f"shadow {comp}: {rep['unexplained']} unexplained difference(s), {n_exp} explained "
+                f"(see {os.path.relpath(os.path.join(a['run_dir'], f'shadow-{comp}.json'), self.data)})")
+
+    @staticmethod
+    def reference_failure(spec, a, py_rc):
+        """The known deviation that made the reference fail (e.g. LEDGER-D1: a finding without `kind`), from its log;
+        every difference of such a run follows from it. None when python succeeded or failed for another reason."""
+        if py_rc == 0 or not spec.get("python_failures"):
+            return None
+        text = _read(spec["python_log"](a))
+        return next((r for pat, r in spec["python_failures"] if re.search(pat, text)), None)
+
+    def save_shadow(self, comp, a, summary):
+        d = os.path.join(self.state_dir, "shadow")
+        os.makedirs(d, exist_ok=True)
+        summary = dict(summary, component=comp, at=summary.get("at", int(time.time())),
+                       run_dir=os.path.relpath(a["run_dir"], self.data))
+        with open(os.path.join(d, f"{comp}.json.tmp"), "w") as f:
+            json.dump(summary, f, indent=1, sort_keys=True)
+        os.replace(os.path.join(d, f"{comp}.json.tmp"), os.path.join(d, f"{comp}.json"))
+
+    def shadow_series(self):
+        s = []
+        for p in sorted(glob.glob(os.path.join(self.state_dir, "shadow", "*.json"))):
+            try:
+                st = json.load(open(p))
+            except ValueError:
+                continue
+            if not st.get("go_available"):
+                continue      # nothing compared: the comparison heartbeat goes stale, which is what should show
+            lab = {"site": self.site, "component": st["component"]}
+            s += [("security_impl_shadow_diffs", lab, st.get("unexplained", 0),
+                   "Unexplained differences between the Python and the Go implementation (last shadow comparison)"),
+                  ("security_impl_shadow_explained_diffs", lab, st.get("explained", 0),
+                   "Differences explained by a known deviation's target behaviour (last shadow comparison)"),
+                  ("security_impl_shadow_last_run_timestamp_seconds", lab, st["at"], "When the last shadow comparison ran")]
+        return s
 
     def job_export(self, name, j, run_dir):
         """Ledger -> the team's issue tracker and SIEM (core/export.py, instance `export:`)."""
@@ -603,6 +773,7 @@ class Runner:
             for col, sched in (j.get("site_collectors") or {}).items():
                 s.append(("security_collector_expected_interval_seconds", {"collector": col}, cron.Cron(sched).interval(now),
                           "Seconds between scheduled runs of the collector"))
+        s += self.shadow_series()
         s.append(("security_runner_info", {"site": self.site, "version": VERSION, "release": RELEASE}, 1,
                   "Runner version and the product release it was installed as"))
         return s
@@ -666,6 +837,204 @@ class Runner:
         os.replace(p + ".tmp", p)
         if self.cfg.get("sinks"):
             sinks.textfile(local, self.metrics_text(now))   # the local copy carries this tick's sink results
+
+
+# ---- implementation switch ------------------------------------------------------------------------------------------
+# One entry per component that has more than one implementation. Everything component-specific lives here, so a new
+# component (scorecard, ...) is one more entry: argv of each implementation, how the runner executes it (log file,
+# timeout, result note), what a shadow run copies, which outputs it compares and how they are normalized, and which
+# differences are the TARGET behaviour of a known deviation (contracts/*/SPEC.md) rather than a defect.
+IMPLS = ("python", "go", "shadow")
+GO_CANDIDATES = ("/usr/local/bin/sp",)            # then `sp` on PATH
+SHADOW_SCHEMA = "security-platform/shadow-diff/v1"
+SHADOW_MAX_DIFFS = 200                             # stored per report; all of them are counted
+ABSENT = "<absent>"
+RUN = "{run}"                                      # in `inputs`: the run directory (copied without subdirectories)
+
+
+def probe_go(path):
+    """The Go subcommands of the binary at `path` ([] when it is not the Go sp binary or cannot run)."""
+    try:
+        p = subprocess.run([path, "version", "--json"], capture_output=True, text=True, timeout=10,
+                           stdin=subprocess.DEVNULL)
+        v = json.loads(p.stdout) if p.returncode == 0 else {}
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return []
+    if not isinstance(v, dict) or v.get("schema") != "security-platform/version/v1":
+        return []
+    return [x for x in v.get("go_subcommands") or [] if isinstance(x, str)]
+
+
+def shadow_copy(spec, a, tmp):
+    """Copy the component's inputs into tmp/data with the same layout (relative paths, e.g. ledger runs[].run_dir,
+    stay equal) and return the arguments that point the Go implementation at the copy."""
+    data = os.path.join(tmp, "data")
+    os.makedirs(data)
+    run = a["run_dir"]
+    rel = os.path.relpath(run, a["data"])
+    grun = os.path.join(data, rel) if not rel.startswith("..") else os.path.join(tmp, "run")
+    for x in spec["inputs"]:
+        src, dst = (run, grun) if x == RUN else (os.path.join(a["data"], x), os.path.join(data, x))
+        if x == RUN:
+            os.makedirs(dst, exist_ok=True)
+            for f in os.listdir(src):
+                if os.path.isfile(os.path.join(src, f)):
+                    shutil.copy2(os.path.join(src, f), os.path.join(dst, f))
+        elif os.path.isdir(src):
+            shutil.copytree(src, dst, symlinks=True)
+        elif os.path.exists(src):
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            shutil.copy2(src, dst)
+    os.makedirs(grun, exist_ok=True)
+    return dict(a, data=data, run_dir=grun, latest=os.path.join(data, "latest"))
+
+
+def _show(v):
+    return v if v == ABSENT else json.dumps(v, sort_keys=True, ensure_ascii=False)[:200]
+
+
+def jdiff(p, g, path, out, file):
+    """Path-level differences of two JSON values (numbers compare by value: 14 == 14.0)."""
+    if isinstance(p, dict) and isinstance(g, dict):
+        for k in sorted(set(p) | set(g), key=str):
+            jdiff(p.get(k, ABSENT), g.get(k, ABSENT), f"{path}.{k}" if path else str(k), out, file)
+    elif isinstance(p, list) and isinstance(g, list):
+        for i in range(max(len(p), len(g))):
+            jdiff(p[i] if i < len(p) else ABSENT, g[i] if i < len(g) else ABSENT, f"{path}[{i}]", out, file)
+    elif p != g or (type(p) is bool) != (type(g) is bool):   # True == 1 in Python, not in JSON
+        out.append({"file": file, "path": path, "python": _show(p), "go": _show(g)})
+
+
+def _read(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        return ABSENT
+
+
+def prom_samples(text, volatile):
+    """{series: value} and the set of comment lines; samples of `volatile` families (heartbeats) are dropped."""
+    samples, comments = {}, set()
+    for ln in text.splitlines():
+        if not ln.strip():
+            continue
+        if ln.startswith("#"):
+            comments.add(ln)
+            continue
+        key, _, val = ln.rpartition(" ")
+        if key.split("{", 1)[0] not in volatile:
+            samples[key] = val
+    return samples, comments
+
+
+def diff_output(label, kind, paths, spec):
+    """Differences of one output between the python (paths[0]) and the go (paths[1]) side."""
+    out = []
+    if kind == "text":                             # a glob: every matching file, by name
+        names = sorted({os.path.basename(x) for p in paths for x in glob.glob(p)})
+        for n in names:
+            a, b = (_read(os.path.join(os.path.dirname(p), n)) for p in paths)
+            if a != b:
+                out.append({"file": f"{os.path.dirname(label)}/{n}".lstrip("/"), "path": "",
+                            "python": "<present>" if a != ABSENT else ABSENT, "go": "<present>" if b != ABSENT else ABSENT})
+        return out
+    texts = [_read(p) for p in paths]
+    if ABSENT in texts:
+        if texts[0] != texts[1]:
+            out.append({"file": label, "path": "", "python": "<present>" if texts[0] != ABSENT else ABSENT,
+                        "go": "<present>" if texts[1] != ABSENT else ABSENT})
+        return out
+    if kind == "json":
+        p, g = (json.loads(t) for t in texts)
+        p, g = spec.get("normalize", {}).get(label, lambda x, y: (x, y))(p, g)
+        jdiff(p, g, "", out, label)
+    elif kind == "jsonl":                          # one object per line, keyed by spec["jsonl_key"]
+        sides = [{}, {}]
+        for side, t in zip(sides, texts):
+            for i, ln in enumerate(x for x in t.splitlines() if x.strip()):
+                o = json.loads(ln)
+                side[str(spec["jsonl_key"](o) if spec.get("jsonl_key") else i)] = o
+        jdiff(sides[0], sides[1], "", out, label)
+    elif kind == "prom":
+        (ps, pc), (gs, gc) = (prom_samples(t, spec.get("volatile", ())) for t in texts)
+        jdiff(ps, gs, "", out, label)
+        for ln in sorted(pc ^ gc):
+            out.append({"file": label, "path": ln, "python": "<present>" if ln in pc else ABSENT,
+                        "go": "<present>" if ln in gc else ABSENT})
+    return out
+
+
+def _drop(doc, keys):
+    return {k: v for k, v in doc.items() if k not in keys} if isinstance(doc, dict) else doc
+
+
+def norm_ledger(p, g):
+    """Write times differ by construction; a run record may carry implementation-specific keys (core version, ...)."""
+    p, g = _drop(p, ("updated_at",)), _drop(g, ("updated_at",))
+    pr, gr = p.get("runs") or [], g.get("runs") or []
+    for i in range(min(len(pr), len(gr))):
+        one_side = set(pr[i]) ^ set(gr[i])
+        pr[i], gr[i] = (_drop(r, {"at", "core"} | one_side) for r in (pr[i], gr[i]))
+    return p, g
+
+
+def norm_items(p, g):
+    return _drop(p, ("updated_at", "core", "implementation")), _drop(g, ("updated_at", "core", "implementation"))
+
+
+def _files_tracker(r):
+    t = (r.inst.get("remediation") or {}).get("tracker") or {}
+    return not isinstance(t, dict) or t.get("type", "files") == "files"
+
+
+COMPONENTS = {
+    "ledger": {
+        "subcommand": "ledger",
+        "exec": "exec_ledger",
+        "timeout": lambda a: 600,
+        "python": lambda a: [sys.executable, os.path.join(ROOT, "core", "ledger.py"), "--run", a["run_dir"],
+                             "--data", a["data"], "--latest", a["latest"]],
+        "go": lambda a: ["ledger", "merge", "--run", a["run_dir"], "--data", a["data"], "--latest", a["latest"],
+                         "--instance", a["instance"]] + (["--now", str(int(a["now"]))] if a.get("now") else []),
+        "inputs": ["ledger.json", "exceptions.yaml", "catalog-review.yaml", "latest", RUN],
+        "outputs": lambda r, a: [("ledger.json", "data", "ledger.json", "json"),
+                                 ("metrics/ledger.prom", "data", os.path.join("metrics", "ledger.prom"), "prom"),
+                                 ("sli.prom", "run_dir", "sli.prom", "prom"), ("ocsf.jsonl", "run_dir", "ocsf.jsonl", "jsonl")],
+        "normalize": {"ledger.json": norm_ledger},
+        "jsonl_key": lambda o: (o.get("finding_info") or {}).get("uid"),
+        "volatile": ("security_ledger_last_update_timestamp_seconds",),
+        # (file, path regex, side that lacks the value, reason): the TARGET behaviour of a known deviation
+        "explained": [("ledger.json", r"^entries\.[0-9a-f]{12}\.due_at$", "python", "LEDGER-D2")],
+        # attribution of the other differences: Go runs with deviations switched back to the reference behaviour, one
+        # deviation at a time, then together (a difference only both together remove); LEDGER-D1 and D4 cannot be
+        # switched back: D1 makes the reference fail (python_failures), D4 only shows outside UTC
+        "reference": [(["--reference-behaviour", "LEDGER-D5"], "LEDGER-D5"),
+                      (["--reference-behaviour", "LEDGER-D3"], "LEDGER-D3"),
+                      (["--reference-behaviour", "LEDGER-D2,LEDGER-D3,LEDGER-D5"], "LEDGER-D3+D5")],
+        # (regex on the reference's log, reason): a known deviation that makes the reference fail the whole merge
+        "python_log": lambda a: os.path.join(a["run_dir"], "ledger.log"),
+        "python_failures": [(r"KeyError: 'kind'", "LEDGER-D1")],
+    },
+    "remediation": {
+        "subcommand": "ledger",
+        "exec": "exec_remediation",
+        "timeout": lambda a: cron.parse_duration(a["job"].get("timeout", "10m")),
+        "python_now": True,                         # shadow: both sides get the same --now, so items are comparable
+        "python": lambda a: [sys.executable, os.path.join(ROOT, "core", "remediation.py"), "--data", a["data"],
+                             "--instance", a["instance"]] + (["--now", str(int(a["now"]))] if a.get("now") else []),
+        "go": lambda a: ["ledger", "track", "--data", a["data"], "--instance", a["instance"]] +
+                        (["--now", str(int(a["now"]))] if a.get("now") else []) +
+                        (["--no-external-sync"] if a.get("shadow") else []),
+        "inputs": ["ledger.json", "tracker"],
+        "outputs": lambda r, a: [("tracker/items.json", "data", os.path.join("tracker", "items.json"), "json"),
+                                 ("metrics/remediation.prom", "data", os.path.join("metrics", "remediation.prom"), "prom")] +
+                                ([("tracker/*.md", "data", os.path.join("tracker", "*.md"), "text")] if _files_tracker(r) else []),
+        "normalize": {"tracker/items.json": norm_items},
+        "volatile": ("security_remediation_last_update_timestamp_seconds",),
+        "explained": [],
+    },
+}
 
 
 def merge_families(text):
