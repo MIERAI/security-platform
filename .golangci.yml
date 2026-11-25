@@ -1,0 +1,131 @@
+# golangci-lint v2 configuration (version pinned in .github/workflows/go.yml). Strict on purpose: this is a
+# security product. A `//nolint:<linter> // <reason>` needs both the linter name and the reason (nolintlint).
+version: "2"
+run:
+  timeout: 5m
+  tests: true
+linters:
+  default: none
+  enable:
+    - bodyclose        # HTTP response bodies are closed
+    - contextcheck     # contexts are passed down, not replaced
+    - copyloopvar
+    - depguard         # standard library and this module only (docs/go.md: dependencies are justified)
+    - durationcheck
+    - errcheck
+    - errname
+    - errorlint        # errors.Is/As and %w
+    - exhaustive
+    - forbidigo
+    - gochecknoglobals # no global mutable state
+    - gochecknoinits
+    - gocritic
+    - gocyclo
+    - gosec
+    - govet
+    - ineffassign
+    - misspell
+    - nakedret
+    - nilerr
+    - noctx            # network calls and subprocesses carry a context
+    - nolintlint
+    - predeclared
+    - revive
+    - staticcheck
+    - thelper
+    - tparallel
+    - unconvert
+    - unparam
+    - unused
+    - usestdlibvars
+    - wastedassign
+  settings:
+    depguard:
+      rules:
+        main:
+          list-mode: strict
+          allow:
+            - $gostd
+            - github.com/MIERAI/security-platform
+    errcheck:
+      check-type-assertions: true
+    forbidigo:
+      forbid:
+        - pattern: ^(fmt\.Print(f|ln)?|print|println)$
+          msg: write to an injected io.Writer, not to the process's stdout
+        - pattern: ^os\.(Getenv|LookupEnv|Environ|Exit)$
+          msg: read the environment and exit only in cmd/*/main.go; pass values in
+      analyze-types: true
+    gocritic:
+      enabled-tags: [diagnostic, performance, style]
+      disabled-checks: [whyNoLint, unnamedResult, hugeParam]
+    gocyclo:
+      min-complexity: 12
+    gosec:
+      config:
+        global:
+          audit: true
+    govet:
+      enable-all: true
+      disable: [fieldalignment]
+    nakedret:
+      max-func-lines: 0
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+    revive:
+      severity: error
+      enable-all-rules: false
+      rules:
+        - name: function-length
+          arguments: [0, 50]       # lines; statements unlimited
+        - name: cyclomatic
+          arguments: [12]
+        - name: cognitive-complexity
+          arguments: [15]
+        - name: argument-limit
+          arguments: [5]
+        - name: function-result-limit
+          arguments: [3]
+        - name: max-control-nesting
+          arguments: [4]
+        - name: exported
+        - name: package-comments
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: error-return
+        - name: error-strings
+        - name: error-naming
+        - name: errorf
+        - name: unhandled-error
+          arguments: ["fmt.Fprintf", "fmt.Fprintln", "fmt.Fprint", "strings.Builder.WriteString", "bytes.Buffer.WriteString", "bytes.Buffer.Reset"]
+        - name: unused-parameter
+        - name: unreachable-code
+        - name: deep-exit
+        - name: defer
+        - name: early-return
+        - name: indent-error-flow
+        - name: superfluous-else
+        - name: var-naming
+        - name: receiver-naming
+        - name: redefines-builtin-id
+        - name: confusing-results
+        - name: bare-return
+        - name: datarace
+        - name: modifies-value-receiver
+        - name: unconditional-recursion
+        - name: identical-branches
+        - name: use-any
+  exclusions:
+    rules:
+      # tests and the test-only fake interpreter may print, read the environment, exit and run helper programs
+      - path: (_test\.go|internal/fakepython/)
+        linters: [forbidigo, gosec, noctx]
+      - path: cmd/[^/]+/main\.go
+        linters: [forbidigo]
+formatters:
+  enable: [gofmt, goimports]
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  uniq-by-line: false
