@@ -33,7 +33,8 @@
           "asset": {"type": "string"},
           "status": {"enum": ["ok", "gap"]},
           "reason": {"type": "string"},
-          "complete_scope": {"type": "string", "pattern": "^[a-z0-9-]+:"}
+          "complete_scope": {"type": "string", "pattern": "^[a-z0-9-]+:"},
+          "checks": {"type": "array", "items": {"type": "string", "pattern": "^[a-z0-9_.*-]+$"}}
         }
       }
     },

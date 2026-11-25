@@ -2,6 +2,34 @@
 
 Components are versioned independently (docs/design.md §5). Entries name the component and its new version.
 
+## 2026-11-25 — one slow host check no longer hides the others
+
+On macOS `softwareupdate -l` asks Apple's servers and can take from 90 s to several minutes. The host collector ran the
+whole profile under one 180 s limit, so a first `sp run` could end with the entire host as a coverage gap
+(`exec failed rc=124: timeout`), "Open findings: none" and a score of 0, although FileVault and the other checks had
+already been measured. Now each probe has its own limit and only the check that timed out is "could not check".
+
+- **collector host 0.3.0**: every probe of a profile runs under its own time limit (`profiles/probe.sh`: POSIX sh,
+  background + watchdog, stops the command and its descendants; no `timeout` binary needed, so it works on macOS,
+  dash, bash and busybox ash; `profiles/probe.ps1`: one runspace per probe on Windows). A probe that does not finish
+  prints `probe.timeout=<key>` instead of a value. Its checks become a narrow coverage gap `host:<name>/<part>` (e.g.
+  `host:my-laptop/os-updates`) carrying the checks it stands for; every other check reports normally, and a partly
+  read part (e.g. one of three firewall keys) reports no guess. Network-dependent probes (`softwareupdate -l`,
+  Homebrew, `apt list --upgradable`, the Windows hotfix list) run last with a generous limit. New host keys
+  `probe_timeout` (20 s), `slow_probe_timeout` (90 s) and `script_timeout` (backstop, default 300 s): when the backstop
+  fires, the lines printed so far are still used and the probes never reached become narrow gaps. The Windows profile
+  now goes through stdin (`exec.powershell`), so its length is no longer bound by the 8191-character command line.
+- **findings contract 1.2** (additive): a `gap` coverage entry may carry `checks: [patterns]` (a narrow gap on
+  `<asset>/<part>`).
+- **core 0.9.0**: a finding whose check is listed by a narrow gap on its asset keeps its state (unknown) instead of
+  being marked fixed; the asset's other findings are judged as usual. Older cores ignore `checks` and would treat such a
+  finding as fixed: upgrade the hub (core) first, as usual.
+- **sdk 0.5.0**: `Collector.gap(asset, reason, checks=...)`; documents are written as `schema_version: "1.2"`.
+- **adapter exec 0.3.0**: `run(..., partial=True)` returns the output printed before a timeout (default unchanged:
+  nothing); a local command runs in its own session and the whole process group is stopped on timeout; a command
+  without `stdin` reads `/dev/null` instead of inheriting the caller's stdin.
+- **docs**: quickstart (the first macOS run can take a few minutes; a timed-out check is "could not check", not safe),
+  instance-reference (`hosts` time limits), design §1 (narrow gaps).
 ## 2026-11-25 — release names from product tags only, everywhere
 
 `git describe --tags` on a release commit prints a component tag (`collectors/codehost-gitea/v0.1.0` on `v0.2.0`):
@@ -31,6 +59,7 @@ fell back to an abbreviated hash or `vX.Y.Z-N-g<hash>` without saying so, and it
   commits; the installer end to end including the migration of a component-named release.
 - **Upgrade (existing installs)**: if `current` points at `releases/<component>/<…>/vX.Y.Z`, install again with a
   current installer (docs/upgrade.md); remove the old directory once a tick ran from the new `current`.
+
 
 ## 2026-11-25 — retired assets close their findings
 

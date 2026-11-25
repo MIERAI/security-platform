@@ -9,7 +9,7 @@ import os
 import sys
 import time
 
-SCHEMA_VERSION = "1.1"
+SCHEMA_VERSION = "1.2"
 SEVERITIES = ["critical", "high", "medium", "low", "info"]
 LAYERS = ["identity", "network", "host", "workload", "supply-chain", "data-secrets", "ai-agents", "detection"]
 
@@ -99,8 +99,14 @@ class Collector:
         if complete_scope and e["status"] == "ok":
             e["complete_scope"] = complete_scope
 
-    def gap(self, asset, reason):
+    def gap(self, asset, reason, checks=None):
+        """checks: a NARROW gap - only these checks (fnmatch patterns) could not be evaluated, on the asset this one is
+        a part of (`<asset>/<part>`); the ledger then keeps their findings on `<asset>` unknown instead of fixed, while
+        the asset itself stays covered (`ok`) for every other check."""
         self.coverage[asset] = {"asset": asset, "status": "gap", "reason": reason[:300]}
+        if checks:
+            assert "/" in asset, "a narrow gap is reported on <asset>/<part>"
+            self.coverage[asset]["checks"] = sorted(checks)
 
     def metric(self, name, value, help_="", **labels):
         self.metrics.append(dict(name=name, value=float(value), labels={k: str(v) for k, v in labels.items()},

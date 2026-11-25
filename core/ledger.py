@@ -13,8 +13,11 @@ Retired assets: an "ok" coverage entry with `complete_scope: <asset prefix>` dec
 asset under that prefix (an authoritative, complete inventory). A finding of that collector on an asset under the
 prefix that the run neither covered nor reported as a gap belongs to an asset that no longer exists: it is closed as
 fixed with `fixed_reason: asset_retired`. No declaration (partial or failed inventory, older collectors) = unknown.
+Narrow gaps: a "gap" entry `<asset>/<part>` with `checks: [patterns]` means only those checks could not be evaluated on
+<asset> (e.g. one host probe timed out); their findings on <asset> stay as they are (unknown), the others may be fixed.
 """
 import argparse
+import fnmatch
 import glob
 import json
 import os
@@ -79,6 +82,11 @@ def covered(asset, oks, gap_names):
     return asset in (oks if isinstance(oks, Coverage) else Coverage(oks))
 
 
+def narrow_gap(e, narrow):
+    """`narrow`: [(asset, [check patterns])] from the run's narrow gaps. True when one of them covers this finding."""
+    return any(e["asset"] == a and any(fnmatch.fnmatchcase(e["check"], p) for p in pats) for a, pats in narrow)
+
+
 def retired(asset, scopes, listed, gap_names):
     """The asset is under a scope the run inventoried COMPLETELY (`complete_scope` of an ok coverage entry) and the run
     did not list it at all (neither ok nor gap): it no longer exists. Any gap that may concern it wins (unknown)."""
@@ -140,6 +148,8 @@ def main():
     for d in docs:
         col = d["collector"]["name"]
         gap_names = [g["asset"].split(":", 1)[-1] for g in d["coverage"] if g["status"] == "gap"]
+        narrow = [(g["asset"].rsplit("/", 1)[0], g["checks"]) for g in d["coverage"]
+                  if g["status"] == "gap" and g.get("checks") and "/" in g["asset"]]
         gaps_total += len(gap_names)
         seen = set()
         prev_ok = cov_seen.get(col, [])
@@ -173,6 +183,8 @@ def main():
         for fid_, e in E.items():
             if e.get("collector") != col or fid_ in seen or e["status"] not in ("open", "accepted"):
                 continue
+            if narrow and narrow_gap(e, narrow):
+                continue  # this check could not be evaluated this time (narrow gap): unknown, keep state
             if covered(e["asset"], oks, gap_names):
                 reason = "not_observed"
             elif scopes and retired(e["asset"], scopes, listed, gap_names):

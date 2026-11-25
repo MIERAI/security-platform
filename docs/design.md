@@ -50,6 +50,9 @@
   现存的全部资产"。该 collector 在此前缀下的 finding，若资产本次既不是 ok 也不是 gap（根本没被列出），即判 fixed，原因 `asset_retired`。
   只有清单的每个来源都读成功才可声明（例如 k8s 清单要求每个集群的 Pod 都列出成功）；清单部分失败、旧版 collector 不声明 = 未知，保持原状态。
   资产再出现 = 回归（reopen），与普通 fixed 相同。普通的 fixed 记 `fixed_reason: not_observed`。
+- **窄缺口**（契约 1.2）：资产整体覆盖到了、但其中某几项检查没能完成（例如主机的某个探测超时）时，collector 在 `<资产>/<部分>`
+  上报一条 gap，并用 `checks: [检查模式]` 写明是哪些检查。这些检查在 `<资产>` 上的 finding 保持原状态（未知），其余检查照常可判 fixed。
+  超时 = "没能检查"，绝不当作通过。
 - 覆盖例外（`exceptions.yaml` 的 `coverage_exceptions`）：人批准 + 到期日，期间该缺口不计入
   `collector_coverage_gaps`（例如离线的私人手机经声明移出范围、等待用户装钥匙的设备）；到期自动重新计入。
 - `needs_human=true`：修复必须本人做（密码、账户设置、物理操作、GUI 授权）。phase 1 清单里单独列出。
@@ -180,7 +183,7 @@ hub 跑在操作者工作站上时，工作站睡眠/断网 = 整个平台停。
 
 - 第二个契约 `inventory/v1`（软件清单，见 §11.2）。
 - 契约文件：`schema/findings-v1.schema.json`（JSON Schema），文档级字段 `schema_version: "1.x"`。
-- 一个 findings 文档 = 一次 collector 运行：`collector{name,version}`、`run{started_at,finished_at,instance}`、`coverage[]`（每个资产 ok / gap+原因；ok 可带 `complete_scope`，契约 1.1 新增的可选字段，见 §1 资产退役）、`findings[]`。
+- 一个 findings 文档 = 一次 collector 运行：`collector{name,version}`、`run{started_at,finished_at,instance}`、`coverage[]`（每个资产 ok / gap+原因；ok 可带 `complete_scope`，契约 1.1 新增的可选字段，见 §1 资产退役；gap 可带 `checks`，契约 1.2 新增，见 §1 窄缺口）、`findings[]`。
 - 每个 finding 字段：`id, check, layer, asset, title, severity, evidence, remediation, needs_human, owner, observed_at, refs[]`。
 - **OCSF 映射**（`core/ocsf.py` 可导出 OCSF 1.x 事件，供 SIEM 接入）：
 

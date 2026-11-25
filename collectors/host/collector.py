@@ -1,11 +1,18 @@
 #!/usr/bin/env python3
 """Collector `host`: host/endpoint hardening, READ-ONLY, through an exec adapter + an OS profile.
 
-Instance config `hosts: [{name, exec: <exec adapter cfg>|null, profile: linux|macos|windows|termux|busybox, gap?}]`.
+Instance config `hosts: [{name, exec: <exec adapter cfg>|null, profile: linux|macos|windows|termux|busybox, gap?,
+probe_timeout?, slow_probe_timeout?, script_timeout?}]`.
 A profile is a script printing key=value lines; the checks below only read those keys, so new OSes are
 new profiles, not new checks. Password prompts are impossible (exec adapters are non-interactive).
+
+Every probe in a profile has its own time limit (profiles/probe.sh, probe.ps1): a probe that does not finish prints
+`probe.timeout=<key>` instead of a value. The checks that read that key become a NARROW coverage gap
+(`host:<name>/<part>`, carrying the checks it stands for) - "could not check", never a pass - while every other check
+reports normally. The whole-script limit stays as a backstop; when it fires, the lines printed so far are still used
+and the probes that never ran become gaps the same way.
 """
-import base64
+import fnmatch
 import os
 import re
 import sys
@@ -19,21 +26,72 @@ from adapters import exec as ex  # noqa: E402
 
 VERSION = open(os.path.join(HERE, "VERSION")).read().strip()
 DB_PORTS = {5432, 55432, 3306, 6379, 27017, 9200, 2379}
+PROBE_TIMEOUT, SLOW_PROBE_TIMEOUT = 20, 90   # seconds per probe; slow = network-dependent (update servers), run last
+END = "probe.end"                            # printed after the profile: its absence = the script did not finish
+
+# The checks each probe key feeds: (part, key patterns, check patterns). A key that could not be read makes
+# `host:<name>/<part>` a gap for exactly these checks; keys outside this table feed no check (informational only).
+PARTS = [
+    ("ssh", ["sshd", "sshd.*"], ["ssh.password_auth_enabled", "ssh.root_login_password", "ssh.x11_forwarding"]),
+    ("package-updates", ["pkg.upgradable", "pkg.security_upgradable"], ["patch.security_pending", "patch.pending"]),
+    ("package-metadata", ["pkg.cache_mtime"], ["patch.metadata_stale"]),
+    ("reboot", ["reboot_required"], ["patch.reboot_required"]),
+    ("auto-updates", ["pkg.auto_updates"], ["patch.auto_updates_off"]),
+    ("firewall", ["fw.ufw", "fw.nft_input_policy", "fw.iptables_input_policy"], ["fw.host_firewall_off"]),
+    ("disk-encryption", ["disk.filevault"], ["macos.disk_filevault_off"]),
+    ("app-firewall", ["fw.app_firewall"], ["macos.fw_app_firewall_off"]),
+    ("firewall-stealth", ["fw.stealth"], ["macos.fw_stealth_off"]),
+    ("sip", ["sip"], ["macos.sip_off"]),
+    ("gatekeeper", ["gatekeeper"], ["macos.gatekeeper_off"]),
+    ("os-updates", ["pkg.os_updates_pending"], ["patch.os_updates_pending"]),
+    ("brew", ["pkg.brew_outdated"], ["patch.brew_outdated"]),
+    ("windows-firewall", ["fw.profile", "fw.profile_*"], ["win.fw_profile_*"]),
+    ("antivirus", ["av", "av.*"], ["win.av_realtime_off", "win.av_signatures_stale"]),
+    ("disk-encryption", ["disk.bitlocker"], ["win.disk_unencrypted"]),
+    ("smb1", ["smb.v1"], ["win.smb1_enabled"]),
+    ("windows-updates", ["pkg.last_hotfix"], ["patch.windows_stale"]),
+    ("android-patch", ["os.security_patch"], ["patch.android_security_patch_old"]),
+    ("process-arguments", ["proc.secret_in_argv_suspects"], ["secret.in_process_argv"]),
+    ("telnet", ["telnetd"], ["telnet.daemon_running"]),
+    ("listeners", ["listen"], ["listen.db_wildcard.*"]),
+]
+
+
+def limits(h):
+    t = int(h.get("probe_timeout", PROBE_TIMEOUT))
+    slow = int(h.get("slow_probe_timeout", SLOW_PROBE_TIMEOUT))
+    return t, slow, int(h.get("script_timeout", max(300, 2 * slow + 120)))
+
+
+def script_for(h):
+    """The profile with its probe helper in front, the limits from the instance config and the end marker."""
+    prof = h["profile"]
+    win = prof == "windows"
+    body = open(os.path.join(HERE, "profiles", prof + (".ps1" if win else ".sh"))).read()
+    helper = open(os.path.join(HERE, "profiles", "probe" + (".ps1" if win else ".sh"))).read()
+    t, slow, _ = limits(h)
+    if win:
+        return f"$SpProbeTimeout = {t}\n$SpProbeSlowTimeout = {slow}\n{helper}\n{body}\n'{END}=1'\n"
+    return f"SP_PROBE_TIMEOUT={t}\nSP_PROBE_SLOW_TIMEOUT={slow}\n{helper}\n{body}\necho {END}=1\n"
+
+
+def planned(script):
+    """Probe keys the script would print, in order (to tell which probes a stopped script never reached)."""
+    return re.findall(r"^\s*(?:sp_probe|sp_lines|Probe)\s+([A-Za-z0-9_.-]+)\s", script, re.M)
 
 
 def collect(h):
-    prof = h["profile"]
-    path = os.path.join(HERE, "profiles", prof + (".ps1" if prof == "windows" else ".sh"))
-    script = open(path).read()
+    script = script_for(h)
     e = ex.executor(h["exec"])
-    if prof == "windows":
-        b64 = base64.b64encode(script.encode("utf-16-le")).decode()
-        return e.run(["powershell", "-NoProfile", "-NonInteractive", "-EncodedCommand", b64], timeout=180)
-    return e.run(["sh", "-s"], stdin=script, timeout=180)
+    _, _, total = limits(h)
+    if h["profile"] == "windows":   # through stdin: a script of any length (cmd.exe caps command lines at 8191)
+        return (*ex.powershell(e, script, timeout=total, partial=True), script)
+    return (*e.run(["sh", "-s"], stdin=script, timeout=total, partial=True), script)
 
 
 def parse(out):
-    kv, listen = {}, []
+    """-> kv, listen lines, timed-out probe keys."""
+    kv, listen, timeouts = {}, [], []
     for line in out.splitlines():
         line = line.strip()
         if "=" not in line:
@@ -41,9 +99,35 @@ def parse(out):
         k, v = line.split("=", 1)
         if k == "listen":
             listen.append(v)
+        elif k == "probe.timeout":
+            timeouts.append(v.strip())
         else:
             kv[k] = v.strip()
-    return kv, listen
+    return kv, listen, timeouts
+
+
+def unread(kv, listen, timeouts, script, rc):
+    """{probe key: reason} for every probe whose value is unknown: it timed out, or the whole script was stopped
+    before reaching it."""
+    miss = {k: "did not finish within its time limit" for k in timeouts}
+    if END not in kv:
+        seen = set(kv) | ({"listen"} if listen else set())
+        for k in planned(script):
+            if k not in miss and not any(s == k or s.startswith(k + ".") or s.startswith(k + "_") for s in seen):
+                miss[k] = f"not reached: the script was stopped (rc={rc})"
+    return miss
+
+
+def narrow_gaps(miss):
+    """[(part, reason, checks)] for the parts whose checks read a key in `miss`."""
+    out = {}
+    for k, why in miss.items():
+        for part, keys, chks in PARTS:
+            if any(fnmatch.fnmatchcase(k, p) for p in keys):
+                g = out.setdefault(part, [[], set()])
+                g[0].append(f"{k}: {why}")
+                g[1].update(chks)
+    return [(part, "; ".join(w), sorted(c)) for part, (w, c) in sorted(out.items())]
 
 
 def num(v, default=0):
@@ -53,7 +137,7 @@ def num(v, default=0):
         return default
 
 
-def checks(c, name, kv, listen, ev):
+def checks(c, name, kv, listen, ev, skip_metric=False):
     a = f"host:{name}"
     F = c.finding
     pa = kv.get("sshd.passwordauthentication", "")
@@ -130,7 +214,8 @@ def checks(c, name, kv, listen, ev):
         if port in DB_PORTS:
             F("network", a, f"listen.db_wildcard.{port}", f"database-like port {port} listens on all interfaces ({l})",
               "medium", ev, "bind to localhost/bridge only")
-    c.metric("security_host_wildcard_listeners", len(wild), "Sockets listening on all interfaces", host=name)
+    if not skip_metric:
+        c.metric("security_host_wildcard_listeners", len(wild), "Sockets listening on all interfaces", host=name)
 
 
 def main():
@@ -143,14 +228,26 @@ def main():
         if not h.get("exec"):
             c.gap(a, h.get("gap", "no exec adapter configured"))
             continue
-        rc, out, err = collect(h)
-        kv, listen = parse(out)
-        if rc != 0 and not kv:
+        rc, out, err, script = collect(h)
+        kv, listen, timeouts = parse(out)
+        if rc != 0 and not [k for k in kv if k != END]:
             c.gap(a, f"exec failed rc={rc}: {err.strip()[-160:]}")
             continue
-        ev = c.raw(f"{h['name']}.json", {"profile": h["profile"], "kv": kv, "listen": listen, "rc": rc})
+        miss = unread(kv, listen, timeouts, script, rc)
+        for k in miss:
+            kv.pop(k, None)       # "unknown" is not a value: no check may read it
+        gaps = narrow_gaps(miss)
+        ev = c.raw(f"{h['name']}.json", {"profile": h["profile"], "kv": kv, "listen": listen, "rc": rc, "unread": miss})
         c.ok(a)
-        checks(c, h["name"], kv, listen, ev)
+        n = len(c.findings)
+        checks(c, h["name"], kv, listen, ev, skip_metric="listeners" in {g[0] for g in gaps})
+        # a part with an unread key may still have produced a finding from its OTHER keys (e.g. ufw inactive, nft
+        # unknown): that is a guess, not an observation - drop it, the narrow gap stands for the whole part
+        blocked = [p for _, _, chks in gaps for p in chks]
+        c.findings[n:] = [f for f in c.findings[n:] if not any(fnmatch.fnmatchcase(f["check"], p) for p in blocked)]
+        for part, why, chks in gaps:
+            c.gap(f"{a}/{part}", f"{h['name']} {part}: could not check ({why})"[:300], checks=chks)
+            print(f"[host] {h['name']}: {part} could not be checked: {why}", file=sys.stderr)
     c.write()
 
 

@@ -76,6 +76,13 @@ hosts:
 | `exec` | — | `{type: local}` or `{type: ssh, host: <ssh alias or address>, options: [ssh options]}`; ssh runs with BatchMode (no prompts) and StrictHostKeyChecking=yes (put the host keys in known_hosts first) |
 | `profile` | — | `linux`, `macos`, `windows` (over OpenSSH, PowerShell), `busybox`, `termux` |
 | `gap` | "no exec adapter configured" | the reason shown when `exec` is null |
+| `probe_timeout` | `20` | seconds each probe (one command of the profile) may take |
+| `slow_probe_timeout` | `90` | seconds for network-dependent probes, which run last: `softwareupdate -l` (macOS), package lists (`apt list --upgradable`, Homebrew), the hotfix list (Windows) |
+| `script_timeout` | `max(300, 2 × slow_probe_timeout + 120)` | backstop for the whole profile script; the lines printed before it fires are still used |
+
+A probe that does not finish in time is reported as "could not check" for the checks that read it (a coverage gap
+`host:<name>/<part>`, e.g. `host:my-laptop/os-updates`), never as a pass; every other check of the host reports as
+usual. Raise `slow_probe_timeout` for hosts whose update check is slow every time.
 
 The account needs key login and `sudo -n` (no password) for read-only commands such as `sshd -T`, `ss -tlnp`,
 `ufw status`. Without sudo the checks that need it are skipped and reported.
