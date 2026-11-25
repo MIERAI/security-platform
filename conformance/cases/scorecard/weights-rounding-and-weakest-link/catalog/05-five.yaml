@@ -1,0 +1,5 @@
+schema: security-platform/scorecard-catalog/v1
+dimension: {id: five, order: 5, title: Five, pillars: [people]}
+controls:
+  - {id: five.a, title: A, csf: GV.RR, check: automated, weight: 1, source: {type: findings}}
+  - {id: five.b, title: B, csf: ID.RA, check: automated, weight: 15, source: {type: findings, max: -1}}

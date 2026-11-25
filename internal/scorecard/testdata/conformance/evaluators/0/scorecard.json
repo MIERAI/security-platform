@@ -1,0 +1,943 @@
+{
+ "attestations": {
+  "expired": 0,
+  "expiring": 0,
+  "missing": 0,
+  "valid": 0
+ },
+ "computed_at": "2030-01-10T00:00:00Z",
+ "controls": [
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "ID.AM",
+   "detail": "not implemented yet",
+   "dimension": "ev",
+   "expires": null,
+   "function": "ID",
+   "id": "ev.all-fail",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "fail",
+   "title": "all with none",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "ID.AM",
+   "detail": "SLI gone not computed yet",
+   "dimension": "ev",
+   "expires": null,
+   "function": "ID",
+   "id": "ev.all-unknown",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "unknown",
+   "title": "all with unknown",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "ID.AM",
+   "detail": "0 matching finding(s) (max 0)",
+   "dimension": "ev",
+   "expires": null,
+   "function": "ID",
+   "id": "ev.any-pass",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "pass",
+   "title": "any",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "ID.AM",
+   "detail": "SLI a not computed yet; SLI b not computed yet",
+   "dimension": "ev",
+   "expires": null,
+   "function": "ID",
+   "id": "ev.any-unknown",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "unknown",
+   "title": "any unknown",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "RC.RP",
+   "detail": "evaluator error: ValueError: unknown builtin 'nothing'",
+   "dimension": "ev",
+   "expires": null,
+   "function": "RC",
+   "id": "ev.bad-builtin",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "unknown",
+   "title": "bad builtin",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "RC.RP",
+   "detail": "unknown source type 'bogus'",
+   "dimension": "ev",
+   "expires": null,
+   "function": "RC",
+   "id": "ev.bogus",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "unknown",
+   "title": "bogus type",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "GV.OV",
+   "detail": "0 attested controls, none expired",
+   "dimension": "ev",
+   "expires": null,
+   "function": "GV",
+   "id": "ev.current",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "pass",
+   "title": "attestations current",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "evidence",
+   "cis": [],
+   "csf": "GV.PO",
+   "detail": "{sandbox}/data/nothing.md missing",
+   "dimension": "ev",
+   "expires": null,
+   "function": "GV",
+   "id": "ev.file-missing",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "fail",
+   "title": "missing",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "evidence",
+   "cis": [],
+   "csf": "GV.PO",
+   "detail": "{sandbox}/data/policy.md mode 0o644 exceeds 0600",
+   "dimension": "ev",
+   "expires": null,
+   "function": "GV",
+   "id": "ev.file-mode",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "fail",
+   "title": "secret mode",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "evidence",
+   "cis": [],
+   "csf": "GV.PO",
+   "detail": "{sandbox}/data/policy.md present (mode 0o644)",
+   "dimension": "ev",
+   "expires": null,
+   "function": "GV",
+   "id": "ev.file-ok",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "pass",
+   "title": "policy",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "evidence",
+   "cis": [],
+   "csf": "GV.PO",
+   "detail": "{sandbox}/data/policy.md lacks /^## Owner/",
+   "dimension": "ev",
+   "expires": null,
+   "function": "GV",
+   "id": "ev.file-text",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "fail",
+   "title": "lacks text",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "PR.PS",
+   "detail": "1 matching finding(s) (max 0): ssh.password_auth_enabled",
+   "dimension": "ev",
+   "expires": null,
+   "function": "PR",
+   "id": "ev.find-asset",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "fail",
+   "title": "on h2",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "PR.PS",
+   "detail": "3 matching finding(s) (max 0): CVE-1, ssh.password_auth_enabled, ssh.root_login",
+   "dimension": "ev",
+   "expires": null,
+   "function": "PR",
+   "id": "ev.find-cov",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "fail",
+   "title": "needs host coverage",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "PR.PS",
+   "detail": "1 matching finding(s) (max 0): CVE-1",
+   "dimension": "ev",
+   "expires": null,
+   "function": "PR",
+   "id": "ev.find-kind",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "fail",
+   "title": "vulnerabilities",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "PR.PS",
+   "detail": "nothing covered k8s:* (adapter not configured or failing)",
+   "dimension": "ev",
+   "expires": null,
+   "function": "PR",
+   "id": "ev.find-nocov",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "unknown",
+   "title": "needs k8s coverage",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "PR.PS",
+   "detail": "2 matching finding(s) (max 1): ssh.password_auth_enabled, ssh.root_login",
+   "dimension": "ev",
+   "expires": null,
+   "function": "PR",
+   "id": "ev.find-prefix",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "fail",
+   "title": "ssh findings",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "PR.PS",
+   "detail": "0 matching finding(s) (max 0)",
+   "dimension": "ev",
+   "expires": null,
+   "function": "PR",
+   "id": "ev.find-sev",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "pass",
+   "title": "critical findings",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "PR.PS",
+   "detail": "1 matching finding(s) (max 0): tls.weak",
+   "dimension": "ev",
+   "expires": null,
+   "function": "PR",
+   "id": "ev.find-status",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "fail",
+   "title": "accepted too",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "ID.AM",
+   "detail": "0 matching finding(s) (max -1)",
+   "dimension": "ev",
+   "expires": null,
+   "function": "ID",
+   "id": "ev.first-known",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "fail",
+   "title": "first known",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "DE.CM",
+   "detail": "1 collector(s) fresh",
+   "dimension": "ev",
+   "expires": null,
+   "function": "DE",
+   "id": "ev.fresh",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "pass",
+   "title": "Host fresh",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "DE.CM",
+   "detail": "k8s: last good run 40.0d ago",
+   "dimension": "ev",
+   "expires": null,
+   "function": "DE",
+   "id": "ev.fresh-all",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "fail",
+   "title": "Every collector fresh",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "GV.OV",
+   "detail": "no passing automated control for: RS, RC",
+   "dimension": "ev",
+   "expires": null,
+   "function": "GV",
+   "id": "ev.functions",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "fail",
+   "title": "functions covered",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "DE.CM",
+   "detail": "broken: last run failed (rc=2); remote: no success within 2d",
+   "dimension": "ev",
+   "expires": null,
+   "function": "DE",
+   "id": "ev.job-all",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "fail",
+   "title": "Every job",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "DE.CM",
+   "detail": "ghost: never ran",
+   "dimension": "ev",
+   "expires": null,
+   "function": "DE",
+   "id": "ev.job-ghost",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "fail",
+   "title": "Never ran",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "DE.CM",
+   "detail": "1 job(s) healthy",
+   "dimension": "ev",
+   "expires": null,
+   "function": "DE",
+   "id": "ev.job-ok",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "pass",
+   "title": "Job ok",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "DE.CM",
+   "detail": "broken: last run failed (rc=2)",
+   "dimension": "ev",
+   "expires": null,
+   "function": "DE",
+   "id": "ev.job-rc",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "fail",
+   "title": "Job failed",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "DE.CM",
+   "detail": "remote: no success within 2d",
+   "dimension": "ev",
+   "expires": null,
+   "function": "DE",
+   "id": "ev.job-site",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "fail",
+   "title": "Site job old",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "DE.CM",
+   "detail": "metric nope absent",
+   "dimension": "ev",
+   "expires": null,
+   "function": "DE",
+   "id": "ev.metric-absent",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "unknown",
+   "title": "Metric absent",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "DE.CM",
+   "detail": "metric nope absent",
+   "dimension": "ev",
+   "expires": null,
+   "function": "DE",
+   "id": "ev.metric-absent-ok",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "pass",
+   "title": "Absent is fine",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "DE.CM",
+   "detail": "security_collector_last_run_timestamp_seconds age 1.0h (<= 2h)",
+   "dimension": "ev",
+   "expires": null,
+   "function": "DE",
+   "id": "ev.metric-age",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "pass",
+   "title": "Metric age",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "DE.CM",
+   "detail": "count(security_collector_last_run_timestamp_seconds) = 2 (>= 2)",
+   "dimension": "ev",
+   "expires": null,
+   "function": "DE",
+   "id": "ev.metric-count",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "pass",
+   "title": "Metric count",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "DE.CM",
+   "detail": "security_collector_last_run_timestamp_seconds age 2.3d (<= 1d)",
+   "dimension": "ev",
+   "expires": null,
+   "function": "DE",
+   "id": "ev.metric-old",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "fail",
+   "title": "Metric too old",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "DE.CM",
+   "detail": "metric security_score_overall absent",
+   "dimension": "ev",
+   "expires": null,
+   "function": "DE",
+   "id": "ev.metric-own",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "fail",
+   "title": "Own scores are ignored",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "DE.CM",
+   "detail": "sum(security_sli) = 3.5 (< 4)",
+   "dimension": "ev",
+   "expires": null,
+   "function": "DE",
+   "id": "ev.metric-sum",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "pass",
+   "title": "Metric sum",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "RC.RP",
+   "detail": "needs a restore drill",
+   "dimension": "ev",
+   "expires": null,
+   "function": "RC",
+   "id": "ev.none",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "not_implemented",
+   "title": "declared",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "GV.OV",
+   "detail": "no passing automated control for: network, device, people",
+   "dimension": "ev",
+   "expires": null,
+   "function": "GV",
+   "id": "ev.pillars",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "fail",
+   "title": "pillars covered",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "GV.OV",
+   "detail": "0 matching finding(s) (max 0)",
+   "dimension": "ev",
+   "expires": null,
+   "function": "GV",
+   "id": "ev.replaced",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "pass",
+   "title": "organisation version",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "PR.PS",
+   "detail": "configure scorecard.vars: nope",
+   "dimension": "ev",
+   "expires": null,
+   "function": "PR",
+   "id": "ev.var-missing",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "unknown",
+   "title": "unset variable",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "GV.OV",
+   "detail": "0 matching finding(s) (max 0)",
+   "dimension": "ev",
+   "expires": null,
+   "function": "GV",
+   "id": "ev.weighty",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "pass",
+   "title": "weight from the instance",
+   "weight": 4
+  }
+ ],
+ "dimension_pillar": {
+  "ev|software": 35.7
+ },
+ "dimensions": {
+  "ev": {
+   "controls": 39,
+   "failing": [
+    "ev.all-fail",
+    "ev.all-unknown",
+    "ev.any-unknown",
+    "ev.bad-builtin",
+    "ev.bogus",
+    "ev.file-missing",
+    "ev.file-mode",
+    "ev.file-text",
+    "ev.find-asset",
+    "ev.find-cov",
+    "ev.find-kind",
+    "ev.find-nocov",
+    "ev.find-prefix",
+    "ev.find-status",
+    "ev.first-known",
+    "ev.fresh-all",
+    "ev.functions",
+    "ev.job-all",
+    "ev.job-ghost",
+    "ev.job-rc",
+    "ev.job-site",
+    "ev.metric-absent",
+    "ev.metric-old",
+    "ev.metric-own",
+    "ev.none",
+    "ev.pillars",
+    "ev.var-missing"
+   ],
+   "functions": [
+    "DE",
+    "GV",
+    "ID",
+    "PR",
+    "RC"
+   ],
+   "order": 1,
+   "owner": null,
+   "pillars": [
+    "software"
+   ],
+   "score": 35.7,
+   "status": "FAIL",
+   "threshold": 75.0,
+   "title": "Evaluators",
+   "weight_passed": 15,
+   "weight_total": 42
+  }
+ },
+ "functions": {
+  "DE": {
+   "controls": 14,
+   "score": 42.9,
+   "title": "Detect"
+  },
+  "GV": {
+   "controls": 9,
+   "score": 58.3,
+   "title": "Govern"
+  },
+  "ID": {
+   "controls": 5,
+   "score": 20.0,
+   "title": "Identify"
+  },
+  "PR": {
+   "controls": 8,
+   "score": 12.5,
+   "title": "Protect"
+  },
+  "RC": {
+   "controls": 3,
+   "score": 0.0,
+   "title": "Recover"
+  },
+  "RS": {
+   "controls": 0,
+   "score": 0.0,
+   "title": "Respond"
+  }
+ },
+ "mean": 35.7,
+ "not_applicable": {},
+ "overall": 35.7,
+ "pillars": {
+  "device": {
+   "controls": 0,
+   "failing": [],
+   "score": 0.0,
+   "status": "FAIL"
+  },
+  "network": {
+   "controls": 0,
+   "failing": [],
+   "score": 0.0,
+   "status": "FAIL"
+  },
+  "people": {
+   "controls": 0,
+   "failing": [],
+   "score": 0.0,
+   "status": "FAIL"
+  },
+  "software": {
+   "controls": 39,
+   "failing": [
+    "ev.all-fail",
+    "ev.all-unknown",
+    "ev.any-unknown",
+    "ev.bad-builtin",
+    "ev.bogus",
+    "ev.file-missing",
+    "ev.file-mode",
+    "ev.file-text",
+    "ev.find-asset",
+    "ev.find-cov",
+    "ev.find-kind",
+    "ev.find-nocov",
+    "ev.find-prefix",
+    "ev.find-status",
+    "ev.first-known",
+    "ev.fresh-all",
+    "ev.functions",
+    "ev.job-all",
+    "ev.job-ghost",
+    "ev.job-rc",
+    "ev.job-site",
+    "ev.metric-absent",
+    "ev.metric-old",
+    "ev.metric-own",
+    "ev.none",
+    "ev.pillars",
+    "ev.var-missing"
+   ],
+   "score": 35.7,
+   "status": "FAIL"
+  }
+ },
+ "regressions_total": {
+  "ev": 0
+ },
+ "schema": "security-platform/scorecard/v1",
+ "scorecard_version": "0.5.0",
+ "status": "FAIL",
+ "threshold": 75.0,
+ "weakest": "ev"
+}

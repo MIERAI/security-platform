@@ -1,0 +1,12 @@
+{
+ "collectors": {
+  "host": {
+   "last_good_run": "2030-01-09T12:00:00Z",
+   "version": "1.0.0"
+  }
+ },
+ "entries": {},
+ "runs": [],
+ "schema": "security-platform/ledger/v1",
+ "updated_at": "2026-11-01T09:00:00Z"
+}

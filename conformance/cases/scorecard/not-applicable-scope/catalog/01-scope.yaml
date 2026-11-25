@@ -1,0 +1,29 @@
+schema: security-platform/scorecard-catalog/v1
+dimension: {id: scope, order: 1, title: Scope, pillars: [device]}
+controls:
+  - {id: scope.exact, title: Exact id, csf: PR.PS, check: automated, weight: 1, source: {type: findings}}
+  - {id: scope.glob-a, title: Glob a, csf: PR.PS, check: automated, weight: 1, source: {type: findings}}
+  - {id: scope.glob-b, title: Glob b, csf: PR.PS, check: automated, weight: 1, source: {type: findings}}
+  - {id: scope.bracket1, title: Character class, csf: PR.PS, check: automated, weight: 1, source: {type: findings}}
+  - {id: scope.tagged, title: Tagged, csf: PR.PS, check: automated, weight: 1, tags: [ai-agent], source: {type: findings}}
+  - {id: scope.disabled, title: Disabled with a reason, csf: PR.PS, check: automated, weight: 1, source: {type: findings}}
+  - {id: scope.disabled-flag, title: Disabled, csf: PR.PS, check: automated, weight: 1, source: {type: findings}}
+  - {id: scope.needs-col, title: Needs k8s, csf: DE.CM, check: automated, weight: 1, source: {type: findings, require_collector: k8s}}
+  - id: scope.nested-col
+    title: Needs identity or cloud, nested
+    csf: DE.CM
+    check: automated
+    weight: 1
+    source: {type: all, of: [{type: findings, require_collector: [identity, cloud]}, {type: findings}]}
+  - id: scope.col-fallback
+    title: Needs k8s, or a human
+    csf: DE.CM
+    check: automated
+    weight: 1
+    validity: 30d
+    question: Does it hold?
+    source: {type: first_known, of: [{type: findings, require_collector: k8s}, {type: attestation}]}
+  - {id: scope.col-job, title: Collector of a runner job, csf: DE.CM, check: automated, weight: 1, source: {type: findings, require_collector: vuln}}
+  - {id: scope.col-ledger, title: Collector in the ledger, csf: DE.CM, check: automated, weight: 1, source: {type: findings, require_collector: host}}
+  - {id: scope.star, title: Any collector, csf: DE.CM, check: automated, weight: 1, source: {type: findings, require_collector: "*"}}
+  - {id: scope.plain, title: Plain, csf: PR.PS, check: automated, weight: 1, source: {type: findings}}

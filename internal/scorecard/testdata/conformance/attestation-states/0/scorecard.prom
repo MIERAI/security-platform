@@ -1,0 +1,35 @@
+# HELP security_score Security scorecard: weighted pass ratio of the controls (0-100); the weakest dimension decides
+# TYPE security_score gauge
+security_score{dimension="att"} 45.5
+security_score{pillar="network"} 0
+security_score{pillar="device"} 0
+security_score{pillar="people"} 45.5
+security_score{pillar="software"} 0
+security_score{function="GV"} 45.5
+security_score{dimension="att",pillar="people"} 45.5
+# HELP security_score_overall Overall score = the weakest dimension's score
+# TYPE security_score_overall gauge
+security_score_overall 45.5
+# HELP security_score_threshold A dimension below this fails the scorecard
+# TYPE security_score_threshold gauge
+security_score_threshold 75
+# HELP security_score_pass 1 while every dimension meets its threshold
+# TYPE security_score_pass gauge
+security_score_pass 0
+# HELP security_score_controls Controls per dimension and result (details in the private scorecard report)
+# TYPE security_score_controls gauge
+security_score_controls{dimension="att",status="pass"} 5
+security_score_controls{dimension="att",status="fail"} 6
+security_score_controls{dimension="att",status="na"} 1
+# HELP security_score_regressions_total Times the dimension dropped below its threshold (counter; the alert fires on increases)
+# TYPE security_score_regressions_total counter
+security_score_regressions_total{dimension="att"} 0
+# HELP security_attestations Attested (human) controls by state; expired ones fail again
+# TYPE security_attestations gauge
+security_attestations{state="valid"} 4
+security_attestations{state="expiring"} 1
+security_attestations{state="expired"} 2
+security_attestations{state="missing"} 3
+# HELP security_scorecard_last_compute_timestamp_seconds When the scorecard was last computed
+# TYPE security_scorecard_last_compute_timestamp_seconds gauge
+security_scorecard_last_compute_timestamp_seconds 1894233600

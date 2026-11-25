@@ -1,0 +1,55 @@
+{
+ "component": "scorecard",
+ "title": "Dates are UTC whatever the local time zone: an attestation that expires on 2030-07-01 holds until 2030-07-01T00:00:00Z, also where daylight saving time is in effect",
+ "contract": "scorecard/1.1",
+ "origin": "SCORECARD-D1",
+ "deviation": "SCORECARD-D1",
+ "files": {
+  "catalog/01-att.yaml": "catalog/01-att.yaml",
+  "instance.json": "instance.json",
+  "data/attestations.yaml": "attestations.yaml",
+  "data/ledger.json": "ledger.json"
+ },
+ "steps": [
+  {
+   "name": "compute at 2030-06-30T23:30:00Z",
+   "exec": {
+    "impl": "scorecard",
+    "args": [
+     "compute",
+     "--data",
+     "{sandbox}/data",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--now",
+     "1909092600"
+    ],
+    "env": {
+     "TZ": "Europe/Berlin"
+    }
+   },
+   "expect": [
+    {
+     "json": "data/reports/scorecard.json",
+     "schema": "scorecard",
+     "subset": {
+      "attestations": {
+       "expiring": 1,
+       "expired": 0
+      },
+      "controls": {
+       "$contains": [
+        {
+         "id": "att.summer",
+         "status": "pass",
+         "expires": "2030-07-01",
+         "detail": "attested by alice until 2030-07-01 (expires within 14 days)"
+        }
+       ]
+      }
+     }
+    }
+   ]
+  }
+ ]
+}

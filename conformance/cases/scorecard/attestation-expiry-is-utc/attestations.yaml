@@ -1,0 +1,3 @@
+schema: security-platform/attestations/v1
+attestations:
+  att.summer: {attested_by: alice, at: '2030-06-01', expires: '2030-07-01'}

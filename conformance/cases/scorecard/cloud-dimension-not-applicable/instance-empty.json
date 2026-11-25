@@ -1,0 +1,15 @@
+{
+ "cloud": {
+  "accounts": []
+ },
+ "name": "conformance",
+ "scorecard": {
+  "catalog_dirs": [
+   "{sandbox}/catalog"
+  ],
+  "not_applicable": {
+   "tag:ai-agent": "no AI coding agents"
+  },
+  "replace_catalog": true
+ }
+}

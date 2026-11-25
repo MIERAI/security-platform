@@ -1,0 +1,237 @@
+{
+ "component": "scorecard",
+ "title": "Every pass -> fail transition of a dimension adds one regression; recovering and failing again counts again; the counter of a dimension that left the catalog is kept (a counter never goes back)",
+ "contract": "scorecard/1.1",
+ "origin": "tests/test_scorecard.py::test_regression_counter_and_metrics_contract",
+ "files": {
+  "catalog/01-alpha.yaml": "catalog/01-alpha.yaml",
+  "catalog/02-beta.yaml": "catalog/02-beta.yaml",
+  "instance.json": "instance.json",
+  "data/ledger.json": "clean.json"
+ },
+ "steps": [
+  {
+   "name": "baseline",
+   "exec": {
+    "impl": "scorecard",
+    "args": [
+     "compute",
+     "--data",
+     "{sandbox}/data",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--now",
+     "1894233600"
+    ]
+   },
+   "expect": [
+    {
+     "json": "data/reports/scorecard.json",
+     "schema": "scorecard",
+     "subset": {
+      "regressions_total": {
+       "alpha": 0,
+       "beta": 0
+      }
+     }
+    },
+    {
+     "json": "data/state/scorecard.json",
+     "subset": {
+      "below": {
+       "alpha": false,
+       "beta": false
+      },
+      "regressions_total": {
+       "alpha": 0
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "alpha fails",
+   "exec": {
+    "impl": "scorecard",
+    "args": [
+     "compute",
+     "--data",
+     "{sandbox}/data",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--now",
+     "1894233600"
+    ]
+   },
+   "expect": [
+    {
+     "json": "data/reports/scorecard.json",
+     "schema": "scorecard",
+     "subset": {
+      "regressions_total": {
+       "alpha": 1,
+       "beta": 0
+      }
+     }
+    },
+    {
+     "json": "data/state/scorecard.json",
+     "subset": {
+      "below": {
+       "alpha": true
+      }
+     }
+    }
+   ],
+   "files": {
+    "data/ledger.json": "dirty.json"
+   }
+  },
+  {
+   "name": "alpha still failing",
+   "exec": {
+    "impl": "scorecard",
+    "args": [
+     "compute",
+     "--data",
+     "{sandbox}/data",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--now",
+     "1894233600"
+    ]
+   },
+   "expect": [
+    {
+     "json": "data/reports/scorecard.json",
+     "schema": "scorecard",
+     "subset": {
+      "regressions_total": {
+       "alpha": 1
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "alpha recovers",
+   "exec": {
+    "impl": "scorecard",
+    "args": [
+     "compute",
+     "--data",
+     "{sandbox}/data",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--now",
+     "1894233600"
+    ]
+   },
+   "expect": [
+    {
+     "json": "data/reports/scorecard.json",
+     "schema": "scorecard",
+     "subset": {
+      "regressions_total": {
+       "alpha": 1
+      }
+     }
+    }
+   ],
+   "files": {
+    "data/ledger.json": "clean.json"
+   }
+  },
+  {
+   "name": "alpha fails again",
+   "exec": {
+    "impl": "scorecard",
+    "args": [
+     "compute",
+     "--data",
+     "{sandbox}/data",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--now",
+     "1894233600"
+    ]
+   },
+   "expect": [
+    {
+     "json": "data/reports/scorecard.json",
+     "schema": "scorecard",
+     "subset": {
+      "regressions_total": {
+       "alpha": 2
+      }
+     }
+    },
+    {
+     "prom": "data/metrics/scorecard.prom",
+     "has": [
+      {
+       "name": "security_score_regressions_total",
+       "labels": {
+        "dimension": "alpha"
+       },
+       "value": 2
+      }
+     ],
+     "types": {
+      "security_score_regressions_total": "counter"
+     }
+    }
+   ],
+   "files": {
+    "data/ledger.json": "dirty.json"
+   }
+  },
+  {
+   "name": "beta left the catalog: its counter stays",
+   "exec": {
+    "impl": "scorecard",
+    "args": [
+     "compute",
+     "--data",
+     "{sandbox}/data",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--now",
+     "1894233600"
+    ]
+   },
+   "expect": [
+    {
+     "json": "data/reports/scorecard.json",
+     "schema": "scorecard",
+     "subset": {
+      "regressions_total": {
+       "alpha": 2,
+       "beta": 0
+      },
+      "dimensions": {
+       "beta": {
+        "$absent": true
+       }
+      }
+     }
+    },
+    {
+     "prom": "data/metrics/scorecard.prom",
+     "has": [
+      {
+       "name": "security_score_regressions_total",
+       "labels": {
+        "dimension": "beta"
+       },
+       "value": 0
+      }
+     ]
+    }
+   ],
+   "remove": [
+    "catalog/02-beta.yaml"
+   ]
+  }
+ ]
+}

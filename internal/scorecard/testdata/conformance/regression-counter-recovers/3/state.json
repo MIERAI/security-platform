@@ -1,0 +1,10 @@
+{
+ "below": {
+  "alpha": false,
+  "beta": false
+ },
+ "regressions_total": {
+  "alpha": 1,
+  "beta": 0
+ }
+}

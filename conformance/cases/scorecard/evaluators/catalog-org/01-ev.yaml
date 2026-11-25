@@ -1,0 +1,4 @@
+schema: security-platform/scorecard-catalog/v1
+dimension: {id: ev, order: 1, title: Evaluators, pillars: [software]}
+controls:
+  - {id: ev.replaced, title: organisation version, csf: GV.OV, check: automated, weight: 1, source: {type: findings, check_in: [nothing]}}

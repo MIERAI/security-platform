@@ -1,0 +1,5 @@
+schema: security-platform/scorecard-catalog/v1
+dimension: {id: two, order: 2, title: Two, pillars: [device]}
+controls:
+  - {id: two.a, title: A, csf: PR.AA, check: automated, weight: 3, source: {type: findings}}
+  - {id: two.b, title: B, csf: PR.PS, check: automated, weight: 13, source: {type: findings, max: -1}}

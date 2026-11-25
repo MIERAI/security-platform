@@ -1,0 +1,72 @@
+{
+ "component": "scorecard",
+ "title": "An `sli` control passes while the ledger's SLI meets its objective, fails when not, is unknown when the SLI is not computed; a broken source is unknown (one broken control never hides the others)",
+ "contract": "scorecard/1.1",
+ "origin": "tests/test_scorecard.py::test_evaluators",
+ "files": {
+  "catalog/01-sli.yaml": "catalog/01-sli.yaml",
+  "instance.json": "instance.json",
+  "data/ledger.json": "ledger.json"
+ },
+ "steps": [
+  {
+   "name": "compute at 2030-01-10T00:00:00Z",
+   "exec": {
+    "impl": "scorecard",
+    "args": [
+     "compute",
+     "--data",
+     "{sandbox}/data",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--now",
+     "1894233600"
+    ]
+   },
+   "expect": [
+    {
+     "json": "data/reports/scorecard.json",
+     "schema": "scorecard",
+     "subset": {
+      "dimensions": {
+       "sli": {
+        "score": 25.0,
+        "failing": [
+         "sli.broken",
+         "sli.gone",
+         "sli.ttr"
+        ]
+       }
+      },
+      "controls": {
+       "$contains": [
+        {
+         "id": "sli.crit",
+         "status": "pass",
+         "detail": "SLI crit = 0 (objective <= 0)"
+        },
+        {
+         "id": "sli.ttr",
+         "status": "fail",
+         "detail": "SLI ttr = 3.5 (objective <= 1)"
+        },
+        {
+         "id": "sli.gone",
+         "status": "unknown",
+         "detail": "SLI gone not computed yet"
+        },
+        {
+         "id": "sli.broken",
+         "status": "unknown",
+         "detail": {
+          "$regex": "^evaluator error: "
+         }
+        }
+       ]
+      }
+     }
+    }
+   ]
+  }
+ ]
+}

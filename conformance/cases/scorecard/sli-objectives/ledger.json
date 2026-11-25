@@ -1,0 +1,18 @@
+{
+ "entries": {},
+ "runs": [],
+ "schema": "security-platform/ledger/v1",
+ "sli": {
+  "crit": {
+   "ok": true,
+   "target": 0,
+   "value": 0
+  },
+  "ttr": {
+   "ok": false,
+   "target": 1,
+   "value": 3.5
+  }
+ },
+ "updated_at": "2026-11-01T09:00:00Z"
+}
