@@ -1,0 +1,96 @@
+{
+ "component": "collector-codehost-gitea",
+ "title": "A token file readable by group or others is refused: the owner is a coverage gap and no request is sent",
+ "contract": "collector-protocol/1.0 §2",
+ "origin": "collectors/codehost-gitea read_token",
+ "services": [
+  {
+   "name": "codehost",
+   "argv": [
+    "{python}",
+    "{case}/mock_codehost.py",
+    "--fixture",
+    "{sandbox}/codehost-api.json"
+   ]
+  }
+ ],
+ "files": {
+  "instance.json": "instance.json",
+  "codehost-api.json": "api.json",
+  "gitea.token": {
+   "text": "{canary_token}\n",
+   "mode": "0644"
+  },
+  "data/.keep": {
+   "text": ""
+  }
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-codehost-gitea",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance"
+    },
+    "writes_only_under": [
+     "run"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "run/codehost-gitea.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "codehost-gitea"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "no_secret": [
+      "{canary_token}"
+     ],
+     "in": "run"
+    },
+    {
+     "absent": ".svc-codehost-mutations.log"
+    },
+    {
+     "no_secret": [
+      "{canary_token}"
+     ],
+     "in": ".svc-codehost-leaks"
+    },
+    {
+     "json": "run/codehost-gitea.findings.json",
+     "subset": {
+      "coverage": {
+       "$contains": [
+        {
+         "asset": "codehost:gitea/lab",
+         "status": "gap",
+         "reason": {
+          "$regex": "0600"
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "absent": ".svc-codehost-requests.log"
+    }
+   ]
+  }
+ ]
+}

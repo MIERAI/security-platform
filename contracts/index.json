@@ -100,6 +100,11 @@
   "SCORECARD-D1": "scorecard/attestation-expiry-is-utc",
   "SCORECARD-D2": null,
   "AGENT-D1": "collector-agent-claude-code/memory-credentials-pattern-class",
-  "AGENT-D2": "collector-agent-claude-code/malformed-settings-is-a-gap"
+  "AGENT-D2": "collector-agent-claude-code/malformed-settings-is-a-gap",
+  "GITHUB-D1": "collector-codehost-github/protection-unreadable-is-a-gap",
+  "GITHUB-D2": "collector-codehost-github/repositories-on-several-pages",
+  "GITHUB-D3": null,
+  "GITEA-D1": "collector-codehost-gitea/server-page-size-below-50",
+  "GITEA-D2": "collector-codehost-gitea/token-not-sent-to-another-host"
  }
 }

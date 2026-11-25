@@ -1,0 +1,11 @@
+{
+ "codehost": [
+  {
+   "owner": "lab",
+   "token_file": "{sandbox}/gitea.token",
+   "type": "gitea",
+   "url": "{svc_codehost}"
+  }
+ ],
+ "name": "conformance"
+}

@@ -1,0 +1,197 @@
+{
+ "routes": {
+  "/api/v1/orgs/lab/repos": {
+   "items": [
+    {
+     "archived": false,
+     "default_branch": "main",
+     "full_name": "lab/app",
+     "internal": false,
+     "mirror": false,
+     "name": "app",
+     "owner": {
+      "login": "lab"
+     },
+     "private": false
+    },
+    {
+     "archived": false,
+     "default_branch": "main",
+     "full_name": "lab/site",
+     "internal": false,
+     "mirror": false,
+     "name": "site",
+     "owner": {
+      "login": "lab"
+     },
+     "private": false
+    },
+    {
+     "archived": false,
+     "default_branch": "main",
+     "full_name": "lab/mirror",
+     "internal": false,
+     "mirror": true,
+     "name": "mirror",
+     "original_url": "http://example.org/up.git",
+     "owner": {
+      "login": "lab"
+     },
+     "private": true
+    },
+    {
+     "archived": false,
+     "default_branch": "release/v1",
+     "full_name": "lab/rel",
+     "internal": false,
+     "mirror": false,
+     "name": "rel",
+     "owner": {
+      "login": "lab"
+     },
+     "private": false
+    },
+    {
+     "archived": true,
+     "default_branch": "main",
+     "full_name": "lab/old",
+     "internal": false,
+     "mirror": false,
+     "name": "old",
+     "owner": {
+      "login": "lab"
+     },
+     "private": false
+    },
+    {
+     "archived": false,
+     "default_branch": "main",
+     "full_name": "lab/legacy",
+     "internal": false,
+     "mirror": false,
+     "name": "legacy",
+     "owner": {
+      "login": "lab"
+     },
+     "private": false
+    }
+   ]
+  },
+  "/api/v1/repos/lab/app/branch_protections": {
+   "body": [
+    {
+     "branch_name": "main",
+     "enable_push": false,
+     "enable_push_whitelist": false,
+     "enable_status_check": true,
+     "required_approvals": 0,
+     "rule_name": "main"
+    },
+    {
+     "branch_name": "dev*",
+     "enable_push": true,
+     "enable_push_whitelist": false,
+     "enable_status_check": false,
+     "required_approvals": 0,
+     "rule_name": "dev*"
+    }
+   ]
+  },
+  "/api/v1/repos/lab/app/keys": {
+   "items": [
+    {
+     "created_at": "2025-03-04T05:06:07Z",
+     "id": 1,
+     "key": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIConformanceOnly",
+     "read_only": false,
+     "title": "deploy"
+    },
+    {
+     "created_at": "2025-03-05T00:00:00Z",
+     "id": 2,
+     "read_only": true,
+     "title": "reader"
+    }
+   ]
+  },
+  "/api/v1/repos/lab/mirror/branch_protections": {
+   "body": [
+    {
+     "branch_name": "main",
+     "enable_push": true,
+     "enable_push_whitelist": false,
+     "enable_status_check": false,
+     "required_approvals": 1,
+     "rule_name": "main"
+    }
+   ]
+  },
+  "/api/v1/repos/lab/rel/branch_protections": {
+   "body": [
+    {
+     "branch_name": "main",
+     "enable_push": true,
+     "enable_push_whitelist": false,
+     "enable_status_check": false,
+     "required_approvals": 0,
+     "rule_name": "main"
+    },
+    {
+     "branch_name": "release/*",
+     "enable_push": true,
+     "enable_push_whitelist": true,
+     "enable_status_check": false,
+     "required_approvals": 2,
+     "rule_name": "release/*"
+    }
+   ]
+  },
+  "/api/v1/repos/lab/site/branch_protections": {
+   "body": []
+  },
+  "/api/v1/repos/lab/site/keys": {
+   "items": []
+  },
+  "/api/v1/repos/solo/pub/branch_protections": {
+   "body": [
+    {
+     "branch_name": "main",
+     "enable_push": false,
+     "enable_push_whitelist": false,
+     "enable_status_check": false,
+     "required_approvals": 1,
+     "rule_name": "main"
+    }
+   ]
+  },
+  "/api/v1/users/solo/repos": {
+   "items": [
+    {
+     "archived": false,
+     "default_branch": "main",
+     "full_name": "solo/pub",
+     "internal": false,
+     "mirror": false,
+     "name": "pub",
+     "owner": {
+      "login": "solo"
+     },
+     "private": false
+    },
+    {
+     "archived": false,
+     "default_branch": "main",
+     "full_name": "solo/secret",
+     "internal": false,
+     "mirror": false,
+     "name": "secret",
+     "owner": {
+      "login": "solo"
+     },
+     "private": true
+    }
+   ]
+  }
+ },
+ "token": "{canary_token}"
+}
