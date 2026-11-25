@@ -40,14 +40,18 @@ internal/components/   the product's components (<dir>/VERSION) and their implem
 internal/buildinfo/    the binary's release (link time), commit and toolchain
 internal/textsafe/     printing text read from files without terminal control characters
 internal/fakepython/   a stand-in interpreter for tests
-internal/ledger/       the ledger component (contracts/ledger): merge (`sp ledger merge`); VERSION
+internal/scorecard/    the scorecard (`sp scorecard compute|lint|list|version`; `attest` stays in Python)
+internal/pyvalue/       documents as the reference reads them: YAML 1.1 typing, ordered JSON, number printing,
+                       rounding (contracts/scorecard/SPEC.md §6); shared by every Go component
+internal/ledger/       the ledger merge (`sp ledger merge`, contracts/ledger); VERSION (component internal/ledger)
   cli/                 `sp ledger merge|track|version`
-  pyjson/              JSON as the reference sees it: key order, int vs float, json.dumps output, Python semantics
-  yamlcfg/             YAML 1.2 files (exceptions.yaml, catalog-review.yaml, instance config) to pyjson values
+  pyjson/              ledger.json / items.json as the reference writes them: key order, int vs float, integers
+                       of any size, json.dumps with every option the ledger uses (also compact, ensure_ascii lines)
+  yamlcfg/             exceptions.yaml, catalog-review.yaml, instance config, SLI catalog: pyvalue.DecodeYAML
   findings/            findings document validation (embedded copy of schema/findings-v1.schema.json)
   instant/ prom/ fileio/  UTC timestamps, Prometheus text, bounded reads and atomic writes
 internal/remediation/  track (`sp ledger track`): items, owners, SLO due dates, files and github-issues trackers
-internal/<component>/  added per component as it moves (runner, scorecard, collectors/<name>, ...)
+internal/<component>/  added per component as it moves (runner, collectors/<name>, ...)
 ```
 
 Everything is under `internal/`: the Go packages are not a public library API, the contracts (`schema/`,
@@ -78,20 +82,19 @@ Enforced by CI (`.github/workflows/go.yml`, `.golangci.yml`) where a tool can ch
   (`noctx`, `contextcheck`). The one deliberate exception is the delegated Python command, which enforces its
   own limits.
 - **Tests**: table-driven (`tests := []struct{...}` + `t.Run`), parallel where possible, run with `-race`.
-  **Every parser of external input has a fuzz test** (`FuzzXxx`) — product tags, RELEASE and VERSION files so
-  far — and CI runs each one briefly on every change.
+  **Every parser of external input has a fuzz test** (`FuzzXxx`) — product tags, RELEASE and VERSION files,
+  YAML and JSON documents, scorecard catalogs and attestations, dates, durations, globs, the metrics text format,
+  command lines — and CI runs each one briefly on every change.
 - **Dependencies**: standard library only unless a dependency is justified in its pull request (what it
-  replaces, its maintenance, its own dependencies); depguard enforces the allow-list, govulncheck checks it. Today:
-  - `go.yaml.in/yaml/v3` v3.0.5 (pinned in go.mod/go.sum; released 2026-07): the YAML parser for operator-written
-    files (`exceptions.yaml`, `catalog-review.yaml`, the instance config) and the bundled SLI catalog. Operators
-    write block and flow style with anchors and merge keys; a hand-written subset parser would misread some of it
-    — for exceptions, silently, which is worse than failing. It replaces nothing in this module. It is the YAML
-    organisation's maintained continuation of `gopkg.in/yaml.v3` (the parser most Go projects, Kubernetes
-    included, depend on), pure Go, with no dependencies of its own. It is used through one package
-    (`internal/ledger/yamlcfg`) at the node level: YAML 1.2 core-schema scalars (timestamps stay text), mapping keys
-    as text, alias expansion bounded (`yamlcfg.MaxNodes`), one document per file; fuzzed there. Tools are pinned by
+  replaces, its maintenance, its own dependencies); depguard enforces the allow-list. Tools are pinned by
   version and checksum; GitHub Actions by commit SHA. New tool and action versions wait about two weeks after
   their release before they are adopted.
+- **Dependencies in use** (each pinned in `go.mod`/`go.sum`, allowed by depguard, checked by govulncheck):
+
+  | module | version | why |
+  |---|---|---|
+  | `go.yaml.in/yaml/v3` | v3.0.6 (2026-10-13) | YAML catalogs, instances and attestations, which the reference reads with PyYAML. It replaces writing a YAML parser. It is the YAML organisation's maintained continuation of `gopkg.in/yaml.v3` (archived in 2025), same API; MIT/Apache-2.0; no dependencies of its own; pure Go without `unsafe`, `os` or network. Only its `Node` API is used: the scalar style and explicit tags it keeps let `pyvalue` apply the YAML 1.1 typing rules of the reference (`yes`/`on` booleans, `017` octal, dates), which no decoder into `any` does. Aliases are expanded by `pyvalue` with a node budget and a depth limit; files are read through a size limit. Not chosen: `gopkg.in/yaml.v3` (unmaintained), `go.yaml.in/yaml/v4` (v4.0.0 is three weeks old and a new API: revisit after it settles), `goccy/go-yaml` (larger, its own typing rules), `sigs.k8s.io/yaml` (converts to JSON: loses tags and order). Every Go component that reads YAML uses this one module. |
+
 - **Toolchain**: the `toolchain` line of `go.mod` (currently go1.27.4) is the version CI and releases build with;
   `go` is the minimum language version.
 

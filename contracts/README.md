@@ -9,7 +9,7 @@ produce, and the rules in between. Any implementation, in any language, that pas
 | [findings](findings/SPEC.md) | 1.2 | the document every collector run produces; OCSF mapping | `findings-v1` | through `ledger`, `collector-*` |
 | [collector-protocol](collector-protocol/SPEC.md) | 1.0 | a collector as an executable: invocation, env, outputs, exit codes, what it must never do | — | `collector-*`, `runner` |
 | [ledger](ledger/SPEC.md) | 1.0 | merge (lifecycle open/fixed/accepted/reopened, retirement, narrow gaps, exceptions, time to fix/know) and track (owners, due dates) | `ledger-v1`, `tracker-v1`, `exceptions-v1` | `ledger`, `remediation` |
-| [scorecard](scorecard/SPEC.md) | 1.0 | controls → dimensions → weakest-link score; attestations; not applicable | `scorecard-v1`, `catalog-v1`, `attestations-v1` | `scorecard` |
+| [scorecard](scorecard/SPEC.md) | 1.1 | controls → dimensions → weakest-link score; attestations; not applicable | `scorecard-v1`, `catalog-v1`, `attestations-v1` | `scorecard` |
 | [runner](runner/SPEC.md) | 1.1 | schedule (catch-up once, jitter, retries, max_delay), no overlap, state, publish; implementation switch and shadow runs | `runner-config-v1`, `runner-state-v1`, `runner-status-v1` | `runner` |
 | [metrics](metrics/SPEC.md) | 1.0 | Prometheus names, types, labels: the API of dashboards, alerts and SLOs | `registry.json` | `prom` checks in every component |
 | [cli](cli/SPEC.md) | 1.0 | the `sp` command: what scripts may parse, exit codes, what it never prints | `findings-json-v1` | `cli` |

@@ -1,0 +1,167 @@
+{
+ "attestations": {
+  "expired": 0,
+  "expiring": 0,
+  "missing": 0,
+  "valid": 0
+ },
+ "computed_at": "2030-01-10T00:00:00Z",
+ "controls": [
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "PR.PS",
+   "detail": "1 matching finding(s) (max 0): host.crit",
+   "dimension": "alpha",
+   "expires": null,
+   "function": "PR",
+   "id": "alpha.ok",
+   "needs_human": false,
+   "pillars": [
+    "device"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "fail",
+   "title": "Ok",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "PR.PS",
+   "detail": "0 matching finding(s) (max 0)",
+   "dimension": "beta",
+   "expires": null,
+   "function": "PR",
+   "id": "beta.ok",
+   "needs_human": false,
+   "pillars": [
+    "device"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "pass",
+   "title": "Ok",
+   "weight": 1
+  }
+ ],
+ "dimension_pillar": {
+  "alpha|device": 0.0,
+  "beta|device": 100.0
+ },
+ "dimensions": {
+  "alpha": {
+   "controls": 1,
+   "failing": [
+    "alpha.ok"
+   ],
+   "functions": [
+    "PR"
+   ],
+   "order": 1,
+   "owner": null,
+   "pillars": [
+    "device"
+   ],
+   "score": 0.0,
+   "status": "FAIL",
+   "threshold": 75.0,
+   "title": "Alpha",
+   "weight_passed": 0,
+   "weight_total": 1
+  },
+  "beta": {
+   "controls": 1,
+   "failing": [],
+   "functions": [
+    "PR"
+   ],
+   "order": 2,
+   "owner": null,
+   "pillars": [
+    "device"
+   ],
+   "score": 100.0,
+   "status": "PASS",
+   "threshold": 75.0,
+   "title": "Beta",
+   "weight_passed": 1,
+   "weight_total": 1
+  }
+ },
+ "functions": {
+  "DE": {
+   "controls": 0,
+   "score": 0.0,
+   "title": "Detect"
+  },
+  "GV": {
+   "controls": 0,
+   "score": 0.0,
+   "title": "Govern"
+  },
+  "ID": {
+   "controls": 0,
+   "score": 0.0,
+   "title": "Identify"
+  },
+  "PR": {
+   "controls": 2,
+   "score": 50.0,
+   "title": "Protect"
+  },
+  "RC": {
+   "controls": 0,
+   "score": 0.0,
+   "title": "Recover"
+  },
+  "RS": {
+   "controls": 0,
+   "score": 0.0,
+   "title": "Respond"
+  }
+ },
+ "mean": 50.0,
+ "not_applicable": {},
+ "overall": 0.0,
+ "pillars": {
+  "device": {
+   "controls": 2,
+   "failing": [
+    "alpha.ok"
+   ],
+   "score": 50.0,
+   "status": "FAIL"
+  },
+  "network": {
+   "controls": 0,
+   "failing": [],
+   "score": 0.0,
+   "status": "FAIL"
+  },
+  "people": {
+   "controls": 0,
+   "failing": [],
+   "score": 0.0,
+   "status": "FAIL"
+  },
+  "software": {
+   "controls": 0,
+   "failing": [],
+   "score": 0.0,
+   "status": "FAIL"
+  }
+ },
+ "regressions_total": {
+  "alpha": 1,
+  "beta": 0
+ },
+ "schema": "security-platform/scorecard/v1",
+ "scorecard_version": "0.5.0",
+ "status": "FAIL",
+ "threshold": 75.0,
+ "weakest": "alpha"
+}

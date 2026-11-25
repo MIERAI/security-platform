@@ -186,6 +186,17 @@ Alerts (generated): `SecurityScoreRegression` (ticket; `increase(security_score_
 only, a standing low score is for the weekly review), `SecurityAttestationExpired`, `SecurityScorecardStale`.
 Runbooks: `docs/runbooks.md#score-regression`, `#attestation-expired`.
 
+## Implementations
+
+Two implementations produce the same files byte for byte (contract `contracts/scorecard/SPEC.md`, §6 fixes the
+arithmetic and the printing): the reference `scorecard/scorecard.py`, which the runner calls on every publish, and the
+Go implementation `sp scorecard compute|lint|list|version` (`internal/scorecard`), which reads the same catalog
+(`scorecard/catalog` of the installed tree) and instance. `sp scorecard attest` hands the command to
+`scorecard/scorecard.py` unchanged (a human's command; it rewrites `attestations.yaml`). Both pass the conformance
+suite (`conformance/impl/python/run.sh --component scorecard`; `SP_IMPL_SCORECARD=conformance/impl/go/scorecard
+python3 conformance/run.py --component scorecard`). Which one the runner calls is the runner's choice (one
+implementation switch per component); until it switches, the Go implementation can be run by hand next to it.
+
 ## Another organisation's scorecard
 
 Everything is configuration in the instance:

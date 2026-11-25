@@ -5,3 +5,7 @@ This product is licensed under the Apache License, Version 2.0 (see LICENSE).
 It wraps, but does not include, third-party tools installed separately by the operator: nmap, Trivy, kube-bench,
 kubectl, the GitHub CLI. Threat-intelligence data it downloads at run time (CISA KEV, FIRST/Empirical EPSS,
 OSV.dev) is subject to the respective providers' terms.
+
+The sp binary includes go.yaml.in/yaml/v3 (https://github.com/yaml/go-yaml), licensed under the Apache License 2.0
+and, for the parts ported from libyaml, the MIT License; its copyright notices are in that module's LICENSE and NOTICE
+files.

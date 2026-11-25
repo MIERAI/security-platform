@@ -9,3 +9,4 @@ runner/retry-waits-for-retry-delay       RUNNER-D1  retry delay measured on the 
 runner/missed-slot-is-visible            RUNNER-D2  skipped / given-up slots not counted anywhere
 cli/status-shows-missed-slot             CLI-D1     status shows "ok" for a job whose slot was missed
 ledger/removed-exception-reopens         LEDGER-D5  an exception deleted by a human leaves the finding accepted
+scorecard/attestation-expiry-is-utc       SCORECARD-D1  dates parsed as local time: an expiry is an hour early under DST

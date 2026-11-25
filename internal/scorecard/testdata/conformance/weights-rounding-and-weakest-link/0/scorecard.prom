@@ -1,0 +1,59 @@
+# HELP security_score Security scorecard: weighted pass ratio of the controls (0-100); the weakest dimension decides
+# TYPE security_score gauge
+security_score{dimension="one"} 6.2
+security_score{dimension="two"} 18.8
+security_score{dimension="three"} 83.3
+security_score{dimension="five"} 6.2
+security_score{pillar="network"} 6.2
+security_score{pillar="device"} 9.7
+security_score{pillar="people"} 6.2
+security_score{pillar="software"} 83.3
+security_score{pillar="physical"} 0
+security_score{function="GV"} 100
+security_score{function="ID"} 0
+security_score{function="PR"} 18.8
+security_score{function="DE"} 100
+security_score{function="RS"} 0
+security_score{dimension="five",pillar="people"} 6.2
+security_score{dimension="one",pillar="device"} 0
+security_score{dimension="one",pillar="network"} 6.2
+security_score{dimension="three",pillar="software"} 83.3
+security_score{dimension="two",pillar="device"} 18.8
+# HELP security_score_overall Overall score = the weakest dimension's score
+# TYPE security_score_overall gauge
+security_score_overall 6.2
+# HELP security_score_threshold A dimension below this fails the scorecard
+# TYPE security_score_threshold gauge
+security_score_threshold 75.5
+# HELP security_score_pass 1 while every dimension meets its threshold
+# TYPE security_score_pass gauge
+security_score_pass 0
+# HELP security_score_controls Controls per dimension and result (details in the private scorecard report)
+# TYPE security_score_controls gauge
+security_score_controls{dimension="one",status="pass"} 1
+security_score_controls{dimension="one",status="fail"} 1
+security_score_controls{dimension="one",status="na"} 0
+security_score_controls{dimension="two",status="pass"} 1
+security_score_controls{dimension="two",status="fail"} 1
+security_score_controls{dimension="two",status="na"} 0
+security_score_controls{dimension="three",status="pass"} 1
+security_score_controls{dimension="three",status="fail"} 2
+security_score_controls{dimension="three",status="na"} 0
+security_score_controls{dimension="five",status="pass"} 1
+security_score_controls{dimension="five",status="fail"} 1
+security_score_controls{dimension="five",status="na"} 0
+# HELP security_score_regressions_total Times the dimension dropped below its threshold (counter; the alert fires on increases)
+# TYPE security_score_regressions_total counter
+security_score_regressions_total{dimension="five"} 0
+security_score_regressions_total{dimension="one"} 0
+security_score_regressions_total{dimension="three"} 0
+security_score_regressions_total{dimension="two"} 0
+# HELP security_attestations Attested (human) controls by state; expired ones fail again
+# TYPE security_attestations gauge
+security_attestations{state="valid"} 0
+security_attestations{state="expiring"} 0
+security_attestations{state="expired"} 0
+security_attestations{state="missing"} 0
+# HELP security_scorecard_last_compute_timestamp_seconds When the scorecard was last computed
+# TYPE security_scorecard_last_compute_timestamp_seconds gauge
+security_scorecard_last_compute_timestamp_seconds 1894233600

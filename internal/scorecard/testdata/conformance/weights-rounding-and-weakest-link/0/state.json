@@ -1,0 +1,14 @@
+{
+ "below": {
+  "five": true,
+  "one": true,
+  "three": false,
+  "two": true
+ },
+ "regressions_total": {
+  "five": 0,
+  "one": 0,
+  "three": 0,
+  "two": 0
+ }
+}

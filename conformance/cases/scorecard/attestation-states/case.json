@@ -1,0 +1,155 @@
+{
+ "component": "scorecard",
+ "title": "Attestations: valid, expiring within 14 days, expired (expires <= now), missing (none, no attested_by, no date); expires defaults to at + validity; value: false fails but is a current attestation; a human not_applicable needs an unexpired expiry; an automated control with an attestation fallback counts only when the human decided it; YAML dates may be unquoted",
+ "contract": "scorecard/1.1",
+ "origin": "tests/test_scorecard.py::test_attestations_expire_and_need_a_human",
+ "files": {
+  "catalog/01-att.yaml": "catalog/01-att.yaml",
+  "instance.json": "instance.json",
+  "data/attestations.yaml": "attestations.yaml",
+  "data/ledger.json": "ledger.json"
+ },
+ "steps": [
+  {
+   "name": "compute at 2030-01-10T00:00:00Z",
+   "exec": {
+    "impl": "scorecard",
+    "args": [
+     "compute",
+     "--data",
+     "{sandbox}/data",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--now",
+     "1894233600"
+    ]
+   },
+   "expect": [
+    {
+     "json": "data/reports/scorecard.json",
+     "schema": "scorecard",
+     "subset": {
+      "attestations": {
+       "valid": 4,
+       "expiring": 1,
+       "expired": 2,
+       "missing": 3
+      },
+      "dimensions": {
+       "att": {
+        "score": 45.5,
+        "weight_total": 11,
+        "weight_passed": 5
+       }
+      },
+      "controls": {
+       "$contains": [
+        {
+         "id": "att.valid",
+         "status": "pass",
+         "expires": "2031-01-01",
+         "needs_human": true,
+         "attestable": true,
+         "detail": "attested by alice until 2031-01-01"
+        },
+        {
+         "id": "att.expiring",
+         "status": "pass",
+         "expires": "2030-01-20",
+         "detail": "attested by alice until 2030-01-20 (expires within 14 days)"
+        },
+        {
+         "id": "att.expired",
+         "status": "expired",
+         "detail": "attestation by alice expired 2030-01-10: re-attest"
+        },
+        {
+         "id": "att.missing",
+         "status": "unattested",
+         "expires": null,
+         "detail": "not attested: a human answers \"Does missing hold?\" (scorecard.py attest)"
+        },
+        {
+         "id": "att.no-by",
+         "status": "unattested",
+         "detail": "attestation without attested_by is ignored"
+        },
+        {
+         "id": "att.no-date",
+         "status": "unattested",
+         "detail": "attestation without a date (at/expires) is ignored"
+        },
+        {
+         "id": "att.at-validity",
+         "status": "pass",
+         "expires": "2030-02-04"
+        },
+        {
+         "id": "att.false",
+         "status": "fail",
+         "detail": "attested as NOT holding by bob: it does not hold"
+        },
+        {
+         "id": "att.na-expired",
+         "status": "expired"
+        },
+        {
+         "id": "att.na-valid",
+         "status": "na",
+         "detail": "not applicable (approved by carol): not used here"
+        },
+        {
+         "id": "att.fallback-human",
+         "status": "pass",
+         "expires": "2030-03-01",
+         "needs_human": false
+        },
+        {
+         "id": "att.fallback-api",
+         "status": "pass",
+         "expires": null,
+         "detail": {
+          "$regex": "^SLI crit = 0 "
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "prom": "data/metrics/scorecard.prom",
+     "has": [
+      {
+       "name": "security_attestations",
+       "labels": {
+        "state": "valid"
+       },
+       "value": 4
+      },
+      {
+       "name": "security_attestations",
+       "labels": {
+        "state": "expiring"
+       },
+       "value": 1
+      },
+      {
+       "name": "security_attestations",
+       "labels": {
+        "state": "expired"
+       },
+       "value": 2
+      },
+      {
+       "name": "security_attestations",
+       "labels": {
+        "state": "missing"
+       },
+       "value": 3
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}
