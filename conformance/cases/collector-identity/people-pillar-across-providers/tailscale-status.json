@@ -1,0 +1,29 @@
+{
+ "BackendState": "Running",
+ "Peer": {
+  "nodekey:a1": {
+   "Created": "2020-01-01T00:00:00Z",
+   "HostName": "old-laptop",
+   "KeyExpiry": "2021-01-01T00:00:00Z",
+   "LastSeen": "2020-06-01T00:00:00Z",
+   "Online": false
+  },
+  "nodekey:b2": {
+   "Created": "{utc:-864000}",
+   "HostName": "phone",
+   "KeyExpiry": "{utc:+259200}",
+   "LastSeen": "{utc:-3600}",
+   "Online": true
+  },
+  "nodekey:c3": {
+   "Created": "{utc:-8640000}",
+   "HostName": "server",
+   "LastSeen": "{utc:-60}",
+   "Online": true
+  }
+ },
+ "Self": {
+  "HostName": "this-host",
+  "Online": true
+ }
+}

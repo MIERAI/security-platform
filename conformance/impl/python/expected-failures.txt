@@ -26,3 +26,8 @@ collector-k8s/namespaced-role-is-evaluated             K8S-D4  RoleBindings to n
 
 # ---- collector identity (contracts/collector-protocol/SPEC.md, "Collector identity") ----
 # (entries below this line)
+collector-identity/pagination-is-followed          IDENTITY-D1  only the first page of every listing is read
+collector-identity/unreadable-listings-are-gaps    IDENTITY-D2  members / outside collaborators / deploy keys / fork-PR policy errors dropped
+collector-identity/rate-limit-is-a-gap-until-reset IDENTITY-D3  a rate-limited listing read as empty; calls continue
+collector-identity/org-members-without-2fa         IDENTITY-D4  members' 2FA never read
+collector-identity/overlay-network-api             IDENTITY-D5  overlay-network API base fixed to the vendor's host

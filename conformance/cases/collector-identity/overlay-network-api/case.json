@@ -1,0 +1,151 @@
+{
+ "component": "collector-identity",
+ "title": "The overlay network's API (a read-only key or an OAuth client, from 0600 files) gives users, devices and the ACL: an allow-all policy is reported. The API base is configurable (`api_url`), as for the code host",
+ "contract": "collector-protocol/1.0 / findings/1.2",
+ "deviation": "IDENTITY-D5",
+ "origin": "the API base was fixed to the vendor's host: no mirror, proxy or test endpoint",
+ "services": [
+  {
+   "name": "api",
+   "argv": [
+    "{python}",
+    "{case}/mock_api.py",
+    "--data",
+    "{case}/api.json",
+    "--log",
+    "{sandbox}/.svc-api.calls"
+   ]
+  }
+ ],
+ "files": {
+  "instance.json": "instance.json",
+  "data/.keep": {
+   "text": ""
+  },
+  "bin/gh": {
+   "text": "#!/bin/sh\nexec \"{python}\" \"{case}/fake_gh.py\" \"$@\"\n",
+   "mode": "0755"
+  },
+  "bin/security": {
+   "text": "#!/bin/sh\n# fake macOS keychain: attributes only (a fixed creation date), never a secret\ncat \"{case}/keychain.txt\"\n",
+   "mode": "0755"
+  },
+  "bin/tailscale": {
+   "text": "#!/bin/sh\n[ \"$1 $2\" = \"status --json\" ] || { echo \"fake tailscale: $*\" >&2; exit 1; }\ncat \"{sandbox}/tailscale-status.json\"\n",
+   "mode": "0755"
+  },
+  "tailscale-status.json": "tailscale-status.json",
+  "home/.config/ts/api.key": {
+   "text": "ts-conformance-api-key-canary-4b2e\n",
+   "mode": "0600"
+  },
+  "home/.config/ts/oauth.secret": {
+   "text": "ts-conformance-oauth-secret-canary-9a3c\n",
+   "mode": "0600"
+  }
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-identity",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance",
+     "PATH": "{sandbox}/bin:{path}",
+     "FAKE_GH_URL": "{svc_api}",
+     "FAKE_GH_LOG": "{sandbox}/.svc-gh.calls",
+     "https_proxy": "http://127.0.0.1:9",
+     "HTTPS_PROXY": "http://127.0.0.1:9",
+     "http_proxy": "http://127.0.0.1:9",
+     "HTTP_PROXY": "http://127.0.0.1:9"
+    },
+    "writes_only_under": [
+     "run",
+     "data/cache"
+    ]
+   },
+   "expect": [
+    {
+     "json": "run/identity.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "identity"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "no_secret": [
+      "conformanceCanary",
+      "kube-conformance-token-canary-51aa",
+      "docker-conformance-auth-canary-2f0e",
+      "PRIVATE-KEY-CANARY-77c1",
+      "token-file-canary-0b3d",
+      "ts-conformance-api-key-canary-4b2e",
+      "ts-conformance-oauth-secret-canary-9a3c",
+      "ts-conformance-access-canary-1c4f"
+     ],
+     "in": "run"
+    },
+    {
+     "json": "run/identity.findings.json",
+     "subset": {
+      "coverage": {
+       "$contains": [
+        {
+         "asset": "identity-provider:tailscale",
+         "status": "ok"
+        }
+       ]
+      },
+      "findings": {
+       "$contains": [
+        {
+         "check": "identity.overlay_acl_allow_all",
+         "asset": "identity-provider:tailscale",
+         "severity": "high"
+        },
+        {
+         "check": "identity.credential_expired",
+         "asset": "credential:tailscale/device/build"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/raw/identity/inventory.json",
+     "subset": {
+      "accounts": [
+       {
+        "provider": "tailscale",
+        "id": "octo@example.com",
+        "admin": true
+       }
+      ]
+     }
+    },
+    {
+     "file": ".svc-api.calls",
+     "regex": [
+      "^GET /api/v2/tailnet/-/acl auth=yes"
+     ]
+    },
+    {
+     "file": ".svc-api.calls",
+     "not_regex": [
+      "^(?!GET |POST /api/v2/oauth/token |$)"
+     ]
+    }
+   ]
+  }
+ ]
+}
