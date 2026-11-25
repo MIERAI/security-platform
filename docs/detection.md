@@ -66,7 +66,11 @@ Until phase 1 the platform found **conditions** (misconfigurations, vulnerabilit
 2. **node-logs + backstop rules**: kustomize bases `detections/node-logs` and `detections/falco` at a pinned commit;
    the overlay sets CLUSTER, LOKI_URL, LOKI_TOKEN (Secret) and the namespace.
 3. **API audit log**: `detections/k8s-audit/policy.yaml` + the API server flags (`audit-policy-file`, `audit-log-path`
-   under the directory node-logs mounts, rotation). Requires an API server restart.
+   under the directory node-logs mounts, rotation). Requires an API server restart. The policy file is a copy on
+   each control-plane node: when a release changes `policy.yaml`, copy it again and restart the API server (the
+   CHANGELOG says when). Service accounts' access reviews (`selfsubjectaccessreviews`, `subjectaccessreviews`,
+   `localsubjectaccessreviews`, `selfsubjectrulesreviews`: controllers checking their own permissions, up to a third
+   of all lines on a cluster with a policy engine) are not logged; a person's are (possible reconnaissance).
 4. **Ruler**: render with the instance's params, put the file into the ruler's rule directory, point the ruler at
    the Alertmanager(s). Alerts carry `cluster` where the source has one; route per cluster as needed.
 5. **Off-cluster sources**: runner job `events` (docs/runner.md).

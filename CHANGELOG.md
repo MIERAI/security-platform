@@ -2,6 +2,21 @@
 
 Components are versioned independently (docs/design.md §5). Entries name the component and its new version.
 
+## 2026-11-25 — detections 0.2.2: less audit noise
+
+- **detections 0.2.2**: `k8s-audit/policy.yaml` drops `create` of `selfsubjectaccessreviews`, `subjectaccessreviews`,
+  `localsubjectaccessreviews` and `selfsubjectrulesreviews` (authorization.k8s.io) by **service accounts**
+  (`system:serviceaccounts`): controllers checking their own permissions (a policy engine's cleanup controller,
+  admission webhooks, operators). On a real cluster with a policy engine these were about 35% of all audit lines; no
+  detection uses them. The same reviews by a person (or anonymous) are still logged at Metadata (possible
+  reconnaissance). The rule matches only these four resources and only `create`: tokens, exec, Secrets, RBAC and all
+  other writes by service accounts are logged as before (tests). Trade-off: a stolen service account token asking
+  what it may do is no longer logged; what it then does still is.
+- **Action for instances**: the policy is a file on each control-plane node and is not deployed by the platform.
+  Copy the updated `detections/k8s-audit/policy.yaml` to every control-plane node (where `--audit-policy-file`
+  points) and restart the API server (static pod: touch or re-apply its manifest). Until then the old policy stays in
+  effect (more volume, nothing missed).
+
 ## 2026-11-25 — team integrations: tickets, SIEM, instance scope in the scorecard
 
 - **adapters/tickets.py 0.1.0** (new): one ticket per ledger finding in the team's issue tracker. Generic engine

@@ -14,7 +14,7 @@
 #   overlay-network  overlay network (VPN) control-plane audit events       labels: source; s.m.: event, actor
 # Severity: page (a human now) | ticket (same day) | info (recorded, no notification). Routing is the instance's
 # Alertmanager configuration; labels: severity, component=security-detection, detection=<id>.
-version: 0.2.1
+version: 0.2.2
 released: "2026-11-24"          # rule-content date: security_detection_ruleset_age_days counts from here
 upstream:
   falco_rules: "falco-rules 5.2.0"     # the upstream rules file the curated selection was reviewed against
@@ -127,6 +127,8 @@ rules:
     summary: 'authorized_keys / sshd configuration opened for writing on {{ $labels.hostname }} ({{ $labels.cluster }})'
 
   # ------------------------------------------------------------------ Kubernetes API audit (network + workload)
+  # Input volume is set by detections/k8s-audit/policy.yaml (deployed on the control-plane nodes, not by render.py):
+  # service accounts' access reviews (authorization.k8s.io) are dropped there; no rule below uses them.
   - id: k8s-pod-exec
     title: Exec, attach or port-forward into a pod
     source: k8s-audit

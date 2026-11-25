@@ -142,6 +142,21 @@ class AuditPolicy(unittest.TestCase):
         self.assertEqual(self.first_match("", "pods", "list", user="system:anonymous", groups=("system:unauthenticated",)), "Metadata")
         self.assertEqual(self.first_match("", "secrets", "get", user="system:serviceaccount:x:y", groups=("system:serviceaccounts",)), "Metadata")
 
+    def test_access_reviews(self):
+        sa = dict(user="system:serviceaccount:policy:cleanup-controller", groups=("system:serviceaccounts", "system:authenticated"))
+        for r in ("selfsubjectaccessreviews", "subjectaccessreviews", "localsubjectaccessreviews", "selfsubjectrulesreviews"):
+            self.assertEqual(self.first_match("authorization.k8s.io", r, "create", **sa), "None", r)   # controllers: noise
+            self.assertEqual(self.first_match("authorization.k8s.io", r, "create"), "Metadata", r)     # a person: recon
+        # the exemption is narrow: nothing else a service account creates is dropped
+        self.assertEqual(self.first_match("authentication.k8s.io", "tokenreviews", "create", **sa), "Metadata")
+        self.assertEqual(self.first_match("", "serviceaccounts/token", "create", **sa), "Request")
+        self.assertEqual(self.first_match("", "pods/exec", "create", **sa), "Request")
+        self.assertEqual(self.first_match("", "secrets", "create", **sa), "Metadata")
+        self.assertEqual(self.first_match("", "pods", "create", **sa), "Metadata")
+        self.assertEqual(self.first_match("rbac.authorization.k8s.io", "clusterrolebindings", "create", **sa), "Request")
+        self.assertEqual(self.first_match("authorization.k8s.io", "selfsubjectaccessreviews", "create",
+                                          user="system:anonymous", groups=("system:unauthenticated",)), "Metadata")
+
 
 if __name__ == "__main__":
     unittest.main()
