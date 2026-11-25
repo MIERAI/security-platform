@@ -284,7 +284,10 @@ sp cloud credential-process ACCOUNT.json          # called by engines (AWS crede
 sp cloud executable-token ACCOUNT.json            # called by engines (google-auth executable-sourced token)
 ```
 
-It is not the default yet (the runner still runs collectors/cloud/collector.py). To run it, a `command` job:
+It is not the default yet (the runner still runs collectors/cloud/collector.py). It is not selected with
+`runner.implementations` either: that switch is for core steps whose inputs are files in the data directory (`shadow`
+runs Go on a copy of them); a collector's input is the live cloud, and a shadow run would scan every account twice.
+To run it, a `command` job:
 
 ```yaml
 runner:
