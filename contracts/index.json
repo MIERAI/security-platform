@@ -80,6 +80,14 @@
    "conformance": [
     "cli"
    ]
+  },
+  "events": {
+   "version": "1.0",
+   "spec": "events/SPEC.md",
+   "schemas": [],
+   "conformance": [
+    "events"
+   ]
   }
  },
  "known_deviations": {
@@ -100,6 +108,7 @@
   "SCORECARD-D1": "scorecard/attestation-expiry-is-utc",
   "SCORECARD-D2": null,
   "AGENT-D1": "collector-agent-claude-code/memory-credentials-pattern-class",
-  "AGENT-D2": "collector-agent-claude-code/malformed-settings-is-a-gap"
+  "AGENT-D2": "collector-agent-claude-code/malformed-settings-is-a-gap",
+  "EVENTS-D1": "events/credentials-not-sent-to-another-host"
  }
 }
