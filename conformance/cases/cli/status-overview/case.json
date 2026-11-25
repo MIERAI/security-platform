@@ -1,0 +1,71 @@
+{
+ "component": "cli",
+ "title": "`sp status`: open findings by severity, overdue and unowned fixes, fixed in 7 days and regressions, the scorecard (weakest dimensions, pillars), SLIs off target, every job (ok / FAILING / LATE / never), what could not be checked (at most 8 lines, reasons cut at 100 characters) and the five worst findings",
+ "contract": "cli/1.1",
+ "origin": "cli/sp.py cmd_status; tests/test_cli.py::test_status",
+ "files": {
+  "data/ledger.json": "ledger.json",
+  "data/tracker/items.json": "items.json",
+  "data/instance.json": "instance.json",
+  "data/scorecard/latest.json": "scorecard.json",
+  "data/latest/host.findings.json": "host.findings.json",
+  "data/state/runner/host.json": "state-host.json",
+  "data/state/runner/flaky.json": "state-flaky.json",
+  "data/state/runner/late.json": "state-late.json"
+ },
+ "steps": [
+  {
+   "name": "sp status --data {sandbox}/data",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "status",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "regex": [
+       "^security-platform status - conf$",
+       "^Open findings: critical 2, high 2, medium 1, low 1$",
+       "^Overdue fixes: 1 \\(past their remediation SLO; `sp findings --overdue`\\)$",
+       "^Without an owner: 1 \\(set remediation\\.default_owner\\)$",
+       "^Fixed in the last 7 days: 1   Came back \\(regressions\\): 1$",
+       "^Scorecard: 62\\.5/100   weakest: people 62\\.5, network 90, devices None  \\(FAIL, threshold 75\\)$",
+       "^  pillars: network 80, people 40$",
+       "^Security SLIs: 1/2 on target: off target mfa_coverage=0\\.5$",
+       "^Jobs:$",
+       "^  ok  host                 last good run 2h ago$",
+       "^  FAILING  flaky                last good run 1d ago  \\(collector exited rc=3, document=no z{45}\\)$",
+       "^  LATE    late                 slot \\d{4}-\\d\\d-\\d\\d \\d\\d:\\d\\d not run yet \\(\\d+m late\\); last good run 4\\dm ago$",
+       "^  never   fresh$",
+       "^Could not check 10 thing\\(s\\) \\(no finding there does NOT mean safe\\):$",
+       "^  host: r{100}$",
+       "^Top risks \\(sp explain <id>\\):$",
+       "^  e7cdeab86be2  critical ",
+       "^  67aa21376780  critical ",
+       "^  5bf71f666f88  high     ",
+       "^  1ad805443fd9  high     ",
+       "^  66985ca93cda  medium   ",
+       "^  e7cdeab86be2  .*\\n^  67aa21376780  .*\\n^  5bf71f666f88  .*\\n^  1ad805443fd9  .*\\n^  66985ca93cda  .*\\n"
+      ],
+      "not_regex": [
+       "^  host: r{101}",
+       "ef03d6bedf60"
+      ]
+     }
+    },
+    {
+     "stdout": {
+      "regex": [
+       "(?:^  host: \\S+\\n){8}\\nTop risks"
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}

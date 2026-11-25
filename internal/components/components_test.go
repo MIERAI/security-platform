@@ -62,7 +62,7 @@ func TestDiscover(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []Component{
-		{"cli", "0.3.0", Python}, {"collectors/host", "0.3.0", Python},
+		{"cli", "0.3.0", Go}, {"collectors/host", "0.3.0", Python},
 		{"collectors/k8s", "invalid", Python}, {"core", "0.9.0", Python},
 	}
 	if len(got) != len(want) {
@@ -85,8 +85,8 @@ func TestDiscoverMissingTree(t *testing.T) {
 func TestGoImplementedIsFresh(t *testing.T) {
 	t.Parallel()
 	m := GoImplemented()
-	m["cli"] = true
-	if GoImplemented()["cli"] {
+	m["core"] = true
+	if GoImplemented()["core"] {
 		t.Fatal("GoImplemented shares state between calls")
 	}
 }

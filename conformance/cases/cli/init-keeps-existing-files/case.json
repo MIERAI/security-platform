@@ -1,0 +1,126 @@
+{
+ "component": "cli",
+ "title": "`sp init` on an existing directory makes it private (0700), keeps instance.yaml unless --force and keeps exceptions.yaml and .gitignore always",
+ "contract": "cli/1.1",
+ "origin": "cli/sp.py cmd_init",
+ "files": {
+  "d": {
+   "dir": true,
+   "mode": "0755"
+  },
+  "d/instance.yaml": {
+   "text": "name: mine\n",
+   "mode": "0600"
+  },
+  "d/exceptions.yaml": {
+   "text": "exceptions: {abc: {}}\n"
+  },
+  "d/.gitignore": {
+   "text": "mine/\n"
+  }
+ },
+ "steps": [
+  {
+   "name": "sp init {sandbox}/d",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "init",
+     "{sandbox}/d"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "regex": [
+       "^\\S*/d/instance\\.yaml exists: left as it is \\(--force overwrites\\)$"
+      ],
+      "not_regex": [
+       "^wrote"
+      ]
+     }
+    },
+    {
+     "mode": "d",
+     "is": "0700"
+    },
+    {
+     "file": "d/instance.yaml",
+     "text": "name: mine\n"
+    }
+   ]
+  },
+  {
+   "name": "sp init {sandbox}/d --force --name fresh",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "init",
+     "{sandbox}/d",
+     "--force",
+     "--name",
+     "fresh"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "regex": [
+       "^wrote \\S*/d/instance\\.yaml$"
+      ]
+     }
+    },
+    {
+     "file": "d/instance.yaml",
+     "regex": [
+      "^name: fresh$"
+     ]
+    },
+    {
+     "mode": "d/instance.yaml",
+     "is": "0600"
+    },
+    {
+     "file": "d/exceptions.yaml",
+     "text": "exceptions: {abc: {}}\n"
+    },
+    {
+     "file": "d/.gitignore",
+     "text": "mine/\n"
+    }
+   ]
+  },
+  {
+   "name": "default name: the directory's",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "init",
+     "{sandbox}/new/nested"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "regex": [
+       "^wrote \\S*/new/nested/instance\\.yaml$"
+      ]
+     }
+    },
+    {
+     "file": "new/nested/instance.yaml",
+     "regex": [
+      "^name: nested$"
+     ]
+    },
+    {
+     "file": "new/nested/.gitignore",
+     "text": "state/locks/\ncache/\n"
+    }
+   ]
+  }
+ ]
+}

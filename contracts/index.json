@@ -72,7 +72,7 @@
    ]
   },
   "cli": {
-   "version": "1.0",
+   "version": "1.1",
    "spec": "cli/SPEC.md",
    "schemas": [
     "cli/findings-json-v1.schema.json"
@@ -98,6 +98,10 @@
   "COLLECTOR-D1": null,
   "METRICS-D1": null,
   "SCORECARD-D1": "scorecard/attestation-expiry-is-utc",
-  "SCORECARD-D2": null
+  "SCORECARD-D2": null,
+  "CLI-D2": "cli/bad-input-is-one-line",
+  "CLI-D3": "cli/due-date-in-local-time",
+  "CLI-D4": "cli/explain-ambiguous-prefix",
+  "CLI-D5": "cli/init-files-are-private"
  }
 }

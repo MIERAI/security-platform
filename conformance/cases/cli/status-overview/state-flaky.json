@@ -1,0 +1,9 @@
+{
+ "schema": "security-platform/runner-state/v1",
+ "job": "flaky",
+ "runs_total": 4,
+ "failures_total": 2,
+ "last_rc": 3,
+ "last_success": {epoch:-90000},
+ "last_note": "collector exited rc=3, document=no zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
+}

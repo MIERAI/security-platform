@@ -1,0 +1,94 @@
+{
+ "component": "cli",
+ "title": "`sp run` runs every job except digest/notify/snapshot/push/pull-snapshot (collectors first), prints one `ok` / `FAILED` line per job and exits with the runner's status; named jobs run as given; an unknown job exits 2 naming the configured ones",
+ "contract": "cli/1.1",
+ "origin": "cli/sp.py cmd_run",
+ "files": {
+  "data/instance.json": "instance.json"
+ },
+ "steps": [
+  {
+   "name": "sp run --data {sandbox}/data",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "run",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": {
+    "not": 0
+   },
+   "expect": [
+    {
+     "stdout": {
+      "regex": [
+       "^running 3 job\\(s\\): good, bad, remediation  ",
+       "^  ok  good\\s+\\d+s\\s*$",
+       "^  FAILED  bad\\s+\\d+s  \\S",
+       "^  ok  remediation\\s+\\d+s\\s*$",
+       "^next: sp status"
+      ]
+     }
+    },
+    {
+     "json": "data/state/runner/bad.json",
+     "subset": {
+      "last_rc": {
+       "$type": "integer"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "sp run good digest --data {sandbox}/data",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "run",
+     "good",
+     "digest",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "regex": [
+       "^running 2 job\\(s\\): good, digest  ",
+       "^  ok  good\\s",
+       "^  ok  digest\\s"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "sp run nope good --data {sandbox}/data",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "run",
+     "nope",
+     "good",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 2,
+   "expect": [
+    {
+     "stderr": {
+      "regex": [
+       "^sp: not in runner\\.jobs: nope \\(configured: remediation, good, bad, digest\\)$"
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}

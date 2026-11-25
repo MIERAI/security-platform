@@ -1,0 +1,22 @@
+{
+ "dimensions": {
+  "devices": {
+   "score": null
+  },
+  "network": {
+   "score": 90
+  },
+  "people": {
+   "score": 62.5
+  }
+ },
+ "overall": 62.5,
+ "pillars": {
+  "network": {
+   "score": 80
+  },
+  "people": 40
+ },
+ "status": "FAIL",
+ "threshold": 75
+}

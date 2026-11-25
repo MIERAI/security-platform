@@ -1,0 +1,33 @@
+{
+ "name": "quick",
+ "scorecard": {
+  "enabled": false
+ },
+ "runner": {
+  "site": "hub",
+  "role": "hub",
+  "jobs": {
+   "emit": {
+    "type": "command",
+    "collector": "host",
+    "as": "emit",
+    "argv": [
+     "/bin/sh",
+     "{case}/emit.sh"
+    ],
+    "schedule": "15 2 * * *",
+    "env": {
+     "EMIT_DOC": "{case}/emit.findings.json"
+    }
+   },
+   "remediation": {
+    "type": "remediation",
+    "schedule": "50 * * * *"
+   },
+   "digest": {
+    "type": "digest",
+    "schedule": "0 9 * * 1"
+   }
+  }
+ }
+}

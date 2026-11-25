@@ -1,7 +1,7 @@
 {
  "component": "cli",
  "title": "`--ids` prints one id per line (for scripts); the table shows the due date or OVERDUE",
- "contract": "cli/1.0",
+ "contract": "cli/1.1",
  "origin": "cli/sp.py cmd_findings",
  "files": {
   "data/ledger.json": "ledger.json",

@@ -1,0 +1,154 @@
+{
+ "component": "cli",
+ "title": "Unreadable input (a config that is not YAML, a config that is not a mapping, a corrupt ledger or tracker, `sp init` onto a file) is reported as one line `sp: <path>: <why>` with exit 2, never a stack trace",
+ "contract": "cli/1.1",
+ "deviation": "CLI-D2",
+ "origin": "cli/sp.py: exceptions escape as Python tracebacks (exit 1)",
+ "files": {
+  "yaml/instance.yaml": {
+   "text": "name: [unclosed\nrunner: {\n"
+  },
+  "list/instance.json": {
+   "text": "[1, 2]\n"
+  },
+  "ledger/instance.json": {
+   "text": "{\"name\": \"x\"}\n"
+  },
+  "ledger/ledger.json": {
+   "text": "{\"entries\": "
+  },
+  "items/instance.json": {
+   "text": "{\"name\": \"x\"}\n"
+  },
+  "items/ledger.json": {
+   "text": "{\"entries\": {}}\n"
+  },
+  "items/tracker/items.json": {
+   "text": "not json"
+  },
+  "afile": {
+   "text": "x\n"
+  }
+ },
+ "steps": [
+  {
+   "name": "sp doctor --data {sandbox}/yaml",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "doctor",
+     "--data",
+     "{sandbox}/yaml"
+    ]
+   },
+   "exit": 2,
+   "expect": [
+    {
+     "stderr": {
+      "regex": [
+       "^sp: \\S*/yaml/instance\\.yaml: "
+      ],
+      "not_regex": [
+       "Traceback"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "sp status --data {sandbox}/list",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "status",
+     "--data",
+     "{sandbox}/list"
+    ]
+   },
+   "exit": 2,
+   "expect": [
+    {
+     "stderr": {
+      "regex": [
+       "^sp: \\S*/list/instance\\.json: "
+      ],
+      "not_regex": [
+       "Traceback"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "sp status --data {sandbox}/ledger",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "status",
+     "--data",
+     "{sandbox}/ledger"
+    ]
+   },
+   "exit": 2,
+   "expect": [
+    {
+     "stderr": {
+      "regex": [
+       "^sp: \\S*/ledger/ledger\\.json: "
+      ],
+      "not_regex": [
+       "Traceback"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "sp findings --data {sandbox}/items",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "findings",
+     "--data",
+     "{sandbox}/items"
+    ]
+   },
+   "exit": 2,
+   "expect": [
+    {
+     "stderr": {
+      "regex": [
+       "^sp: \\S*/items/tracker/items\\.json: "
+      ],
+      "not_regex": [
+       "Traceback"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "sp init {sandbox}/afile",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "init",
+     "{sandbox}/afile"
+    ]
+   },
+   "exit": 2,
+   "expect": [
+    {
+     "stderr": {
+      "regex": [
+       "^sp: \\S*/afile: "
+      ],
+      "not_regex": [
+       "Traceback"
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}

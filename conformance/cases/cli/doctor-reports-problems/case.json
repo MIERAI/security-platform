@@ -1,0 +1,131 @@
+{
+ "component": "cli",
+ "title": "`sp doctor` prints one line per check (`ok` / `FIX` with the fix), exits 1 when something must be fixed, and never prints a secret: open data directory, missing tool, unknown collector, ssh without a client, secret files missing or readable by others (ca_file is not a secret)",
+ "contract": "cli/1.1",
+ "origin": "cli/sp.py cmd_doctor",
+ "files": {
+  "data": {
+   "dir": true,
+   "mode": "0755"
+  },
+  "data/instance.json": {
+   "json": {
+    "name": "doc",
+    "hosts": [
+     {
+      "name": "h1",
+      "exec": {
+       "type": "ssh",
+       "host": "h1"
+      }
+     }
+    ],
+    "codehost": [
+     {
+      "type": "gitea",
+      "url": "https://git.example.com",
+      "token_file": "{sandbox}/secrets/gitea.token"
+     }
+    ],
+    "notify": [
+     {
+      "type": "telegram",
+      "token_file": "{sandbox}/secrets/missing.token",
+      "chat_id_file": "{sandbox}/secrets/chat"
+     }
+    ],
+    "runner": {
+     "site": "hub",
+     "role": "hub",
+     "sinks": [
+      {
+       "type": "remote_write",
+       "url": "https://metrics.example.com",
+       "password_file": "{sandbox}/secrets/sink.pass",
+       "ca_file": "{sandbox}/secrets/no-such-ca.pem"
+      }
+     ],
+     "jobs": {
+      "vi": {
+       "collector": "vuln-intel"
+      },
+      "nope": {
+       "collector": "no-such-collector"
+      },
+      "cmd": {
+       "type": "command",
+       "argv": [
+        "true"
+       ]
+      }
+     }
+    }
+   },
+   "mode": "0600"
+  },
+  "emptybin": {
+   "dir": true
+  },
+  "secrets/gitea.token": {
+   "text": "conformance-secret-canary-7f3a9c\n",
+   "mode": "0644"
+  },
+  "secrets/chat": {
+   "text": "12345\n",
+   "mode": "0600"
+  },
+  "secrets/sink.pass": {
+   "text": "conformance-secret-canary-7f3a9c-sink\n",
+   "mode": "0600"
+  }
+ },
+ "steps": [
+  {
+   "name": "sp doctor --data {sandbox}/data",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "doctor",
+     "--data",
+     "{sandbox}/data"
+    ],
+    "env": {
+     "PATH": "{sandbox}/emptybin"
+    }
+   },
+   "exit": 1,
+   "expect": [
+    {
+     "stdout": {
+      "regex": [
+       "^  FIX   data directory is readable by others \\(mode 0o755\\)$",
+       "^        -> chmod 700 \\S*/data$",
+       "^  FIX   job vi: needs `trivy` - not found$",
+       "^        -> install trivy \\(see docs/quickstart\\.md\\)$",
+       "^  FIX   job nope: unknown collector no-such-collector$",
+       "^        -> one of: agent-claude-code, cloud, codehost-gitea, codehost-github, exposure, host, host-sbom, identity, k8s, secrets-files, vuln-intel$",
+       "^  FIX   hosts use ssh but `ssh` is not installed$",
+       "^  FIX   codehost: token_file \\S*/secrets/gitea\\.token is readable by others$",
+       "^        -> chmod 600 \\S*/secrets/gitea\\.token$",
+       "^  FIX   notify: token_file \\S*/secrets/missing\\.token does not exist$",
+       "^  ok    notify: chat_id_file is private$",
+       "^  ok    sink: password_file is private$",
+       "^6 thing\\(s\\) to fix$"
+      ],
+      "not_regex": [
+       "ca_file",
+       "job cmd",
+       "ready: sp run"
+      ]
+     }
+    },
+    {
+     "no_secret": [
+      "conformance-secret-canary-7f3a9c"
+     ],
+     "in": "data"
+    }
+   ]
+  }
+ ]
+}
