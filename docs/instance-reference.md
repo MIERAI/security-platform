@@ -105,6 +105,11 @@ kubernetes:
 Give it a read-only identity (`deploy/kubernetes/hub/rbac.yaml` has one). An admin kubeconfig works but is itself
 reported (`k8s.operator_cred_system_masters`).
 
+The Go implementation (`sp k8s collect`, [go.md](go.md)) reads the same keys. It also lists namespaced Roles (K8S-D4;
+the RBAC files above already allow it), and a part it cannot read is a gap of that part only — `k8s-identity:<name>`
+(rbac), `k8s-cluster:<name>/secrets`, `k8s-cluster:<name>/policy`, `k8s-cluster:<name>/cis`, ... — while the cluster
+stays covered (contracts/collector-protocol/SPEC.md, K8S-D1..D3).
+
 ## codehost
 
 ```yaml

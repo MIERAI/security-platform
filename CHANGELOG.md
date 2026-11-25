@@ -4,6 +4,25 @@ Components are versioned independently (docs/design.md §5). Entries name the co
 
 ## Unreleased
 
+- **collectors/k8s 0.4.0 — a Go implementation** (`sp k8s collect`, `internal/collectors/k8s`): Kubernetes posture
+  through the operator's kubectl with read verbs only (`get`, `auth whoami`; every other verb is refused in one place
+  and the conformance cases assert it on a fake kubectl's call log), and the image inventory with `complete` /
+  `sources`. Byte-identical findings document, evidence, inventory and metrics with the Python collector on every
+  conformance case without a deviation id. Target behaviour of four recorded deviations: a part that cannot be read is
+  a gap of that part only, never of the whole cluster, and an unreadable Secret listing is never "zero Secrets"
+  (K8S-D1); unreadable PolicyReports are a gap, not "no policy engine" (K8S-D2); a failed kube-bench keeps the CIS
+  findings unknown (narrow gap `k8s-cluster:<name>/cis`, K8S-D3); RoleBindings to namespaced Roles are evaluated
+  (K8S-D4). kubectl rather than client-go: docs/go.md (a typed-clientset program alone is 38 MB and 77 modules). The
+  Python collector is unchanged and stays the default; a `command` job selects the Go one.
+- **internal/collectors/rundoc**: the Go collectors' SDK — the findings document, evidence and metrics byte for byte
+  as sdk/spsdk writes them (golden test generated with the Python SDK), outputs private to the user (0600), child
+  processes in their own process group with time and output limits.
+- **conformance**: collector cases per collector module (`conformance/tools/collector_<name>.py`, fakes under
+  `conformance/tools/fakes/`); harness: `{path}` template (fake tools in front of the suite's `PATH`), `not_regex` on
+  `file` assertions, binary fixtures. `tests/test_collectors_go.py`: the Go collectors' conformance runs with no
+  expected failures and the byte comparison with the Python collectors.
+- **contracts/collector-protocol**: known deviations per collector (K8S-D1..D4, ...).
+
 - **runner 0.11.0 — the runner in Go** (`sp runner tick|run|status|metrics|serve-metrics|version`, `internal/runner`):
   passes every runner conformance case with no expected failure, writes the same state files, tick log lines and
   metrics as the Python runner (one data directory works with both, in both directions: `tests/test_runner_go.py`),
