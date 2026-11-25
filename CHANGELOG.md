@@ -2,6 +2,21 @@
 
 Components are versioned independently (docs/design.md §5). Entries name the component and its new version.
 
+## 2026-11-25 — several hubs in one cluster
+
+- **deploy 0.5.0**: component `deploy/kubernetes/unique-names` gives the cluster-scoped objects of a hub
+  (ClusterRole/ClusterRoleBinding `security-platform-hub-read`, ValidatingAdmissionPolicy/Binding
+  `security-platform-inbox-identity`) and of an in-cluster site (`security-platform-site-read`) the installation's
+  name as a suffix, read from the ConfigMap `security-platform-installation` (key `name`) that the overlay generates;
+  `roleRef` and `policyName` follow. Two installations in one cluster (one per environment / namespace) no longer
+  overwrite each other's objects (a GitOps application stuck out of sync), and a combined render of several
+  environments has no duplicate objects. Namespaced names are unchanged. Without the component nothing changes.
+  Migration (docs/runner.md "Several hubs in one cluster"): add the component and the ConfigMap; the old
+  unsuffixed objects are pruned by the GitOps tool, or deleted once by hand after every installation switched.
+- **tests**: `tests/test_manifests.py` renders two environments (hub and site each) side by side with kustomize and
+  fails on a colliding cluster-scoped name, a dangling `roleRef` / `policyName`, or a cluster-scoped object the
+  component does not rename; the existing single-install render keeps its names.
+
 ## 2026-11-25 — detections 0.2.2: less audit noise
 
 - **detections 0.2.2**: `k8s-audit/policy.yaml` drops `create` of `selfsubjectaccessreviews`, `subjectaccessreviews`,

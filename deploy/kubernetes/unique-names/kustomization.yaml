@@ -1,0 +1,37 @@
+# Unique names for the CLUSTER-scoped objects of a hub (../hub) or an in-cluster site (../cronjob), so that several
+# installations can live in one cluster (one per environment / namespace) without fighting over the same objects.
+# Namespaced objects keep their names (the code and the inbox policy rely on them).
+# The overlay names its installation in a ConfigMap (kept in the namespace as a marker; it holds nothing secret):
+#   namespace: security-staging
+#   resources:  [<repo>/deploy/kubernetes/hub?ref=<tag>]
+#   components: [<repo>/deploy/kubernetes/unique-names?ref=<tag>]
+#   configMapGenerator:
+#     - { name: security-platform-installation, literals: [name=staging], options: { disableNameSuffixHash: true } }
+# -> ClusterRole/ClusterRoleBinding security-platform-hub-read-staging, ValidatingAdmissionPolicy/Binding
+#    security-platform-inbox-identity-staging (references rewritten too). docs/runner.md "Several hubs in one cluster".
+# Without this component the names stay as they are (one installation per cluster).
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+replacements:
+  - source: { kind: ConfigMap, name: security-platform-installation, fieldPath: data.name }
+    targets:
+      # hub (../hub)
+      - select: { kind: ClusterRole, name: security-platform-hub-read }
+        fieldPaths: [metadata.name]
+        options: { delimiter: "-", index: 99 }
+      - select: { kind: ClusterRoleBinding, name: security-platform-hub-read }
+        fieldPaths: [metadata.name, roleRef.name]
+        options: { delimiter: "-", index: 99 }
+      - select: { kind: ValidatingAdmissionPolicy, name: security-platform-inbox-identity }
+        fieldPaths: [metadata.name]
+        options: { delimiter: "-", index: 99 }
+      - select: { kind: ValidatingAdmissionPolicyBinding, name: security-platform-inbox-identity }
+        fieldPaths: [metadata.name, spec.policyName]
+        options: { delimiter: "-", index: 99 }
+      # in-cluster site (../cronjob)
+      - select: { kind: ClusterRole, name: security-platform-site-read }
+        fieldPaths: [metadata.name]
+        options: { delimiter: "-", index: 99 }
+      - select: { kind: ClusterRoleBinding, name: security-platform-site-read }
+        fieldPaths: [metadata.name, roleRef.name]
+        options: { delimiter: "-", index: 99 }

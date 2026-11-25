@@ -4,6 +4,7 @@
 # (activeDeadlineSeconds) and retries (backoffLimit). The instance supplies site.json in the ConfigMap
 # security-platform-site (example below) and patches the schedule. Secrets are NOT readable by this identity: the
 # k8s collector runs with parts [workloads, rbac, policy] here.
+# Several sites in one cluster: add the component ../unique-names (docs/runner.md "Several hubs in one cluster").
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:

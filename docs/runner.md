@@ -143,6 +143,44 @@ Example configs: `deploy/kubernetes/hub/hub.example.json` (the hub), `site-ident
 outbox for the inbox: `{type: kubernetes-secret, namespace: <hub ns>, site: <site>, server: https://<api>:6443,
 ca_file: <cluster CA>, token_file: <0600 token>}` (`box: state` for its job states).
 
+### Several hubs in one cluster (deploy 0.5.0)
+
+Most objects of a hub live in its namespace, but four are cluster-scoped: ClusterRole and ClusterRoleBinding
+`security-platform-hub-read`, ValidatingAdmissionPolicy and its Binding `security-platform-inbox-identity` (an in-cluster
+site, `deploy/kubernetes/cronjob/`, has ClusterRole/ClusterRoleBinding `security-platform-site-read`). Two installations
+in one cluster (one hub per environment, each in its own namespace) would otherwise write the same objects: a GitOps
+tool shows one of them out of sync forever, and a combined render of several environments has duplicate objects.
+
+Add the component `deploy/kubernetes/unique-names` and name the installation (a lowercase DNS label):
+
+```yaml
+namespace: security-staging
+resources:  [https://github.com/MIERAI/security-platform//deploy/kubernetes/hub?ref=<tag>]
+components: [https://github.com/MIERAI/security-platform//deploy/kubernetes/unique-names?ref=<tag>]
+configMapGenerator:
+  - { name: security-platform-installation, literals: [name=staging], options: { disableNameSuffixHash: true } }
+```
+
+The cluster-scoped names get the suffix (`security-platform-hub-read-staging`, `security-platform-inbox-identity-staging`,
+`security-platform-site-read-staging`) and `roleRef` / `policyName` follow. Namespaced names do not change (the
+runner, the site ServiceAccounts `security-platform-site-<site>` and the inbox policy rely on them). The ConfigMap
+`security-platform-installation` stays in the namespace as a marker. The component fails the build when the ConfigMap
+is missing, so it never falls back to the shared names silently. Without the component nothing changes: one
+installation per cluster, as before. `tests/test_manifests.py` renders two environments side by side and fails on
+any colliding cluster-scoped name, or on a cluster-scoped object that the component does not rename.
+
+Both copies of the admission policy check every Secret creation by a `security-platform-site-*` ServiceAccount in
+any namespace, against that namespace's own site name, so two copies give the same verdict.
+
+**Migration of an existing install** (optional; only needed for a second installation in the same cluster): add the
+component and the ConfigMap to each overlay. The new objects are created next to the old ones; the old unsuffixed ones
+are no longer rendered and are pruned by a GitOps tool with pruning on (or `kubectl apply --prune`). Otherwise delete
+them once, after every installation has switched:
+`kubectl delete clusterrolebinding,clusterrole security-platform-hub-read; kubectl delete validatingadmissionpolicybinding,validatingadmissionpolicy security-platform-inbox-identity`
+(and `security-platform-site-read` for sites). If two installations already shared the old objects, both GitOps
+applications may claim them: switch both before deleting. During the switch the old and the new objects grant and
+enforce the same rules, so nothing is briefly open or denied.
+
 **Migration (parallel run).** A hub can also be a site of another hub (`outbox` on a hub = a copy): run the old hub
 and the in-cluster hub side by side, compare the ledgers, then reduce the old host to its local collectors.
 
