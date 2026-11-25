@@ -2,6 +2,44 @@
 
 Components are versioned independently (docs/design.md §5). Entries name the component and its new version.
 
+## v0.3.0 — 2026-11-25
+
+Everything between v0.2.0 and this heading, tested together: unit, contract and output tests, `bin/check-residue
+--history`, the cloud end-to-end test (`e2e/cloud-localstack/run.sh`: PASSED) and the second-environment test
+(`e2e/kind/run.sh --ref main`: PASSED, clone to first findings 123 s, `e2e/kind/last-pass.json`). Each component is also tagged
+`<component>/vX.Y.Z`. Highlights: cloud posture (AWS, GCP, Azure; GCP `source: adc` and `discovery: gcp`), ticket and
+SIEM exports, retired assets close their findings, one slow host check no longer hides the others, several hubs in
+one cluster, release names from product tags only.
+
+**Upgrade order** (contract findings/v1.2): upgrade every **hub** (core 0.9.0) before its **sites**. A site on host
+0.3.0 reports a timed-out check as a narrow gap with `checks`; an older core does not know that field and would mark
+the affected findings fixed. Install with this release's installer (`git checkout v0.3.0 && bin/sp-install DIR`); an
+install of v0.2.0 named after a component tag is repaired by it (docs/upgrade.md).
+
+| component | version |
+|---|---|
+| `cli` | 0.3.0 |
+| `collectors/agent-claude-code` | 0.2.0 |
+| `collectors/cloud` | 0.2.0 |
+| `collectors/codehost-gitea` | 0.1.0 |
+| `collectors/codehost-github` | 0.1.1 |
+| `collectors/detection` | 0.1.1 |
+| `collectors/exposure` | 0.4.1 |
+| `collectors/host-sbom` | 0.1.1 |
+| `collectors/host` | 0.3.0 |
+| `collectors/identity` | 0.1.0 |
+| `collectors/k8s` | 0.3.0 |
+| `collectors/secrets-files` | 0.2.1 |
+| `collectors/vuln-intel` | 0.5.0 |
+| `core` | 0.9.0 |
+| `deploy` | 0.5.0 |
+| `detections` | 0.2.2 |
+| `events` | 0.1.1 |
+| `generators` | 0.7.0 |
+| `runner` | 0.9.0 |
+| `scorecard` | 0.4.0 |
+| `sdk` | 0.5.0 |
+
 ## 2026-11-25 — one slow host check no longer hides the others
 
 On macOS `softwareupdate -l` asks Apple's servers and can take from 90 s to several minutes. The host collector ran the
