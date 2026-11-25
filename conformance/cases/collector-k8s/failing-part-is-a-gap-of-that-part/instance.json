@@ -1,0 +1,10 @@
+{
+ "kubernetes": [
+  {
+   "kubeconfig": "{sandbox}/kube/prod.yaml",
+   "name": "prod",
+   "role": "prod"
+  }
+ ],
+ "name": "conformance"
+}

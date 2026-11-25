@@ -1,0 +1,49 @@
+{
+ "resources": {
+  "clusterrolebindings": [],
+  "clusterroles": [],
+  "namespaces": [],
+  "rolebindings": [
+   {
+    "kind": "RoleBinding",
+    "metadata": {
+     "name": "carol-reads",
+     "namespace": "web",
+     "uid": "uid-web-carol-reads"
+    },
+    "roleRef": {
+     "kind": "Role",
+     "name": "secret-reader"
+    },
+    "subjects": [
+     {
+      "kind": "User",
+      "name": "carol"
+     }
+    ]
+   }
+  ],
+  "roles": [
+   {
+    "metadata": {
+     "name": "secret-reader",
+     "namespace": "web",
+     "uid": "uid-web-secret-reader"
+    },
+    "rules": [
+     {
+      "apiGroups": [
+       ""
+      ],
+      "resources": [
+       "secrets"
+      ],
+      "verbs": [
+       "get"
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

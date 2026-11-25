@@ -98,6 +98,29 @@ hitting the job timeout and losing every result.
 |---|---|---|
 | COLLECTOR-D1 | `vuln-intel` and `host-sbom` write SBOMs to `$SP_DATA/sbom/` and caches to `$SP_DATA/cache/{repos,trivy}`; `vuln-intel` keeps `$SP_DATA/state/vendor-advisories.json` and appends to the advisor decision log; `identity` caches under `$SP_DATA/cache/identity/`. | Only `$SP_DATA/cache/<name>/` (rebuildable). SBOMs that other components read become `inventory.*`/run-directory outputs or an explicit, versioned data-directory path in a later minor of this contract. No conformance case (these collectors need external tools/network). |
 
+### Collector `k8s`
+
+Target behaviour of `collectors/k8s` (the Go implementation, `sp k8s collect`, has it; the Python one does not).
+
+| id | what | target |
+|---|---|---|
+| K8S-D1 | One part of a cluster that cannot be read (e.g. `list clusterrolebindings` forbidden for an in-cluster reader) raises out of the cluster: the cluster becomes a gap and every later part (Secrets, PolicyReports, the operator credential, CIS) is skipped. A Secret listing that fails is read as zero Secrets. | Each part is read on its own: a failed part is a gap of that part — `k8s-workload:<c>` + `k8s-namespace:<c>` (workloads), `k8s-identity:<c>` (rbac), `k8s-cluster:<c>/secrets`, `k8s-cluster:<c>/policy` with `checks: [k8s.policy.*]`, `k8s-identity:<c>/operator-kubeconfig` — and the cluster itself stays covered. Case `collector-k8s/failing-part-is-a-gap-of-that-part`. |
+| K8S-D2 | Any error listing PolicyReports (forbidden, timeout) is reported as `k8s.policy.engine_missing`. | Only a missing resource type means no policy engine; any other error is the narrow gap `k8s-cluster:<c>/policy` (`checks: [k8s.policy.*]`). Case `collector-k8s/unreadable-policy-reports-are-a-gap`. |
+| K8S-D3 | A failed kube-bench run is a gap on `cis:<c>`, but the CIS findings live on `k8s-cluster:<c>`, which the same run covers: the ledger marks them fixed. | Also the narrow gap `k8s-cluster:<c>/cis` with `checks: [cis.*]`. Case `collector-k8s/kube-bench-failure-keeps-cis-findings`. |
+| K8S-D4 | A RoleBinding to a namespaced Role is never evaluated (only ClusterRole references are looked up). | Roles are listed (`get roles -A`) and judged by the same rules (wildcard, secrets read, pods/exec, RBAC write). Case `collector-k8s/namespaced-role-is-evaluated`. |
+
+### Collector `vuln-intel`
+
+Target behaviour of `collectors/vuln-intel` (Go: `sp vuln-intel collect`).
+
+None recorded yet.
+
+### Collector `identity`
+
+Target behaviour of `collectors/identity` (Go: `sp identity collect`).
+
+None recorded yet.
+
 ## History
 
 | version | change |

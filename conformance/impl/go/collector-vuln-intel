@@ -1,0 +1,13 @@
+#!/bin/sh
+# Go implementation of the `collector-vuln-intel` component for the conformance suite: `sp vuln-intel collect`, the sp binary of
+# this checkout. $SP_GO_SP names a built binary; without it the binary is built (go build, cached by Go) into
+# $SP_GO_BUILD_DIR (default: a directory under $TMPDIR).
+set -eu
+ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
+if [ -z "${SP_GO_SP:-}" ]; then
+  dir=${SP_GO_BUILD_DIR:-${TMPDIR:-/tmp}/sp-conformance-go}
+  mkdir -p "$dir"
+  (cd "$ROOT" && go build -trimpath -o "$dir/sp" ./cmd/sp)
+  SP_GO_SP=$dir/sp
+fi
+exec "$SP_GO_SP" vuln-intel collect "$@"
