@@ -25,7 +25,7 @@ func fakeSpec(t *testing.T, args ...string) Spec {
 		t.Fatal(err)
 	}
 	return Spec{Python: exe, Script: "/tree/cli/sp.py", Args: args,
-		Env: append(os.Environ(), fakepython.EnvVar+"=1")}
+		Env: fakepython.Environ(t.TempDir())}
 }
 
 func TestArgvIsVerbatim(t *testing.T) {

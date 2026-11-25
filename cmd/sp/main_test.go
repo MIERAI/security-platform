@@ -85,7 +85,7 @@ func fakeEnv(t *testing.T) []string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return append(os.Environ(), "SP_PY_HOME="+tree, "SP_PYTHON="+exe, fakepython.EnvVar+"=1")
+	return append(fakepython.Environ(t.TempDir()), "SP_PY_HOME="+tree, "SP_PYTHON="+exe)
 }
 
 func TestBinaryPassthrough(t *testing.T) {

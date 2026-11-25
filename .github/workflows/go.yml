@@ -1,0 +1,150 @@
+# Go side (docs/go.md) and every shell script: format, vet, strict lint, race tests on three systems, a fuzz smoke
+# run of every fuzz target, known vulnerabilities, shellcheck. Actions are pinned by commit SHA, tools by version and
+# SHA-256; nothing here can write to the repository.
+name: go
+on:
+  pull_request:
+  push: { branches: [main] }
+permissions: {}
+concurrency:
+  group: go-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+env:
+  GOLANGCI_LINT_VERSION: "2.15.0"
+  GOLANGCI_LINT_SHA256: "9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea" # linux-amd64.tar.gz
+  GOVULNCHECK_VERSION: "v1.9.0"
+  SHELLCHECK_VERSION: "v0.11.0"
+  SHELLCHECK_SHA256: "8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198" # linux.x86_64.tar.xz
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    permissions: { contents: read }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with: { go-version-file: go.mod }
+      - name: Toolchain is the one go.mod names
+        run: |
+          want=$(awk '$1 == "toolchain" {print $2}' go.mod)
+          got=$(go env GOVERSION)
+          echo "go.mod toolchain $want, using $got"
+          test "$want" = "$got"
+      - name: gofmt
+        run: |
+          out=$(gofmt -l .)
+          if [ -n "$out" ]; then echo "not gofmt-formatted:"; echo "$out"; exit 1; fi
+      - name: go mod verify (and no third-party module without a go.sum)
+        run: go mod verify && go mod tidy -diff
+      - name: go vet
+        run: go vet ./...
+      - name: golangci-lint (official release, SHA-256 pinned)
+        run: |
+          cd "$RUNNER_TEMP"
+          f="golangci-lint-${GOLANGCI_LINT_VERSION}-linux-amd64.tar.gz"
+          curl -sSfLO "https://github.com/golangci/golangci-lint/releases/download/v${GOLANGCI_LINT_VERSION}/$f"
+          echo "${GOLANGCI_LINT_SHA256}  $f" | sha256sum -c -
+          tar -xzf "$f" --strip-components=1 "golangci-lint-${GOLANGCI_LINT_VERSION}-linux-amd64/golangci-lint"
+          cd "$GITHUB_WORKSPACE"
+          "$RUNNER_TEMP/golangci-lint" config verify
+          for goos in linux darwin windows; do
+            echo "== GOOS=$goos"; GOOS=$goos "$RUNNER_TEMP/golangci-lint" run ./...
+          done
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    permissions: { contents: read }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with: { go-version-file: go.mod }
+      - name: go test -race -cover
+        if: runner.os != 'Windows'
+        run: go test -race -cover ./...
+      - name: go test -cover (the race detector needs cgo on Windows)
+        if: runner.os == 'Windows'
+        run: go test -cover ./...
+
+  fuzz:
+    runs-on: ubuntu-latest
+    permissions: { contents: read }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with: { go-version-file: go.mod }
+      - name: Every fuzz target for 10 s
+        run: |
+          n=0
+          for pkg in $(go list ./...); do
+            for target in $(go test -list '^Fuzz' "$pkg" | grep '^Fuzz' || true); do
+              echo "== $pkg $target"
+              go test -run='^$' -fuzz="^${target}\$" -fuzztime=10s "$pkg"
+              n=$((n + 1))
+            done
+          done
+          echo "$n fuzz targets"
+          test "$n" -gt 0
+
+  govulncheck:
+    runs-on: ubuntu-latest
+    permissions: { contents: read }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with: { go-version-file: go.mod }
+      - name: govulncheck (module verified by the Go checksum database)
+        run: go run "golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}" ./...
+
+  shellcheck:
+    runs-on: ubuntu-latest
+    permissions: { contents: read }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - name: shellcheck (official release, SHA-256 pinned) on every shell script
+        run: |
+          cd "$RUNNER_TEMP"
+          f="shellcheck-${SHELLCHECK_VERSION}.linux.x86_64.tar.xz"
+          curl -sSfLO "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/$f"
+          echo "${SHELLCHECK_SHA256}  $f" | sha256sum -c -
+          tar -xJf "$f" --strip-components=1 "shellcheck-${SHELLCHECK_VERSION}/shellcheck"
+          cd "$GITHUB_WORKSPACE"
+          # *.sh files plus every tracked file whose first line is a sh/bash shebang
+          { git ls-files '*.sh'
+            git ls-files -z | xargs -0 awk 'FNR == 1 && /^#!.*[\/ ](sh|bash)([ \t]|$)/ {print FILENAME} {nextfile}'
+          } | sort -u > "$RUNNER_TEMP/all"
+          # contracts/ and conformance/ are maintained with the conformance suite; they get their own pass once clean
+          grep -Ev '^(contracts|conformance)/' "$RUNNER_TEMP/all" > "$RUNNER_TEMP/scripts"
+          cat "$RUNNER_TEMP/scripts"
+          xargs "$RUNNER_TEMP/shellcheck" < "$RUNNER_TEMP/scripts"
+
+  image:
+    # the runner image builds and carries the binary and its RELEASE file (published only by image.yml, on main)
+    runs-on: ubuntu-latest
+    permissions: { contents: read }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - name: docker build (runner image and the Go-only target), no push
+        run: |
+          docker build --check .
+          docker build -q --build-arg "VERSION=${GITHUB_SHA::7}" -t sp-ci:runner .
+          docker build -q --target sp-static -t sp-ci:static .
+      - name: sp, RELEASE and the runner agree; read-only root filesystem, non-root
+        run: |
+          want="dev-g${GITHUB_SHA::7}"
+          run() { docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges "$@"; }
+          run --entrypoint cat sp-ci:runner /opt/security-platform/RELEASE | tee release.txt
+          grep -qx "version=$want" release.txt
+          run --entrypoint sp sp-ci:runner --version | tee version.txt
+          grep -q "(security-platform $want)" version.txt
+          run --entrypoint python3 sp-ci:runner -c 'import sys; sys.argv = ["x"]; sys.path.insert(0, "/opt/security-platform/runner"); import runner; print(runner.RELEASE)' | grep -qx "$want"
+          test "$(docker image inspect sp-ci:runner --format '{{.Config.User}}')" = "65532:65532"
+          run sp-ci:static version --json
