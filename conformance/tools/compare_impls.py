@@ -106,8 +106,8 @@ def normalised_text(path, sandbox):
             pass
     slug = re.sub(r"[^a-z0-9]+", "-", sandbox.lower()).strip("-")
     data = data.replace(sandbox, "<sandbox>").replace(slug, "<sandbox>")
-    for pf in sorted(os.listdir(sandbox)):     # the harness's services listen on a port chosen per run
-        m = re.fullmatch(r"\.svc-(.+)\.port", pf)
+    for pf in sorted(os.listdir(sandbox)):     # services listen on ports chosen per run (.svc-<name>.port, extra ones)
+        m = re.fullmatch(r"\.svc-(.+)", pf)
         if m:
             port = open(os.path.join(sandbox, pf)).read().strip()
             if port.isdigit():
