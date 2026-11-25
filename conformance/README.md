@@ -11,6 +11,8 @@ SP_PYTHON=~/.venvs/security-platform/bin/python3 conformance/impl/python/run.sh
 # your implementation of one component:
 SP_IMPL_LEDGER="/opt/sp-go/bin/sp-ledger merge" python3 conformance/run.py --component ledger
 python3 conformance/run.py --impl runner="/opt/sp-go/bin/sp-runner" --component runner -v
+# the Go implementation of a component (impl/go/<component>; builds ./cmd/sp unless SP_GO_SP names a binary):
+python3 conformance/run.py --impl scorecard=conformance/impl/go/scorecard --component scorecard
 python3 conformance/run.py --list                                 # every case, its contract and deviation id
 python3 conformance/run.py validate findings out/x.findings.json # schema check of one file (also: ledger, tracker, ...)
 ```

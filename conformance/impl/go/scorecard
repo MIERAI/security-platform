@@ -1,0 +1,15 @@
+#!/bin/sh
+# Go implementation of the `scorecard` component for the conformance suite: `sp scorecard`, the sp binary of
+# this checkout. $SP_GO_SP names a built binary; without it the binary is built (go build, cached by Go) into
+# $SP_GO_BUILD_DIR (default: a directory under $TMPDIR). The catalog and scorecard/VERSION are read from this tree.
+set -eu
+ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
+SP_PY_HOME=${SP_PY_HOME:-$ROOT}
+export SP_PY_HOME
+if [ -z "${SP_GO_SP:-}" ]; then
+  dir=${SP_GO_BUILD_DIR:-${TMPDIR:-/tmp}/sp-conformance-go}
+  mkdir -p "$dir"
+  (cd "$ROOT" && go build -trimpath -o "$dir/sp" ./cmd/sp)
+  SP_GO_SP=$dir/sp
+fi
+exec "$SP_GO_SP" scorecard "$@"

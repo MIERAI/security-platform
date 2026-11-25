@@ -1,0 +1,4 @@
+schema: security-platform/scorecard-catalog/v1
+dimension: {id: att, order: 1, title: Attestations, pillars: [people]}
+controls:
+  - {id: att.summer, title: "Attestation summer", csf: GV.OV, check: attested, weight: 1, validity: 30d, question: "Does summer hold?"}

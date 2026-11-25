@@ -30,7 +30,7 @@ pull request that makes its conformance suite run against the Go implementation.
 ## Layout
 
 ```
-go.mod                 module github.com/MIERAI/security-platform (no third-party dependencies)
+go.mod                 module github.com/MIERAI/security-platform (one dependency: go.yaml.in/yaml/v3, below)
 cmd/sp/                the sp binary: wiring only (environment, streams, exit); end-to-end tests build it
 internal/shim/         dispatch: Go subcommands, delegation to Python, `sp version`
 internal/delegate/     running cli/sp.py: argument vector, execve on Unix, child process elsewhere
@@ -40,6 +40,9 @@ internal/components/   the product's components (<dir>/VERSION) and their implem
 internal/buildinfo/    the binary's release (link time), commit and toolchain
 internal/textsafe/     printing text read from files without terminal control characters
 internal/fakepython/   a stand-in interpreter for tests
+internal/scorecard/    the scorecard (`sp scorecard compute|lint|list|version`; `attest` stays in Python)
+internal/scorecard/pyvalue/  documents as the contract reads them: YAML 1.1 typing, ordered JSON, the reference's
+                       number printing, rounding and sums (contracts/scorecard/SPEC.md §6)
 internal/<component>/  added per component as it moves (core, runner, collectors/<name>, ...)
 ```
 
@@ -71,12 +74,19 @@ Enforced by CI (`.github/workflows/go.yml`, `.golangci.yml`) where a tool can ch
   (`noctx`, `contextcheck`). The one deliberate exception is the delegated Python command, which enforces its
   own limits.
 - **Tests**: table-driven (`tests := []struct{...}` + `t.Run`), parallel where possible, run with `-race`.
-  **Every parser of external input has a fuzz test** (`FuzzXxx`) — product tags, RELEASE and VERSION files so
-  far — and CI runs each one briefly on every change.
+  **Every parser of external input has a fuzz test** (`FuzzXxx`) — product tags, RELEASE and VERSION files,
+  YAML and JSON documents, scorecard catalogs and attestations, dates, durations, globs, the metrics text format,
+  command lines — and CI runs each one briefly on every change.
 - **Dependencies**: standard library only unless a dependency is justified in its pull request (what it
   replaces, its maintenance, its own dependencies); depguard enforces the allow-list. Tools are pinned by
   version and checksum; GitHub Actions by commit SHA. New tool and action versions wait about two weeks after
   their release before they are adopted.
+- **Dependencies in use** (each pinned in `go.mod`/`go.sum`, allowed by depguard, checked by govulncheck):
+
+  | module | version | why |
+  |---|---|---|
+  | `go.yaml.in/yaml/v3` | v3.0.6 (2026-10-13) | YAML catalogs, instances and attestations, which the reference reads with PyYAML. It replaces writing a YAML parser. It is the YAML organisation's maintained continuation of `gopkg.in/yaml.v3` (archived in 2025), same API; MIT/Apache-2.0; no dependencies of its own; pure Go without `unsafe`, `os` or network. Only its `Node` API is used: the scalar style and explicit tags it keeps let `pyvalue` apply the YAML 1.1 typing rules of the reference (`yes`/`on` booleans, `017` octal, dates), which no decoder into `any` does. Aliases are expanded by `pyvalue` with a node budget and a depth limit; files are read through a size limit. Not chosen: `gopkg.in/yaml.v3` (unmaintained), `go.yaml.in/yaml/v4` (v4.0.0 is three weeks old and a new API: revisit after it settles), `goccy/go-yaml` (larger, its own typing rules), `sigs.k8s.io/yaml` (converts to JSON: loses tags and order). Every Go component that reads YAML uses this one module. |
+
 - **Toolchain**: the `toolchain` line of `go.mod` (currently go1.27.4) is the version CI and releases build with;
   `go` is the minimum language version.
 

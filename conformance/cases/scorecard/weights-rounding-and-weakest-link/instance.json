@@ -1,0 +1,17 @@
+{
+ "name": "conformance",
+ "scorecard": {
+  "catalog_dirs": [
+   "{sandbox}/catalog"
+  ],
+  "pillars": [
+   "network",
+   "device",
+   "people",
+   "software",
+   "physical"
+  ],
+  "replace_catalog": true,
+  "threshold": 75.5
+ }
+}

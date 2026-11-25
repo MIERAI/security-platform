@@ -1,0 +1,9 @@
+{
+ "name": "conformance",
+ "scorecard": {
+  "catalog_dirs": [
+   "{sandbox}/catalog"
+  ],
+  "replace_catalog": true
+ }
+}
