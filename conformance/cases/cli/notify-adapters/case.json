@@ -1,0 +1,271 @@
+{
+ "component": "cli",
+ "title": "`sp notify` sends the digest through every configured notifier (file, webhook slack/json/text, telegram, exec); one failing does not stop the others and makes the exit 1; `--dry-run` sends nothing; secrets (bot token, webhook URL) never reach the output; no notifier configured exits 1",
+ "contract": "cli/1.1",
+ "origin": "cli/sp.py cmd_notify; notifier/notifiers.py; tests/test_notifier.py",
+ "services": [
+  {
+   "name": "hook",
+   "argv": [
+    "{python}",
+    "{case}/mock_webhook.py",
+    "--record",
+    "{sandbox}/hook.jsonl"
+   ]
+  }
+ ],
+ "files": {
+  "data/ledger.json": "ledger.json",
+  "data/tracker/items.json": "items.json",
+  "data/instance.json": {
+   "json": {
+    "name": "conf",
+    "notify": [
+     {
+      "type": "file",
+      "path": "{sandbox}/out/latest.txt"
+     },
+     {
+      "type": "webhook",
+      "url_file": "{sandbox}/secrets/hook.url"
+     },
+     {
+      "type": "webhook",
+      "url_file": "{sandbox}/secrets/hook.url",
+      "format": "json"
+     },
+     {
+      "type": "webhook",
+      "url_file": "{sandbox}/secrets/hook.url",
+      "format": "text"
+     },
+     {
+      "type": "telegram",
+      "token_file": "{sandbox}/secrets/bot.token",
+      "chat_id": 42,
+      "api": "{svc_hook}"
+     },
+     {
+      "type": "exec",
+      "argv": [
+       "/bin/sh",
+       "-c",
+       "cat > \"$0\"",
+       "{sandbox}/out/exec.txt"
+      ]
+     },
+     {
+      "type": "webhook",
+      "url_file": "{sandbox}/secrets/fail.url"
+     },
+     {
+      "type": "telegram",
+      "token_file": "{sandbox}/secrets/open.token",
+      "chat_id": 42,
+      "api": "{svc_hook}"
+     },
+     {
+      "type": "exec",
+      "argv": [
+       "/bin/sh",
+       "-c",
+       "echo boom >&2; exit 3"
+      ]
+     }
+    ]
+   }
+  },
+  "data/state/runner/broken.json": "state.json",
+  "data/scorecard.json": {
+   "json": {
+    "overall": 70,
+    "dimensions": [
+     {
+      "id": "people",
+      "score": 70
+     }
+    ]
+   }
+  },
+  "secrets/hook.url": {
+   "text": "{svc_hook}/hook\n",
+   "mode": "0600"
+  },
+  "secrets/fail.url": {
+   "text": "{svc_hook}/fail\n",
+   "mode": "0600"
+  },
+  "secrets/bot.token": {
+   "text": "conformance-bot-token-5d1e\n",
+   "mode": "0600"
+  },
+  "secrets/open.token": {
+   "text": "conformance-bot-token-5d1e-open\n",
+   "mode": "0644"
+  }
+ },
+ "steps": [
+  {
+   "name": "sp notify --dry-run --data {sandbox}/data",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "notify",
+     "--dry-run",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "regex": [
+       "^Security {date:+0} \\(conf\\)$",
+       "^\\(dry run: 9 notifier\\(s\\) not called\\)$"
+      ]
+     }
+    },
+    {
+     "absent": "hook.jsonl"
+    },
+    {
+     "absent": "out/latest.txt"
+    }
+   ]
+  },
+  {
+   "name": "sp notify --data {sandbox}/data",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "notify",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 1,
+   "expect": [
+    {
+     "stdout": {
+      "regex": [
+       "^sent via 0-file$",
+       "^sent via 1-webhook$",
+       "^sent via 2-webhook$",
+       "^sent via 3-webhook$",
+       "^sent via 4-telegram$",
+       "^sent via 5-exec$"
+      ],
+      "not_regex": [
+       "6-webhook",
+       "7-telegram",
+       "8-exec"
+      ]
+     }
+    },
+    {
+     "stderr": {
+      "regex": [
+       "^notifier 6-webhook failed: .*HTTP 500",
+       "^notifier 7-telegram failed: .*0600",
+       "^notifier 8-exec failed: .*rc=3: boom"
+      ],
+      "not_regex": [
+       "/fail",
+       "/hook",
+       "127\\.0\\.0\\.1"
+      ]
+     }
+    },
+    {
+     "file": "out/latest.txt",
+     "regex": [
+      "^Security {date:+0} \\(conf\\)$",
+      "^Open: 2 critical, 1 high, 2 low$"
+     ]
+    },
+    {
+     "file": "out/exec.txt",
+     "regex": [
+      "^Security {date:+0} \\(conf\\)$"
+     ]
+    },
+    {
+     "jsonl": "hook.jsonl",
+     "subset": [
+      {
+       "path": "/hook",
+       "content_type": "application/json",
+       "user_agent": "security-platform",
+       "body": {
+        "$regex": "^\\{\"text\": *\"Security "
+       }
+      },
+      {
+       "path": "/hook",
+       "content_type": "application/json",
+       "body": {
+        "$regex": "\"title\": *\"Security "
+       }
+      },
+      {
+       "path": "/hook",
+       "content_type": {
+        "$regex": "^text/plain"
+       },
+       "body": {
+        "$regex": "^Security "
+       }
+      },
+      {
+       "path": {
+        "$regex": "^/bot.+/sendMessage$"
+       },
+       "content_type": "application/x-www-form-urlencoded",
+       "body": {
+        "$regex": "^chat_id=42&text=Security\\+.*&disable_web_page_preview=true$"
+       }
+      },
+      {
+       "path": "/fail"
+      }
+     ]
+    },
+    {
+     "no_secret": [
+      "conformance-bot-token-5d1e"
+     ],
+     "in": "data"
+    }
+   ]
+  },
+  {
+   "name": "none configured",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "notify",
+     "--data",
+     "{sandbox}/quiet"
+    ]
+   },
+   "exit": 1,
+   "expect": [
+    {
+     "stderr": {
+      "regex": [
+       "^sp: no notifiers configured"
+      ]
+     }
+    }
+   ],
+   "files": {
+    "quiet/instance.json": {
+     "json": {
+      "name": "q"
+     }
+    }
+   }
+  }
+ ]
+}

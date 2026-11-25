@@ -1,7 +1,8 @@
 #!/bin/sh
 # Run the conformance suite against the Go implementation of the components that have one (docs/go.md):
-# ledger (`sp ledger merge`) and remediation (`sp ledger track`). No expected-failures list: the target-behaviour
-# cases of the known deviations (LEDGER-D1..D5) must pass.
+# ledger (`sp ledger merge`), remediation (`sp ledger track`) and cli (`sp init|doctor|run|status|findings|explain|
+# digest|notify`). No expected-failures list: the target-behaviour cases of the known deviations (LEDGER-D1..D5,
+# CLI-D2..D5) must pass. The cli cases need the product tree (this checkout) for `sp run` and `sp doctor`.
 #   conformance/impl/go/run.sh [run.py options, e.g. -v]           builds cmd/sp with the go toolchain first
 #   SP_GO_BIN=/path/to/sp conformance/impl/go/run.sh               uses that binary
 # The harness needs Python 3.10+ ($SP_PYTHON, default python3); the Go implementation needs nothing else.
@@ -16,7 +17,10 @@ if [ -z "$BIN" ]; then
   (cd "$ROOT" && go build -trimpath -o "$TMP/sp" ./cmd/sp)
   BIN=$TMP/sp
 fi
+case $BIN in /*) ;; *) BIN=$PWD/$BIN ;; esac   # the cases run in their sandboxes
 status=0
-SP_IMPL_LEDGER="$BIN ledger merge" SP_IMPL_REMEDIATION="$BIN ledger track" \
-  "${SP_PYTHON:-python3}" "$ROOT/conformance/run.py" --require-all --component ledger --component remediation "$@" || status=$?
+SP_IMPL_LEDGER="$BIN ledger merge" SP_IMPL_REMEDIATION="$BIN ledger track" SP_IMPL_CLI="$ROOT/conformance/impl/go/cli" \
+  SP_GO_SP="$BIN" SP_PY_HOME="$ROOT" TZ=UTC \
+  "${SP_PYTHON:-python3}" "$ROOT/conformance/run.py" --require-all --component ledger --component remediation \
+  --component cli "$@" || status=$?
 exit "$status"

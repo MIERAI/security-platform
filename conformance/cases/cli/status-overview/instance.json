@@ -1,0 +1,20 @@
+{
+ "name": "conf",
+ "runner": {
+  "jobs": {
+   "host": {
+    "schedule": "15 2 * * *"
+   },
+   "flaky": {
+    "schedule": "15 3 * * *"
+   },
+   "late": {
+    "type": "remediation",
+    "schedule": "*/10 * * * *"
+   },
+   "fresh": {
+    "schedule": "0 4 * * *"
+   }
+  }
+ }
+}

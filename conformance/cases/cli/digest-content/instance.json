@@ -1,0 +1,10 @@
+{
+ "name": "conf",
+ "runner": {
+  "jobs": {
+   "broken": {
+    "schedule": "0 1 * * *"
+   }
+  }
+ }
+}

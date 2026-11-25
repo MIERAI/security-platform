@@ -1,0 +1,9 @@
+{
+ "schema": "security-platform/runner-state/v1",
+ "job": "host",
+ "runs_total": 3,
+ "failures_total": 0,
+ "last_rc": 0,
+ "last_success": {epoch:-7300},
+ "done_slot": {epoch:-7400}
+}

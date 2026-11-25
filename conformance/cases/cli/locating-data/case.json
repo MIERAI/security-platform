@@ -1,0 +1,182 @@
+{
+ "component": "cli",
+ "title": "Where the data and the instance config are: --data, else $SP_DATA (~ expanded); --instance, else $SP_INSTANCE, else DATA/instance.yaml, instance.yml, instance.json (first that exists)",
+ "contract": "cli/1.1",
+ "origin": "contract cli §1; cli/sp.py Ctx",
+ "files": {
+  "a/instance.json": {
+   "json": {
+    "name": "from-a-json"
+   }
+  },
+  "b/instance.yml": {
+   "text": "name: from-b-yml\n"
+  },
+  "b/instance.json": {
+   "json": {
+    "name": "from-b-json"
+   }
+  },
+  "c/instance.yaml": {
+   "text": "name: from-c-yaml\n"
+  },
+  "c/instance.yml": {
+   "text": "name: from-c-yml\n"
+  },
+  "other.json": {
+   "json": {
+    "name": "from-sp-instance"
+   }
+  },
+  "flag.json": {
+   "json": {
+    "name": "from-flag"
+   }
+  },
+  "home/d/instance.json": {
+   "json": {
+    "name": "from-home"
+   }
+  }
+ },
+ "steps": [
+  {
+   "name": "SP_DATA",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "status"
+    ],
+    "env": {
+     "SP_DATA": "{sandbox}/a"
+    }
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "regex": [
+       "^security-platform status - from-a-json$"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "--data wins over SP_DATA; instance.yml before instance.json",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "status",
+     "--data",
+     "{sandbox}/b"
+    ],
+    "env": {
+     "SP_DATA": "{sandbox}/a"
+    }
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "regex": [
+       "^security-platform status - from-b-yml$"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "instance.yaml first",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "status",
+     "--data",
+     "{sandbox}/c"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "regex": [
+       "status - from-c-yaml$"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "SP_INSTANCE",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "status",
+     "--data",
+     "{sandbox}/c"
+    ],
+    "env": {
+     "SP_INSTANCE": "{sandbox}/other.json"
+    }
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "regex": [
+       "status - from-sp-instance$"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "--instance wins over SP_INSTANCE",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "status",
+     "--data",
+     "{sandbox}/c",
+     "--instance",
+     "{sandbox}/flag.json"
+    ],
+    "env": {
+     "SP_INSTANCE": "{sandbox}/other.json"
+    }
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "regex": [
+       "status - from-flag$"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "~ is the home directory",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "status",
+     "--data",
+     "~/d"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "regex": [
+       "status - from-home$"
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}

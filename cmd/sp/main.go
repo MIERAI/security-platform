@@ -17,6 +17,10 @@ func main() {
 	if err != nil {
 		exe = "" // the Python tree is then found through SP_PY_HOME or the default install root only
 	}
+	host, err := os.Hostname()
+	if err != nil {
+		host = "" // the starter config of sp init then names the first host "this-machine"
+	}
 	os.Exit(shim.Main(context.Background(), shim.Env{
 		Args:       os.Args[1:],
 		Stdin:      os.Stdin,
@@ -27,5 +31,13 @@ func main() {
 		Executable: exe,
 		Build:      buildinfo.Read(),
 		Exec:       delegate.Replace,
+		StdoutTTY:  isTerminal(os.Stdout),
+		Hostname:   host,
 	}))
+}
+
+// isTerminal reports whether f is a character device (a terminal; /dev/null too, where colors do no harm).
+func isTerminal(f *os.File) bool {
+	fi, err := f.Stat()
+	return err == nil && fi.Mode()&os.ModeCharDevice != 0
 }
