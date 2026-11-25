@@ -2,6 +2,32 @@
 
 Components are versioned independently (docs/design.md §5). Entries name the component and its new version.
 
+## 2026-11-25 — retired assets close their findings
+
+A finding became `fixed` only when a run covered its asset again. An asset that no longer exists is never covered
+again, so its findings stayed open forever (e.g. a critical CVE in `image:app:1.0` after the workload moved to
+`app:1.1`). Now an authoritative, complete inventory retires them; a partial one still retires nothing.
+
+- **findings contract 1.1** (additive; core and old collectors are unaffected): an `ok` coverage entry may carry
+  `complete_scope: "<asset prefix>"` - "this run listed every existing asset under this prefix". Older cores ignore it.
+- **core 0.8.0**: a finding of that collector on an asset under a declared `complete_scope` that the run listed neither
+  as ok nor as gap is closed as fixed with `fixed_reason: asset_retired` (time to fix counted as usual); any gap that
+  may concern it keeps it unknown. Regular fixes now record `fixed_reason: not_observed`. A retired asset that comes
+  back reopens its findings (regression), and the reason is cleared.
+- **sdk 0.4.0**: `Collector.ok(asset, complete_scope=...)`; documents are written as `schema_version: "1.1"`.
+- **collector k8s 0.3.0**: the image inventory (`inventory/v1`) gains `complete` (true only when the pods of every
+  configured cluster were listed) and `sources` (per cluster: `complete`, `failed: <error type>`, or not inventoried
+  because `parts` excludes `workloads`).
+- **collector vuln-intel 0.5.0**: declares `inventory:container-image` with `complete_scope: "image:"` only when every
+  container-image inventory is complete; an inventory without `complete` (an older producer) or with a failed
+  cluster declares nothing and is logged.
+- **Upgrade**: no configuration change. Retirement starts once core, k8s and vuln-intel are all upgraded (any order;
+  hub first as usual). The first complete run closes the backlog of findings on images that stopped running earlier,
+  at once: expect a one-time drop in open supply-chain findings and a one-time rise of `security_time_to_fix_days`
+  (their age is counted as time to fix).
+- **docs**: design §1 (asset retirement) and §11.2 (inventory completeness), runner.md (vuln-intel), adapters.md
+  (when a collector may declare `complete_scope`).
+
 ## 2026-11-25 — several hubs in one cluster
 
 - **deploy 0.5.0**: component `deploy/kubernetes/unique-names` gives the cluster-scoped objects of a hub

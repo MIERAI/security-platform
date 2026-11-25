@@ -45,6 +45,11 @@
 ```
 
 - 关键：**只有当 collector 本次确实覆盖到了该 asset（coverage=ok）而 finding 消失，才判 fixed**。资产离线/采集失败 = coverage gap，finding 保持原状态，不会"假修复"。
+- **资产退役**（`fixed_reason: asset_retired`）：资产本身消失时（例如工作负载从 `repo:1.0` 升级到 `repo:1.1`，旧镜像再也不会被覆盖），
+  靠的是**权威且完整的清单**：collector 在一条 ok 的 coverage 上声明 `complete_scope: <资产前缀>`（如 `image:`），表示"本次运行列出了该前缀下
+  现存的全部资产"。该 collector 在此前缀下的 finding，若资产本次既不是 ok 也不是 gap（根本没被列出），即判 fixed，原因 `asset_retired`。
+  只有清单的每个来源都读成功才可声明（例如 k8s 清单要求每个集群的 Pod 都列出成功）；清单部分失败、旧版 collector 不声明 = 未知，保持原状态。
+  资产再出现 = 回归（reopen），与普通 fixed 相同。普通的 fixed 记 `fixed_reason: not_observed`。
 - 覆盖例外（`exceptions.yaml` 的 `coverage_exceptions`）：人批准 + 到期日，期间该缺口不计入
   `collector_coverage_gaps`（例如离线的私人手机经声明移出范围、等待用户装钥匙的设备）；到期自动重新计入。
 - `needs_human=true`：修复必须本人做（密码、账户设置、物理操作、GUI 授权）。phase 1 清单里单独列出。
@@ -175,7 +180,7 @@ hub 跑在操作者工作站上时，工作站睡眠/断网 = 整个平台停。
 
 - 第二个契约 `inventory/v1`（软件清单，见 §11.2）。
 - 契约文件：`schema/findings-v1.schema.json`（JSON Schema），文档级字段 `schema_version: "1.x"`。
-- 一个 findings 文档 = 一次 collector 运行：`collector{name,version}`、`run{started_at,finished_at,instance}`、`coverage[]`（每个资产 ok / gap+原因）、`findings[]`。
+- 一个 findings 文档 = 一次 collector 运行：`collector{name,version}`、`run{started_at,finished_at,instance}`、`coverage[]`（每个资产 ok / gap+原因；ok 可带 `complete_scope`，契约 1.1 新增的可选字段，见 §1 资产退役）、`findings[]`。
 - 每个 finding 字段：`id, check, layer, asset, title, severity, evidence, remediation, needs_human, owner, observed_at, refs[]`。
 - **OCSF 映射**（`core/ocsf.py` 可导出 OCSF 1.x 事件，供 SIEM 接入）：
 
@@ -342,7 +347,9 @@ hub 跑在操作者工作站上时，工作站睡眠/断网 = 整个平台停。
 
 ### 11.2 资产软件清单（SBOM）= 一类通用 collector
 
-- 合同：`inventory/v1`（`{schema, kind, items[]}`），由任何 collector 产出，例如 k8s collector 写 `inventory.k8s-images.json`（集群 × 镜像 × digest × 是否暴露 × 是否 prod）。
+- 合同：`inventory/v1`（`{schema, kind, items[], complete?, sources?}`），由任何 collector 产出，例如 k8s collector 写 `inventory.k8s-images.json`（集群 × 镜像 × digest × 是否暴露 × 是否 prod）。
+  可选的 `complete: true` 表示 `items` 是生产者范围内的全部条目（k8s：每个配置的集群的 Pod 都列出成功；`sources` 记录每个集群 complete / failed / 未盘点）。
+  缺省 = 不完整。vuln-intel 只有在所有镜像清单都 complete 时才声明 `complete_scope: "image:"`（§1 资产退役）。
 - phase 0：运行中镜像的 SBOM（Trivy → CycloneDX，按 digest 缓存在私有 `sbom/`）、本地仓库的依赖（`trivy fs`，含 Go modules）。
 - 主机（`collectors/host-sbom`，经 exec adapter + OS profile，只读）：产出 `inventory.host-packages.json`
   （deb / apk / rpm / termux / brew / brew-cask / opkg / windows-kb / windows-program）与

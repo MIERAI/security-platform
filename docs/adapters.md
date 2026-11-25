@@ -121,7 +121,10 @@ Checklist (CI enforces the first four):
 - [ ] `generators/gen.py` regenerated (`dist/` gets a freshness SLO for the new collector).
 - [ ] A unit test against a fake (HTTP server, fake kubectl, fake exec), never the real service.
 - [ ] `coverage`: call `c.ok()` only for assets you really looked at, `c.gap()` for everything in scope you could not.
-      The ledger marks a finding fixed only when its asset was covered.
+      The ledger marks a finding fixed only when its asset was covered. If the collector reads an authoritative,
+      COMPLETE inventory (every source listed successfully), it may declare the scope it listed:
+      `c.ok("inventory:<kind>", complete_scope="<type>:")`; findings on assets under that prefix that the run no longer
+      lists are then closed as `asset_retired`. Never declare it for a partial or failed listing.
 - [ ] Evidence: store filtered facts (`c.raw(...)`), never secret values; HTTP bodies at most a short snippet.
 - [ ] The job: `runner.jobs.<name>: {schedule: ...}`; tools the collector needs go into `COLLECTOR_TOOLS` in
       `cli/sp.py` so `sp doctor` can check them.

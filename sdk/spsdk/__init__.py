@@ -9,7 +9,7 @@ import os
 import sys
 import time
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "1.1"
 SEVERITIES = ["critical", "high", "medium", "low", "info"]
 LAYERS = ["identity", "network", "host", "workload", "supply-chain", "data-secrets", "ai-agents", "detection"]
 
@@ -91,8 +91,13 @@ class Collector:
             f["attributes"] = attributes
         self.findings.append(f)
 
-    def ok(self, asset):
-        self.coverage.setdefault(asset, {"asset": asset, "status": "ok"})
+    def ok(self, asset, complete_scope=None):
+        """complete_scope: an asset prefix (e.g. "image:") this run inventoried COMPLETELY and authoritatively; the
+        ledger then closes findings on assets under it that the run no longer lists (`asset_retired`). Declare it only
+        when every source of the inventory was read successfully: a partial listing must not retire anything."""
+        e = self.coverage.setdefault(asset, {"asset": asset, "status": "ok"})
+        if complete_scope and e["status"] == "ok":
+            e["complete_scope"] = complete_scope
 
     def gap(self, asset, reason):
         self.coverage[asset] = {"asset": asset, "status": "gap", "reason": reason[:300]}

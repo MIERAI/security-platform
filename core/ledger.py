@@ -9,6 +9,10 @@ Outputs: <data>/ledger.json, <run>/sli.prom, <data>/metrics/ledger.prom, <data>/
 are computed from it, so a run of one collector does not hide the others' numbers.
 Lifecycle rules (docs/design.md section 1): only a run that COVERED the asset can mark a finding fixed;
 only a human (exceptions.yaml) can make it `accepted`; expired exceptions reopen it.
+Retired assets: an "ok" coverage entry with `complete_scope: <asset prefix>` declares that the run listed EVERY existing
+asset under that prefix (an authoritative, complete inventory). A finding of that collector on an asset under the
+prefix that the run neither covered nor reported as a gap belongs to an asset that no longer exists: it is closed as
+fixed with `fixed_reason: asset_retired`. No declaration (partial or failed inventory, older collectors) = unknown.
 """
 import argparse
 import glob
@@ -73,6 +77,14 @@ def covered(asset, oks, gap_names):
     if any(g and g in asset for g in gap_names):
         return False
     return asset in (oks if isinstance(oks, Coverage) else Coverage(oks))
+
+
+def retired(asset, scopes, listed, gap_names):
+    """The asset is under a scope the run inventoried COMPLETELY (`complete_scope` of an ok coverage entry) and the run
+    did not list it at all (neither ok nor gap): it no longer exists. Any gap that may concern it wins (unknown)."""
+    if not any(asset.startswith(sc) for sc in scopes) or any(g and g in asset for g in gap_names):
+        return False
+    return asset not in listed
 
 
 def urgent(e):
@@ -141,7 +153,7 @@ def main():
                 e = E[f["id"]] = dict(first_seen=f["observed_at"], status="open", fixed_at=None, reopened_count=0,
                                       ttk_counted=bool(prev_ok) and f["asset"] in prev_cov)
             elif e["status"] == "fixed":
-                e.update(status="open", fixed_at=None, reopened_count=e.get("reopened_count", 0) + 1,
+                e.update(status="open", fixed_at=None, fixed_reason=None, reopened_count=e.get("reopened_count", 0) + 1,
                          time_to_fix_days=None)
             e.update({k: f[k] for k in ("id", "check", "layer", "asset", "title", "severity", "evidence", "remediation",
                                        "needs_human", "owner", "kind")},
@@ -155,13 +167,19 @@ def main():
                     e["time_to_know_hours"] = round(max(0, t(e["first_seen"]) - t(disclosed)) / 3600, 1)
         oks = [g["asset"] for g in d["coverage"] if g["status"] == "ok"]
         cov_seen[col] = sorted(set(prev_ok) | set(oks))
+        scopes = [g["complete_scope"] for g in d["coverage"] if g["status"] == "ok" and g.get("complete_scope")]
+        listed = Coverage([g["asset"] for g in d["coverage"]]) if scopes else None   # ok AND gap entries
         oks = Coverage(oks)
         for fid_, e in E.items():
             if e.get("collector") != col or fid_ in seen or e["status"] not in ("open", "accepted"):
                 continue
-            if not covered(e["asset"], oks, gap_names):
+            if covered(e["asset"], oks, gap_names):
+                reason = "not_observed"
+            elif scopes and retired(e["asset"], scopes, listed, gap_names):
+                reason = "asset_retired"
+            else:
                 continue  # not covered this time (gap, offline, or simply out of this run's scope): keep state
-            e.update(status="fixed", fixed_at=d["run"]["finished_at"],
+            e.update(status="fixed", fixed_at=d["run"]["finished_at"], fixed_reason=reason,
                      time_to_fix_days=round((t(d["run"]["finished_at"]) - t(e["first_seen"])) / 86400, 2))
     # exceptions: human-approved only, with expiry
     exc = load_yaml(os.path.join(a.data, "exceptions.yaml"), {}).get("exceptions", {})

@@ -7,6 +7,9 @@ Inputs (contracts, not other collectors' code):
                              registry_auth: [{host, username, token_file}]}`
 Steps: SBOM per image (trivy, CycloneDX, cached by digest) -> deterministic match against Trivy's DB
 (GHSA/OSV/NVD/distro advisories) -> enrich with CISA KEV + EPSS feeds -> priority = intel x our exposure.
+Retired images: when every container-image inventory is complete (`complete: true`), the run declares the coverage
+entry `inventory:container-image` with `complete_scope: "image:"`; the ledger then closes findings of images that are
+no longer running (fixed, `asset_retired`). A partial inventory (a cluster failed) retires nothing.
 Registry credentials for private images: a READ-ONLY token in a 0600 file (intel.registry_auth) or the env
 SP_REGISTRY_USER / SP_REGISTRY_TOKEN; never logged. Without one, private images are coverage gaps (cached SBOMs of
 already-seen digests are still matched).
@@ -251,6 +254,23 @@ def vendor_state(feed, fcfg, c):
                     it["advisor_candidates"] = prop   # evidence only; never changes severity or status
 
 
+def image_inventory(paths):
+    """inventory/v1 container-image files -> (items, complete, reasons it is partial). Complete = at least one file
+    and EVERY file says `complete: true` (its producer listed all of its sources); a file without the field (an older
+    producer) or with a failed source makes the whole image inventory partial."""
+    items, n, partial = [], 0, []
+    for p in sorted(paths):
+        with open(p) as f:
+            d = json.load(f)
+        if d.get("schema") == "security-platform/inventory/v1" and d.get("kind") == "container-image":
+            n += 1
+            items += d["items"]
+            if d.get("complete") is not True:
+                bad = [f"{k} {v}" for k, v in sorted((d.get("sources") or {}).items()) if v != "complete"]
+                partial.append(f"{os.path.basename(p)}: " + (", ".join(bad) if bad else "completeness not declared"))
+    return items, n > 0 and not partial, partial
+
+
 def main():
     global SBOM_MAX_AGE_D
     inst = spsdk.load_instance()
@@ -290,11 +310,14 @@ def main():
             c.metric("security_intel_feed_age_seconds", int(time.time() - time.mktime(time.strptime(db_at[:19], "%Y-%m-%dT%H:%M:%S")) + time.timezone),
                      "Age of the cached intel feed", feed="trivy-db")
     # ---- inventory (contract inventory/v1) -> unique images ---------------------------------------------
-    items = []
-    for p in glob.glob(os.path.join(os.environ.get("SP_INPUT_DIR") or c.out, "inventory.*.json")):
-        d = json.load(open(p))
-        if d.get("schema") == "security-platform/inventory/v1" and d.get("kind") == "container-image":
-            items += d["items"]
+    items, complete, partial = image_inventory(glob.glob(os.path.join(os.environ.get("SP_INPUT_DIR") or c.out, "inventory.*.json")))
+    if complete:
+        # every image inventory is complete: an image no longer listed is no longer running, and the ledger closes
+        # its findings (asset_retired). Partial or old-format inventories declare nothing (= unknown).
+        c.ok("inventory:container-image", complete_scope="image:")
+    elif partial:
+        print(f"[vuln-intel] image inventory partial ({'; '.join(partial)[:300]}): findings of images no longer listed "
+              "stay as they are", file=sys.stderr)
     images = {}
     for it in items:
         e = images.setdefault(it["image"], dict(it, clusters=set(), exposed=False, prod=False))

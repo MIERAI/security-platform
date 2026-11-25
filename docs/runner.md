@@ -267,7 +267,11 @@ The `intel` job is the `vuln-intel` collector on a daily schedule:
    newest k8s inventory) with Trivy and, independently, with the OSV matcher (semver ranges, Go modules and stdlib).
 3. New matches become findings; the ledger computes `time_to_know_hours` from the advisory's publication (or its KEV
    addition, whichever is later).
-4. Only `alertable` matches page: affects our assets AND (KEV OR critical on an exposed asset). The rest is in the
+4. **Retired images**: when every container-image inventory is complete (k8s: the pods of every configured cluster
+   were listed), an image that is no longer running closes its findings (fixed, `fixed_reason: asset_retired`), e.g.
+   after a workload moved from `app:1.0` to `app:1.1`. If any cluster failed, nothing is retired in that run; the
+   findings stay as they were until a complete run. A retired image that comes back reopens them (regression).
+5. Only `alertable` matches page: affects our assets AND (KEV OR critical on an exposed asset). The rest is in the
    weekly digest (`digest` job → `<data>/reports/digest/<year>-W<week>.md`).
 
 ### Private registries
