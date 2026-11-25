@@ -138,6 +138,13 @@ runner:
   env_passthrough: [GH_TOKEN]     # names only; values stay in the trigger's environment, never in the instance
 ```
 
+Cloud scans (`collectors/cloud`, also the Go collector as a `command` job with `argv: [sp, cloud, collect]`, which
+the Go runner starts exactly as the Python runner does: argument vector, `~` expanded, the program looked up on the
+job's `PATH`): an `identity_token: {type: env, name: X}` source reads `X` from the job's environment, and a GCP
+`source: adc` reads `GOOGLE_APPLICATION_CREDENTIALS` / `CLOUDSDK_CONFIG` when set; list those names in
+`env_passthrough` (file sources such as `{type: file, path: …}` and the default `~/.config/gcloud` need nothing).
+Ambient cloud keys (`AWS_ACCESS_KEY_ID`, …) are never needed: the cloud adapter refuses them anyway (docs/cloud.md).
+
 Each tick the Go runner logs the *names* of credential-like variables it withholds (`environment: not passed to jobs
 …`): an empty line there means nothing is missing; values are never logged.
 

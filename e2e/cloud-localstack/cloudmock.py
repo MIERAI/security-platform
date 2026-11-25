@@ -10,19 +10,29 @@ and audience; which federated subject may impersonate which service account / us
 role bindings / assignments a scenario declares; which user (ADC refresh token) may impersonate which service account
 (`token_creators`, i.e. roles/iam.serviceAccountTokenCreator). Error bodies follow the services' formats.
 
-usage: cloudmock.py --port 18090 --config scenario.json
+The same endpoints are also served over TLS with --tls-port/--tls-cert/--tls-key (a throw-away self-signed
+certificate): the Azure SDK for Go accepts only an https authority, as Entra ID is, and only at the root of a host
+(https://login.microsoftonline.com/{tenant}), so the Entra endpoints are also answered there:
+/{tenant}/oauth2/v2.0/token and the OpenID configuration MSAL reads first, /{tenant}/v2.0/.well-known/openid-configuration.
+
+usage: cloudmock.py --port 18090 --config scenario.json [--tls-port 18443 --tls-cert C --tls-key K]
 """
 import argparse
 import base64
 import hashlib
 import json
+import re
 import secrets
+import ssl
+import threading
 import time
 import urllib.parse
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 CFG, JWKS, TOKENS = {}, {}, {}           # TOKENS: opaque token -> {"kind", "sub"/"email"/"sa"/"oid", "exp"}
+ENTRA_ROOT_TOKEN = re.compile(r"/[0-9a-f-]{36}/oauth2/v2\.0/token")
+ENTRA_ROOT_OPENID = re.compile(r"/[0-9a-f-]{36}/v2\.0/\.well-known/openid-configuration")
 SHA256_DIGEST_INFO = bytes.fromhex("3031300d060960864801650304020105000420")
 
 
@@ -228,10 +238,21 @@ class H(BaseHTTPRequestHandler):
             return self.gcp_policy(path.split("/projects/")[1].rsplit(":", 1)[0])
         if path.startswith("/azure/login/") and path.endswith("/oauth2/v2.0/token"):
             return self.azure_token(path.split("/")[3])
+        if ENTRA_ROOT_TOKEN.fullmatch(path):
+            return self.azure_token(path.split("/")[1])
         self.reply(404, {"error": "not found"})
+
+    def azure_openid(self, tenant):
+        """Entra's tenant OpenID configuration (what MSAL reads before the token request)."""
+        base = f"https://{self.headers.get('Host')}"
+        self.reply(200, {"token_endpoint": f"{base}/{tenant}/oauth2/v2.0/token",
+                         "authorization_endpoint": f"{base}/{tenant}/oauth2/v2.0/authorize",
+                         "issuer": f"{base}/{tenant}/v2.0"})
 
     def do_GET(self):
         path = urllib.parse.urlparse(self.path).path
+        if ENTRA_ROOT_OPENID.fullmatch(path):
+            return self.azure_openid(path.split("/")[1])
         if path.startswith("/gcp/cloudasset/v1/projects/") and path.endswith(":searchAllResources"):
             return self.gcp_assets(path.split("/projects/")[1].rsplit(":", 1)[0])
         if path.startswith("/azure/arm/subscriptions/") and path.endswith("/providers/Microsoft.Authorization/roleAssignments"):
@@ -245,8 +266,17 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=18090)
     ap.add_argument("--config", required=True)
+    ap.add_argument("--tls-port", type=int)
+    ap.add_argument("--tls-cert")
+    ap.add_argument("--tls-key")
     a = ap.parse_args()
     CFG.update(json.load(open(a.config)))
+    if a.tls_port:
+        tls = ThreadingHTTPServer(("127.0.0.1", a.tls_port), H)
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        ctx.load_cert_chain(a.tls_cert, a.tls_key)
+        tls.socket = ctx.wrap_socket(tls.socket, server_side=True)
+        threading.Thread(target=tls.serve_forever, daemon=True).start()
     ThreadingHTTPServer(("127.0.0.1", a.port), H).serve_forever()
 
 

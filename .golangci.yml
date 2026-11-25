@@ -44,10 +44,37 @@ linters:
       rules:
         main:
           list-mode: strict
+          files: ["$all", "!**/internal/cloud/**"]
           allow:
             - $gostd
             - github.com/MIERAI/security-platform
             - go.yaml.in/yaml/v3   # YAML catalogs, instances, attestations (docs/go.md, "Dependencies")
+        # The cloud adapter alone talks to the providers, through their official SDKs only (docs/go.md: why each
+        # module). Package by package: a new SDK package is a reviewed change of this list.
+        cloud-sdks:
+          list-mode: strict
+          files: ["**/internal/cloud/**"]
+          allow:
+            - $gostd
+            - github.com/MIERAI/security-platform
+            - github.com/aws/aws-sdk-go-v2/aws$
+            - github.com/aws/aws-sdk-go-v2/aws/transport/http$
+            - github.com/aws/aws-sdk-go-v2/config$
+            - github.com/aws/aws-sdk-go-v2/credentials/stscreds$
+            - github.com/aws/aws-sdk-go-v2/service/sts$
+            - github.com/aws/aws-sdk-go-v2/service/iam$
+            - github.com/aws/aws-sdk-go-v2/service/iam/types$
+            - github.com/aws/smithy-go$
+            - golang.org/x/oauth2$
+            - golang.org/x/oauth2/google$
+            - golang.org/x/oauth2/google/externalaccount$
+            - github.com/Azure/azure-sdk-for-go/sdk/azcore$
+            - github.com/Azure/azure-sdk-for-go/sdk/azcore/arm$
+            - github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud$
+            - github.com/Azure/azure-sdk-for-go/sdk/azcore/policy$
+            - github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime$
+            - github.com/Azure/azure-sdk-for-go/sdk/azidentity$
+            - github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/authorization/armauthorization/v2$
     errcheck:
       check-type-assertions: true
     forbidigo:

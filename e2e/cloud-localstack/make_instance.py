@@ -1,5 +1,10 @@
 """Write the e2e instance configs: the main one (scanned twice into one ledger) and one per failure scenario.
-usage: make_instance.py WORK TOOLS HERE LS_PORT OIDC_PORT MOCK_PORT"""
+usage: make_instance.py WORK TOOLS HERE LS_PORT OIDC_PORT MOCK_PORT
+
+With SP_E2E_AZURE_TLS=<https base URL of cloudmock> and SP_E2E_CA_FILE=<its certificate> (the Go implementation:
+the Azure SDK for Go accepts only an https authority) the Azure accounts use the mock's TLS endpoints and trust its
+certificate (`ca_file`); the same configs for the Python implementation (plain http) then go to WORK/python/ for the
+Go-vs-Python comparison."""
 import json
 import os
 import shutil
@@ -54,10 +59,17 @@ def gcp_adc(project, sa=None, adc=None):
             "iamcredentials_url": M + "/gcp/iamcredentials/v1", "resourcemanager_url": M + "/gcp/crm/v1", "engines": []}
 
 
+AZURE_TLS, CA_FILE = os.environ.get("SP_E2E_AZURE_TLS"), os.environ.get("SP_E2E_CA_FILE")
+TLS = {"on": bool(AZURE_TLS)}          # switched off to write the Python flavour
+
+
 def azure(sub, client="11111111-1111-4111-8111-111111111111", aud="api://AzureADTokenExchange"):
-    return {"provider": "azure", "subscription_id": sub, "tenant_id": "00000000-0000-4000-8000-00000000aaaa",
-            "client_id": client, "identity_token": token(aud), "authority_host": M + "/azure/login",
-            "arm_url": M + "/azure/arm", "engines": []}
+    d = {"provider": "azure", "subscription_id": sub, "tenant_id": "00000000-0000-4000-8000-00000000aaaa",
+         "client_id": client, "identity_token": token(aud), "authority_host": M + "/azure/login",
+         "arm_url": M + "/azure/arm", "engines": []}
+    if TLS["on"]:      # https, and the authority at the root of the host (MSAL keeps no path before the tenant)
+        d.update(authority_host=AZURE_TLS, arm_url=AZURE_TLS + "/azure/arm", ca_file=CA_FILE)
+    return d
 
 
 ENGINES = {
@@ -74,38 +86,54 @@ ENGINES = {
                    "timeout": "10m"}}
 for name in ("scc-findings.json", "defender-assessments.json"):      # exports of the native services (fixtures)
     shutil.copy(os.path.join(ROOT, "tests", "fixtures", "cloud", name), os.path.join(WORK, name))
-main = {"name": "acme-cloud", "cloud": {
-    "accounts": [aws(), gcp("acme-readonly"), gcp("acme-overprivileged"), gcp_adc("adc-readonly"),
-                 azure("33333333-3333-4333-8333-333333333333"), azure("44444444-4444-4444-8444-444444444444")],
-    "engines": ENGINES,
-    "imports": [{"type": "securityhub", "file": os.path.join(WORK, "securityhub.json"), "accounts": ["000000000000"]},
-                {"type": "scc", "file": os.path.join(WORK, "scc-findings.json"), "accounts": ["acme-readonly"]},
-                {"type": "defender", "file": os.path.join(WORK, "defender-assessments.json"),
-                 "accounts": ["33333333-3333-4333-8333-333333333333"]}]}}
-json.dump(main, open(os.path.join(WORK, "instance.json"), "w"), indent=1)
 
-FAILURES = {   # name: (account config, expected coverage reason substring)
-    "aws-expired-token": (aws(issuer="shortlived", engines=[]), "identity token expired"),
-    "aws-wrong-audience": (aws(aud="some-other-audience", engines=[]), "audience mismatch"),
-    "aws-missing-role": (aws(role="does-not-exist", engines=[]), "does not exist"),
-    "aws-over-privileged": (aws(role="security-platform-overprivileged", engines=["prowler"]), "refused"),
-    "gcp-wrong-audience": (gcp("acme-readonly", aud="some-other-audience", precheck=False), "does not match the expected audience"),
-    "gcp-denied-impersonation": (gcp("acme-readonly", sa="someone-else@acme-readonly.iam.gserviceaccount.com"), "PERMISSION_DENIED"),
-    "gcp-missing-service-account": (gcp("acme-readonly", sa="nobody@acme-readonly.iam.gserviceaccount.com"), "does not exist"),
-    "gcp-adc-missing": (gcp_adc("adc-readonly", adc=os.path.join(ADC_DIR, "absent.json")), "no application default credentials"),
-    "gcp-adc-revoked": (gcp_adc("adc-readonly", adc=adc_file("revoked", refresh="mock-refresh-revoked")), "invalid_grant"),
-    "gcp-adc-key-file": (gcp_adc("adc-readonly", adc=adc_file("key", typ="service_account")), "long-lived credential"),
-    "gcp-adc-denied-impersonation": (gcp_adc("acme-readonly", sa="someone-else@acme-readonly.iam.gserviceaccount.com"),
-                                     "serviceAccountTokenCreator"),
-    "gcp-adc-missing-service-account": (gcp_adc("adc-readonly", sa="nobody@adc-readonly.iam.gserviceaccount.com"), "does not exist"),
-    "gcp-adc-over-privileged": (dict(gcp_adc("acme-overprivileged", sa="auditor@acme-overprivileged.iam.gserviceaccount.com"),
-                                     engines=["prowler"]), "refused"),
-    "azure-wrong-audience": (azure("33333333-3333-4333-8333-333333333333", aud="some-other-audience"), "AADSTS700212"),
-    "azure-unknown-app": (azure("33333333-3333-4333-8333-333333333333", client="99999999-9999-4999-8999-999999999999"), "AADSTS700016"),
-}
-os.makedirs(os.path.join(WORK, "failures"), exist_ok=True)
-for name, (acct, want) in FAILURES.items():
-    json.dump({"name": name, "expect": want, "cloud": {"accounts": [acct], "engines": ENGINES}},
-              open(os.path.join(WORK, "failures", f"{name}.json"), "w"), indent=1)
+
+def configs():
+    """-> (main instance, {failure name: (account, expected reason)}) for the current TLS setting."""
+    main = {"name": "acme-cloud", "cloud": {
+        "accounts": [aws(), gcp("acme-readonly"), gcp("acme-overprivileged"), gcp_adc("adc-readonly"),
+                     azure("33333333-3333-4333-8333-333333333333"), azure("44444444-4444-4444-8444-444444444444")],
+        "engines": ENGINES,
+        "imports": [{"type": "securityhub", "file": os.path.join(WORK, "securityhub.json"), "accounts": ["000000000000"]},
+                    {"type": "scc", "file": os.path.join(WORK, "scc-findings.json"), "accounts": ["acme-readonly"]},
+                    {"type": "defender", "file": os.path.join(WORK, "defender-assessments.json"),
+                     "accounts": ["33333333-3333-4333-8333-333333333333"]}]}}
+
+    failures = {   # name: (account config, expected coverage reason substring)
+        "aws-expired-token": (aws(issuer="shortlived", engines=[]), "identity token expired"),
+        "aws-wrong-audience": (aws(aud="some-other-audience", engines=[]), "audience mismatch"),
+        "aws-missing-role": (aws(role="does-not-exist", engines=[]), "does not exist"),
+        "aws-over-privileged": (aws(role="security-platform-overprivileged", engines=["prowler"]), "refused"),
+        "gcp-wrong-audience": (gcp("acme-readonly", aud="some-other-audience", precheck=False), "does not match the expected audience"),
+        "gcp-denied-impersonation": (gcp("acme-readonly", sa="someone-else@acme-readonly.iam.gserviceaccount.com"), "PERMISSION_DENIED"),
+        "gcp-missing-service-account": (gcp("acme-readonly", sa="nobody@acme-readonly.iam.gserviceaccount.com"), "does not exist"),
+        "gcp-adc-missing": (gcp_adc("adc-readonly", adc=os.path.join(ADC_DIR, "absent.json")), "no application default credentials"),
+        "gcp-adc-revoked": (gcp_adc("adc-readonly", adc=adc_file("revoked", refresh="mock-refresh-revoked")), "invalid_grant"),
+        "gcp-adc-key-file": (gcp_adc("adc-readonly", adc=adc_file("key", typ="service_account")), "long-lived credential"),
+        "gcp-adc-denied-impersonation": (gcp_adc("acme-readonly", sa="someone-else@acme-readonly.iam.gserviceaccount.com"),
+                                         "serviceAccountTokenCreator"),
+        "gcp-adc-missing-service-account": (gcp_adc("adc-readonly", sa="nobody@adc-readonly.iam.gserviceaccount.com"), "does not exist"),
+        "gcp-adc-over-privileged": (dict(gcp_adc("acme-overprivileged", sa="auditor@acme-overprivileged.iam.gserviceaccount.com"),
+                                         engines=["prowler"]), "refused"),
+        "azure-wrong-audience": (azure("33333333-3333-4333-8333-333333333333", aud="some-other-audience"), "AADSTS700212"),
+        "azure-unknown-app": (azure("33333333-3333-4333-8333-333333333333", client="99999999-9999-4999-8999-999999999999"), "AADSTS700016"),
+    }
+    return main, failures
+
+
+def write(dest):
+    main, failures = configs()
+    os.makedirs(os.path.join(dest, "failures"), exist_ok=True)
+    json.dump(main, open(os.path.join(dest, "instance.json"), "w"), indent=1)
+    for name, (acct, want) in failures.items():
+        json.dump({"name": name, "expect": want, "cloud": {"accounts": [acct], "engines": ENGINES}},
+                  open(os.path.join(dest, "failures", f"{name}.json"), "w"), indent=1)
+    return failures
+
+
+FAILURES = write(WORK)
+if TLS["on"]:
+    TLS["on"] = False
+    write(os.path.join(WORK, "python"))
 print(f"ok   instance: 6 accounts (1 AWS scanned by Prowler + Steampipe + ScoutSuite, 3 GCP (1 via operator ADC), 2 Azure), 3 native imports; "
       f"{len(FAILURES)} failure scenarios")

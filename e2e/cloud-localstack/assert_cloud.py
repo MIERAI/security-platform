@@ -17,6 +17,8 @@ import sys
 
 failures = []
 SUMMARY = []
+IMPL, SP = os.environ.get("SP_CLOUD_E2E_IMPL", "python"), os.environ.get("SP_CLOUD_E2E_SP", "")
+HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 def expect(cond, what):
@@ -107,11 +109,24 @@ def second(work):
     expect(gcp and gcp[0]["status"] == "open", "lifecycle: GCP finding (unchanged export) stays open")
 
 
-def run_collector(work, py, root, inst, run):
+def run_collector(work, py, root, inst, run, impl=None):
     env = {"PATH": os.environ["PATH"], "HOME": os.path.join(work, "home"), "TMPDIR": os.path.join(work, "tmp"),
            "SP_INSTANCE": inst, "SP_RUN_DIR": run}
-    subprocess.run([py, "collectors/cloud/collector.py"], cwd=root, env=env, check=True, capture_output=True)
+    argv = [SP, "cloud", "collect"] if (impl or IMPL) == "go" else [py, "collectors/cloud/collector.py"]
+    subprocess.run(argv, cwd=root, env=env, check=True, capture_output=True)
     return json.load(open(os.path.join(run, "cloud.findings.json")))
+
+
+def compare_with_python(work, py, root, name, run):
+    """Go implementation: the same scenario with the Python implementation gives the same output."""
+    if IMPL != "go":
+        return
+    pyrun = run + "-python"
+    run_collector(work, py, root, os.path.join(work, "python", "failures", f"{name}.json"), pyrun, impl="python")
+    r = subprocess.run([py, "-I", os.path.join(HERE, "compare_impls.py"), pyrun, run], capture_output=True, text=True)
+    expect(r.returncode == 0, f"{name}: Go and Python outputs identical ({r.stdout.strip().splitlines()[-1]})")
+    if r.returncode:
+        print(r.stdout)
 
 
 def failures_(work, py, root):
@@ -127,6 +142,7 @@ def failures_(work, py, root):
                    f"{inst['name']}: finding cloud.platform_credential_over_privileged, no scan")
         else:
             expect(not doc["findings"], f"{inst['name']}: no findings (a gap is not 'secure')")
+        compare_with_python(work, py, root, inst["name"], os.path.join(work, "runs", "fail-" + inst["name"]))
         rows.append((inst["name"], reason[:140]))
     json.dump(rows, open(os.path.join(work, "summary-failures.json"), "w"), indent=1)
 
@@ -195,17 +211,34 @@ def adc(work, root):
     inst = json.load(open(os.path.join(work, "instance.json")))
     acct = next(a for a in inst["cloud"]["accounts"] if a.get("source") == "adc")
     m = acct["iamcredentials_url"].split("/gcp/")[0]
-    got = discovery.discover(dict({k: v for k, v in acct.items() if k not in ("provider", "engines")}, type="gcp",
-                                  cloudasset_url=m + "/gcp/cloudasset/v1"))
+    base = dict({k: v for k, v in acct.items() if k not in ("provider", "engines")}, type="gcp",
+                cloudasset_url=m + "/gcp/cloudasset/v1")
+    over = dict(base, project_id="acme-overprivileged", service_account="auditor@acme-overprivileged.iam.gserviceaccount.com")
+    got = discover(work, discovery, base)
     expect([(d["name"], d["address"], d["online"]) for d in got] == [("web-1", "192.0.2.10", True), ("batch-1", None, True)],
-           f"discovery gcp (cloudasset, operator ADC): running instances with their external address ({len(got)})")
+           f"discovery gcp (cloudasset, operator ADC, {IMPL}): running instances with their external address ({len(got)})")
+    if IMPL == "go":
+        py = discovery.discover(base)
+        expect(json.dumps(got, sort_keys=True) == json.dumps(py, sort_keys=True), "discovery gcp: Go and Python list the same devices")
     try:
-        discovery.discover(dict({k: v for k, v in acct.items() if k not in ("provider", "engines")}, type="gcp",
-                                project_id="acme-overprivileged", service_account="auditor@acme-overprivileged.iam.gserviceaccount.com",
-                                cloudasset_url=m + "/gcp/cloudasset/v1"))
+        discover(work, discovery, over)
         expect(False, "discovery gcp refuses an over-privileged identity")
     except Exception as e:  # noqa: BLE001
         expect("over-privileged" in str(e), f"discovery gcp refuses an over-privileged identity ({str(e)[:80]})")
+
+
+def discover(work, discovery, cfg):
+    """discovery gcp with the implementation under test (Go: `sp cloud discover CONFIG.json`, JSON on stdout)."""
+    if IMPL != "go":
+        return discovery.discover(cfg)
+    p = os.path.join(work, "discover.json")
+    json.dump(cfg, open(p, "w"))
+    r = subprocess.run([SP, "cloud", "discover", p], capture_output=True, text=True,
+                       env={"PATH": os.environ["PATH"], "HOME": os.path.join(work, "home")})
+    os.remove(p)
+    if r.returncode != 0:
+        raise RuntimeError(r.stderr.strip())
+    return json.loads(r.stdout)
 
 
 if __name__ == "__main__":

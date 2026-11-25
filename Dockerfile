@@ -18,6 +18,8 @@ ARG TARGETARCH=amd64
 ARG RELEASE=""
 WORKDIR /src
 COPY go.mod go.sum ./
+# the modules go.sum pins (docs/go.md), checked against go.sum; a layer of its own for the cache
+RUN GOTOOLCHAIN=local GOFLAGS=-mod=readonly go mod download && GOTOOLCHAIN=local go mod verify
 COPY cmd cmd
 COPY internal internal
 # no .git in the build: VCS facts come from the RELEASE file instead; GOTOOLCHAIN=local: the image's Go, no download
