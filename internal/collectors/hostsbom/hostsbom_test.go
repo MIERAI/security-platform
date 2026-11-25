@@ -3,6 +3,7 @@ package hostsbom
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -10,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/MIERAI/security-platform/internal/collectors/collkit"
-	"github.com/MIERAI/security-platform/internal/collectors/spdoc"
+	"github.com/MIERAI/security-platform/internal/collectors/rundoc"
+	"github.com/MIERAI/security-platform/internal/ledger/pyjson"
 	"github.com/MIERAI/security-platform/internal/pyvalue"
 )
 
@@ -52,19 +53,20 @@ func TestFirmware(t *testing.T) {
 		{map[string]string{"firmware.model": "m", "firmware.channel": ""}, `{"model": "m"}`},
 	}
 	for _, tt := range tests {
-		got, err := spdoc.Marshal(firmware(tt.kv), spdoc.Compact, false)
+		got, err := pyjson.Marshal(rundoc.JSON(firmware(tt.kv)), pyjson.Compact())
 		if err != nil || string(got) != tt.want {
 			t.Errorf("firmware(%v) = %s, %v; want %s", tt.kv, got, err, tt.want)
 		}
 	}
 }
 
-func newRun(t *testing.T) *collkit.Run {
+func newRun(t *testing.T) *job {
 	t.Helper()
 	now := func() time.Time { return time.Date(2026, 11, 25, 0, 0, 0, 0, time.UTC) }
-	return &collkit.Run{Env: collkit.Env{Stderr: &bytes.Buffer{}, Now: now, Getenv: func(string) string { return "" },
-		Environ: []string{"PATH=" + t.TempDir()}}, Inst: pyvalue.NewMap(), Dir: t.TempDir(), Data: t.TempDir(),
-		Doc: spdoc.New("host-sbom", Version, "", now)}
+	return &job{Run: &rundoc.Run{Instance: pyvalue.NewMap(), Dir: t.TempDir(), Data: t.TempDir(),
+		Doc: rundoc.New("host-sbom", Version, "", now)},
+		env: &rundoc.Env{Stderr: &bytes.Buffer{}, Now: now, Getenv: func(string) string { return "" },
+			Environ: []string{"PATH=" + t.TempDir()}}}
 }
 
 func host(t *testing.T, yaml string) *pyvalue.Map {
@@ -92,7 +94,7 @@ func TestFSSBOM(t *testing.T) {
 		if got := fsSBOM(context.Background(), r, host(t, tt.cfg), "a"); got != nil {
 			t.Errorf("%s: fs_sbom %v", tt.cfg, got)
 		}
-		doc := r.Doc.Doc(r.Now())
+		doc := docJSON(t, r.Doc, r.env.Clock()())
 		cov, _ := doc["coverage"].([]any)
 		if tt.reason == "" {
 			if len(cov) != 0 {
@@ -140,8 +142,22 @@ func FuzzMergeSBOM(f *testing.F) {
 			}
 			merged = mergeComponents(merged, m)
 		}
-		if _, err := spdoc.Marshal(merged, spdoc.Compact, false); err != nil {
+		if _, err := pyjson.Marshal(rundoc.JSON(merged), pyjson.Compact()); err != nil {
 			t.Fatal(err)
 		}
 	})
+}
+
+// docJSON is the document as encoding/json reads it.
+func docJSON(t *testing.T, d *rundoc.Document, now time.Time) map[string]any {
+	t.Helper()
+	data, err := pyjson.Marshal(d.Doc(now), pyjson.Options{Indent: 1, SortKeys: true, EnsureASCII: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(data, &doc); err != nil {
+		t.Fatal(err)
+	}
+	return doc
 }

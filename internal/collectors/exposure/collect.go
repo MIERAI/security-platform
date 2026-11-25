@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/MIERAI/security-platform/internal/collectors/execad"
+	"github.com/MIERAI/security-platform/internal/collectors/execadapter"
 	"github.com/MIERAI/security-platform/internal/collectors/rundoc"
 	"github.com/MIERAI/security-platform/internal/pyvalue"
 	"github.com/MIERAI/security-platform/internal/textsafe"
@@ -181,7 +181,7 @@ func (c *collector) probe(ctx context.Context, targets []string) (*Result, strin
 		return nil, "", fmt.Errorf("%w: exposure.vantage is not set (where the probe runs)", rundoc.ErrUsage)
 	}
 	vantage := c.cfg.Value("vantage")
-	ex, err := execad.FromConfig(vantage)
+	ex, err := execadapter.New(vantage, nil)
 	if err != nil {
 		return nil, "", fmt.Errorf("%w: exposure.vantage: %w", rundoc.ErrUsage, err)
 	}
@@ -202,11 +202,11 @@ func (c *collector) probe(ctx context.Context, targets []string) (*Result, strin
 	return c.remoteProbe(ctx, ex, rundoc.StrOr(rundoc.Get(vantage, "sp"), "sp"), targets, extra)
 }
 
-func (c *collector) remoteProbe(ctx context.Context, ex *execad.Executor, sp string, targets []string, extra string) (*Result, string, error) {
+func (c *collector) remoteProbe(ctx context.Context, ex *execadapter.Executor, sp string, targets []string, extra string) (*Result, string, error) {
 	if strings.HasPrefix(sp, "-") {
 		return nil, "", fmt.Errorf("%w: exposure.vantage.sp %q is not a program", rundoc.ErrUsage, sp)
 	}
-	r := ex.Run(ctx, remoteArgv(sp, extra, targets), nil, remoteProbeTimeout, false)
+	r := ex.Output(ctx, remoteArgv(sp, extra, targets), remoteProbeTimeout)
 	if r.RC != 0 {
 		return nil, fmt.Sprintf("probe failed rc=%d: %s", r.RC, tail(r.Err, 200)), nil
 	}

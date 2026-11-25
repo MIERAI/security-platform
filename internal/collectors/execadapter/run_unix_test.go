@@ -15,6 +15,27 @@ import (
 
 func env() []string { return []string{"PATH=/usr/bin:/bin", "LC_ALL=C"} }
 
+func mustNew(t *testing.T, environ []string) *Executor {
+	t.Helper()
+	e, err := New(nil, environ)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return e
+}
+
+// TestProcessEnvironment: without an environment the programs get this process's, and are found on its PATH.
+func TestProcessEnvironment(t *testing.T) {
+	t.Parallel()
+	got, err := mustNew(t, nil).Run(context.Background(), []string{"sh", "-c", "echo ok"}, "", 10*time.Second, false)
+	if err != nil || got != (Result{Out: "ok\n"}) {
+		t.Fatalf("Run = %#v, %v", got, err)
+	}
+	if got, _ := mustNew(t, nil).Run(context.Background(), []string{"no-such-program-x"}, "", time.Second, false); !NotInstalled(got) {
+		t.Errorf("missing program: %#v", got)
+	}
+}
+
 func TestRunLocal(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -28,7 +49,7 @@ func TestRunLocal(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got, err := local{environ: env()}.Run(context.Background(), []string{"sh", "-c", tt.script}, tt.stdin, 10*time.Second, false)
+			got, err := mustNew(t, env()).Run(context.Background(), []string{"sh", "-c", tt.script}, tt.stdin, 10*time.Second, false)
 			if err != nil || got != tt.want {
 				t.Fatalf("Run = %#v, %v; want %#v", got, err, tt.want)
 			}
@@ -57,12 +78,12 @@ func TestNotFound(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, path := range []string{"PATH=/nonexistent", "PATH=" + rel, "PATH=."} { // relative entries are never searched
-		got, rerr := local{environ: []string{path}}.Run(context.Background(), []string{"tool"}, "", time.Second, false)
+		got, rerr := mustNew(t, []string{path}).Run(context.Background(), []string{"tool"}, "", time.Second, false)
 		if rerr != nil || got.RC != StatusNotFound || got.Err != "tool: not found" {
 			t.Errorf("%s: %#v, %v", path, got, rerr)
 		}
 	}
-	got, err := local{environ: []string{"PATH=" + dir}}.Run(context.Background(), []string{"tool"}, "", 5*time.Second, false)
+	got, err := mustNew(t, []string{"PATH=" + dir}).Run(context.Background(), []string{"tool"}, "", 5*time.Second, false)
 	if err != nil || got.Out != "hi\n" {
 		t.Errorf("absolute PATH entry: %#v, %v", got, err)
 	}
@@ -78,7 +99,7 @@ func TestTimeout(t *testing.T) {
 			pidFile := filepath.Join(t.TempDir(), "pid")
 			script := "echo a=1; sleep 60 & echo $! > " + pidFile + "; wait; echo b=2"
 			start := time.Now()
-			got, err := local{environ: env()}.Run(context.Background(), []string{"sh", "-c", script}, "", time.Second, partial)
+			got, err := mustNew(t, env()).Run(context.Background(), []string{"sh", "-c", script}, "", time.Second, partial)
 			if err != nil {
 				t.Fatal(err)
 			}

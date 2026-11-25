@@ -7,9 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/MIERAI/security-platform/internal/collectors/collkit"
 	"github.com/MIERAI/security-platform/internal/collectors/pytext"
-	"github.com/MIERAI/security-platform/internal/collectors/spdoc"
+	"github.com/MIERAI/security-platform/internal/collectors/rundoc"
 	"github.com/MIERAI/security-platform/internal/pyvalue"
 )
 
@@ -109,25 +108,22 @@ func homeRelative(path, home string) string {
 }
 
 // report records one target's evidence, coverage, findings and metrics.
-func report(r *collkit.Run, host string, sr scanResult) error {
+func report(r *job, host string, sr scanResult) error {
 	list := make([]any, len(sr.items))
 	for i, it := range sr.items {
 		list[i] = it.m
 	}
-	ev, err := r.Doc.Raw(r.Dir, host+".json", list)
+	ev, err := r.Doc.Raw(r.Dir, host+".json", rundoc.JSON(list))
 	if err != nil {
 		return err
 	}
-	r.Doc.OK("host:" + host)
-	now := float64(r.Now().UnixNano()) / 1e9
+	r.Doc.OK("host:"+host, "")
+	now := float64(r.env.Clock()().UnixNano()) / 1e9
 	total, old := 0, 0
 	for _, it := range sr.items {
 		e := &evaluation{doc: r.Doc, it: it, asset: "secret-file:" + host + ":" + it.path, ev: ev + "#" + it.path,
 			ageDays: math.Trunc((now - it.mtime) / day)}
 		e.run()
-		if e.err != nil {
-			return e.err
-		}
 		if privateKind(it.kind) {
 			total++
 			if e.ageDays > 90 {
@@ -143,24 +139,21 @@ func report(r *collkit.Run, host string, sr scanResult) error {
 
 // evaluation turns one item into its findings.
 type evaluation struct {
-	doc       *spdoc.Document
+	doc       *rundoc.Document
 	it        *item
 	asset, ev string
 	ageDays   float64
-	err       error
 }
 
 // add reports a finding on the item (needs_human when human is set).
-func (e *evaluation) add(f spdoc.Finding, human bool) {
-	if e.err == nil {
-		f.Asset, f.Evidence, f.NeedsHuman = e.asset, e.ev, human
-		e.err = e.doc.Add(&f)
-	}
+func (e *evaluation) add(f rundoc.Finding, human bool) {
+	f.Asset, f.Evidence, f.NeedsHuman = e.asset, e.ev, human
+	e.doc.AddFinding(&f)
 }
 
 // secret is a data-secrets finding: check, title, severity, remediation.
-func secret(check, title, severity, fix string) spdoc.Finding {
-	return spdoc.Finding{Layer: "data-secrets", Check: check, Title: title, Severity: severity, Remediation: fix}
+func secret(check, title, severity, fix string) rundoc.Finding {
+	return rundoc.Finding{Layer: "data-secrets", Check: check, Title: title, Severity: severity, Remediation: fix}
 }
 
 func (e *evaluation) flag(k string) bool { return pyvalue.Truthy(e.it.m.Value(k)) }
@@ -240,7 +233,7 @@ func (e *evaluation) configs() {
 		e.add(secret("secret.gh_token_in_file", "GitHub token stored in plain file", "medium",
 			"gh auth login with keyring storage"), false)
 	case kind == "notes" && e.flag("credential_like_lines"):
-		e.add(spdoc.Finding{Layer: "ai-agents", Check: "secret.credential_in_notes",
+		e.add(rundoc.Finding{Layer: "ai-agents", Check: "secret.credential_in_notes",
 			Title: pyvalue.Str(e.it.m.Value("credential_like_lines")) +
 				" line(s) that look like a credential value in a notes/memory file read by AI agents", Severity: "high",
 			Remediation: "remove the values (keep only 'where it is stored'), then rotate those credentials"}, true)

@@ -10,13 +10,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/MIERAI/security-platform/internal/collectors/execadapter"
 	"github.com/MIERAI/security-platform/internal/collectors/rundoc"
 	"github.com/MIERAI/security-platform/internal/ledger/pyjson"
 )
 
 const (
 	maxTarball       = 256 << 20 // the kube-bench release tarball streamed to the node
-	maxBenchOutput   = 64 << 20
 	kubeBenchTimeout = 600 * time.Second
 )
 
@@ -64,13 +64,23 @@ func (cr *clusterRun) cis(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	res := ex.run(ctx, kubeBenchArgv(bench), base64.StdEncoding.EncodeToString(tar), kubeBenchTimeout)
-	if res.RC != 0 || strings.TrimSpace(res.Stdout) == "" {
-		cr.cisGap(fmt.Sprintf("kube-bench failed rc=%d: %s", res.RC, lastChars(strings.TrimSpace(res.Stderr), 160)))
+	res := runKubeBench(ctx, ex, bench, tar)
+	if res.RC != 0 || strings.TrimSpace(res.Out) == "" {
+		cr.cisGap(fmt.Sprintf("kube-bench failed rc=%d: %s", res.RC, lastChars(strings.TrimSpace(res.Err), 160)))
 		return nil
 	}
 	cr.run.Doc.Tools.Set("kube-bench", ver)
-	return cr.kubeBenchResults(bench, res.Stdout)
+	return cr.kubeBenchResults(bench, res.Out)
+}
+
+// runKubeBench runs kube-bench through the executor with the release tarball on stdin; output over the adapter's
+// limit is a failed run.
+func runKubeBench(ctx context.Context, ex *execadapter.Executor, bench string, tar []byte) execadapter.Result {
+	res, err := ex.Run(ctx, kubeBenchArgv(bench), base64.StdEncoding.EncodeToString(tar), kubeBenchTimeout, false)
+	if err != nil {
+		return execadapter.Result{RC: 1, Err: err.Error()}
+	}
+	return res
 }
 
 // kubeBenchArgv is the script the reference runs on the node (bench is validated above).

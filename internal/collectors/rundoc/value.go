@@ -1,6 +1,8 @@
 package rundoc
 
 import (
+	"encoding/json"
+
 	"github.com/MIERAI/security-platform/internal/ledger/pyjson"
 	"github.com/MIERAI/security-platform/internal/pyvalue"
 )
@@ -110,6 +112,23 @@ func JSON(v any) pyjson.Value {
 			out[i] = e
 		}
 		return out
+	default:
+		return otherJSON(v)
+	}
+}
+
+// otherJSON is JSON for the remaining shapes: string lists per key, numbers read with encoding/json (written as
+// their text, exactly), and documents read with pyvalue.
+func otherJSON(v any) pyjson.Value {
+	switch x := v.(type) {
+	case map[string][]string:
+		o := pyjson.NewObject()
+		for _, k := range sortedKeys(x) {
+			o.Set(k, JSON(x[k]))
+		}
+		return o
+	case json.Number:
+		return pyjson.BigInt(x.String())
 	default:
 		return documentJSON(v)
 	}

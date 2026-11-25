@@ -10,11 +10,10 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/MIERAI/security-platform/internal/collectors/collkit"
 	"github.com/MIERAI/security-platform/internal/collectors/execadapter"
 	"github.com/MIERAI/security-platform/internal/collectors/pytext"
-	"github.com/MIERAI/security-platform/internal/collectors/spdoc"
-	"github.com/MIERAI/security-platform/internal/ledger/fileio"
+	"github.com/MIERAI/security-platform/internal/collectors/rundoc"
+	"github.com/MIERAI/security-platform/internal/ledger/pyjson"
 	"github.com/MIERAI/security-platform/internal/pyvalue"
 )
 
@@ -126,7 +125,7 @@ func isDigits(s string) bool {
 
 // fsSBOM scans the host's sbom_paths with `trivy rootfs` (local hosts only) and returns the merged CycloneDX
 // document's path relative to the data directory, or nil; a problem is a narrow gap host:<name>/fs-sbom.
-func fsSBOM(ctx context.Context, r *collkit.Run, h *pyvalue.Map, name string) any {
+func fsSBOM(ctx context.Context, r *job, h *pyvalue.Map, name string) any {
 	paths, _ := h.Value("sbom_paths").([]any) // absent or not a list: no file-system SBOM
 	if len(paths) == 0 {
 		return nil
@@ -138,10 +137,10 @@ func fsSBOM(ctx context.Context, r *collkit.Run, h *pyvalue.Map, name string) an
 	}
 	merged, err := scan(ctx, r, paths)
 	if err == nil && merged != nil {
-		out := filepath.Join(r.Data, "sbom", "host-"+name+"-fs.cdx.json")
+		out := filepath.Join(data(r), "sbom", "host-"+name+"-fs.cdx.json")
 		err = writeSBOM(out, merged)
 		if err == nil {
-			rel, rerr := filepath.Rel(r.Data, out)
+			rel, rerr := filepath.Rel(data(r), out)
 			if rerr == nil {
 				return filepath.ToSlash(rel)
 			}
@@ -157,21 +156,21 @@ func fsSBOM(ctx context.Context, r *collkit.Run, h *pyvalue.Map, name string) an
 var errTrivy = errors.New("trivy rootfs")
 
 // scan runs trivy on every existing directory and merges the components into the first document.
-func scan(ctx context.Context, r *collkit.Run, paths []any) (*pyvalue.Map, error) {
-	e, err := execadapter.New(pyvalue.NewMap(), r.Environ)
+func scan(ctx context.Context, r *job, paths []any) (*pyvalue.Map, error) {
+	e, err := execadapter.New(nil, r.env.Environ)
 	if err != nil {
 		return nil, err
 	}
 	var merged *pyvalue.Map
 	for _, p := range paths {
-		dir := collkit.ExpandUser(pyvalue.Str(p), r.Getenv("HOME"))
+		dir := rundoc.ExpandUser(pyvalue.Str(p), r.Home)
 		if st, err := os.Stat(dir); err != nil || !st.IsDir() {
 			continue
 		}
 		if strings.HasPrefix(dir, "-") {
 			dir = "./" + dir // never read as an option
 		}
-		doc, err := trivy(ctx, e, filepath.Join(r.Data, "cache", "trivy"), dir)
+		doc, err := trivy(ctx, e, filepath.Join(data(r), "cache", "trivy"), dir)
 		if err != nil {
 			return nil, err
 		}
@@ -181,7 +180,7 @@ func scan(ctx context.Context, r *collkit.Run, paths []any) (*pyvalue.Map, error
 }
 
 // trivy is the CycloneDX document of `trivy rootfs` on one directory.
-func trivy(ctx context.Context, e execadapter.Executor, cache, dir string) (*pyvalue.Map, error) {
+func trivy(ctx context.Context, e *execadapter.Executor, cache, dir string) (*pyvalue.Map, error) {
 	res, err := e.Run(ctx, []string{"trivy", "--cache-dir", cache, "--quiet", "rootfs", "--cache-backend", "memory",
 		"--skip-db-update", "--scanners", "vuln", "--format", "cyclonedx", dir}, "", trivyTimeout, false)
 	if err != nil {
@@ -212,15 +211,19 @@ func mergeComponents(merged, doc *pyvalue.Map) *pyvalue.Map {
 }
 
 func writeSBOM(path string, doc *pyvalue.Map) error {
-	data, err := spdoc.Marshal(doc, spdoc.Compact, false)
-	if err != nil {
-		return fmt.Errorf("encode the file-system SBOM: %w", err)
-	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return fmt.Errorf("create the SBOM directory: %w", err)
 	}
-	if err := fileio.Write(path, data); err != nil {
+	if err := rundoc.WriteJSON(path, rundoc.JSON(doc), pyjson.Compact()); err != nil {
 		return fmt.Errorf("write the file-system SBOM: %w", err)
 	}
 	return nil
+}
+
+// data is the data directory (".", as the Python collectors, when SP_DATA is unset).
+func data(r *job) string {
+	if r.Data == "" {
+		return "."
+	}
+	return r.Data
 }

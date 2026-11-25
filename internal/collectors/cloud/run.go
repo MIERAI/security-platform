@@ -15,6 +15,7 @@ import (
 
 	"github.com/MIERAI/security-platform/internal/cloud"
 	"github.com/MIERAI/security-platform/internal/cloud/dyn"
+	"github.com/MIERAI/security-platform/internal/collectors/rundoc"
 )
 
 // Env is everything a collector run reads from its process.
@@ -54,12 +55,7 @@ func Collect(ctx context.Context, env Env) error {
 	}
 	c := newCollector(env, dyn.Or(env.Getenv("SP_COLLECTOR_NAME"), "cloud"))
 	c.run(ctx, &cfg)
-	if err := c.write(runDir); err != nil {
-		return err
-	}
-	_, _ = fmt.Fprintf(env.Stderr, "[%s %s] findings=%d assets=%d gaps=%d\n", c.doc.Name, Version, c.doc.Findings(),
-		c.doc.Assets(), c.doc.Gaps()) // the summary line is informational; the document is the result
-	return nil
+	return c.write(runDir) // the document, then the SDK's summary line on stderr
 }
 
 func newCollector(env Env, name string) *collector {
@@ -76,7 +72,7 @@ func newCollector(env Env, name string) *collector {
 	}
 	return &collector{
 		deps:    cloud.Deps{Getenv: env.Getenv, Now: now, HTTP: env.HTTP, Executable: env.Executable, GOOS: env.GOOS},
-		tmpBase: tmp, environ: env.Environ, stderr: env.Stderr, doc: NewDocument(name, Version, env.Getenv("SP_INSTANCE_NAME"), now),
+		tmpBase: tmp, environ: env.Environ, stderr: env.Stderr, doc: rundoc.New(name, Version, env.Getenv("SP_INSTANCE_NAME"), now),
 		pool: NewPool(), evidence: map[evKey]*evidence{}, stats: stats{engines: map[[2]string]int{}},
 	}
 }
@@ -98,7 +94,7 @@ func (c *collector) runImport(imp cloud.Account) {
 	label := "cloud:import/" + pyStrOrNone(imp["type"])
 	im, ok := importers()[typ]
 	if !ok {
-		c.doc.Gap(label, "unknown import type "+pyStrOrNone(imp["type"])+" ("+importerNames()+")")
+		c.doc.Gap(label, "unknown import type "+pyStrOrNone(imp["type"])+" ("+importerNames()+")", nil)
 		return
 	}
 	file := ""
@@ -108,7 +104,7 @@ func (c *collector) runImport(imp cloud.Account) {
 	path := cloud.ExpandUser(file, c.home())
 	age, doc, err := readExport(path, c.deps.Now())
 	if err != nil {
-		c.doc.Gap(label, "export unreadable: "+err.Error())
+		c.doc.Gap(label, "export unreadable: "+err.Error(), nil)
 		return
 	}
 	if age.Seconds() > float64(Seconds(imp["max_age"], 2*86400)) {
@@ -116,7 +112,7 @@ func (c *collector) runImport(imp cloud.Account) {
 		if v, ok := imp["max_age"]; ok {
 			maxAge = pyStrOrNone(v)
 		}
-		c.doc.Gap(label, "export is "+strconv.FormatFloat(age.Hours()/24, 'f', 1, 64)+" days old (max_age "+maxAge+")")
+		c.doc.Gap(label, "export is "+strconv.FormatFloat(age.Hours()/24, 'f', 1, 64)+" days old (max_age "+maxAge+")", nil)
 		return
 	}
 	c.addImport(typ, im.provider, im.parse(doc), imp.List("accounts"), age)
@@ -135,12 +131,12 @@ func (c *collector) addImport(typ, provider string, results []Result, accounts [
 	in := map[string]bool{}
 	for _, a := range accounts {
 		in[a] = true
-		c.doc.OK("cloud:" + provider + "/" + a)
+		c.doc.OK("cloud:"+provider+"/"+a, "")
 		ev := c.ev(provider, a)
 		ev.imports = append(ev.imports, map[string]any{"type": typ, "age_hours": round1(age.Hours()), "results": count[a]})
 	}
-	if _, ok := c.doc.Tools["import-"+typ]; !ok {
-		c.doc.Tools["import-"+typ] = "export"
+	if !c.doc.Tools.Has("import-" + typ) {
+		c.doc.Tools.Set("import-"+typ, "export")
 	}
 	for i := range results {
 		if in[results[i].Account] {

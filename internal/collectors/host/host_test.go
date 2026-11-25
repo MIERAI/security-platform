@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/MIERAI/security-platform/internal/collectors/collkit"
 	"github.com/MIERAI/security-platform/internal/collectors/execadapter"
-	"github.com/MIERAI/security-platform/internal/collectors/spdoc"
+	"github.com/MIERAI/security-platform/internal/collectors/rundoc"
+	"github.com/MIERAI/security-platform/internal/ledger/pyjson"
 	"github.com/MIERAI/security-platform/internal/pyvalue"
 )
 
@@ -136,10 +136,11 @@ func TestNum(t *testing.T) {
 	}
 }
 
-func newRun(tb testing.TB, now time.Time) *collkit.Run {
+func newRun(tb testing.TB, now time.Time) *job {
 	tb.Helper()
-	return &collkit.Run{Env: collkit.Env{Stderr: &bytes.Buffer{}, Now: func() time.Time { return now }},
-		Inst: pyvalue.NewMap(), Dir: tb.TempDir(), Doc: spdoc.New("host", Version, "", func() time.Time { return now })}
+	clock := func() time.Time { return now }
+	return &job{Run: &rundoc.Run{Instance: pyvalue.NewMap(), Dir: tb.TempDir(), Doc: rundoc.New("host", Version, "", clock)},
+		env: &rundoc.Env{Stderr: &bytes.Buffer{}, Now: clock}}
 }
 
 func evaluateText(tb testing.TB, profile, out string, rc int, now time.Time) map[string]any {
@@ -150,10 +151,18 @@ func evaluateText(tb testing.TB, profile, out string, rc int, now time.Time) map
 		tb.Fatal(err)
 	}
 	tg := &target{name: "m", asset: "host:m", profile: profile, script: script}
-	if err := evaluate(r, tg, execadapter.Result{RC: rc, Out: out}); err != nil {
+	if eerr := evaluate(r, tg, execadapter.Result{RC: rc, Out: out}); eerr != nil {
+		tb.Fatal(eerr)
+	}
+	data, err := pyjson.Marshal(r.Doc.Doc(now), pyjson.Options{Indent: 1, SortKeys: true, EnsureASCII: true})
+	if err != nil {
 		tb.Fatal(err)
 	}
-	return r.Doc.Doc(now)
+	var doc map[string]any
+	if err := json.Unmarshal(data, &doc); err != nil {
+		tb.Fatal(err)
+	}
+	return doc
 }
 
 func checksOf(doc map[string]any) []string {
@@ -221,17 +230,16 @@ func FuzzEvaluate(f *testing.F) {
 		var blocked []string
 		for _, c := range cov {
 			m, _ := c.(map[string]any)
-			if checks, ok := m["checks"].([]string); ok {
-				blocked = append(blocked, checks...)
+			checks, _ := m["checks"].([]any)
+			for _, c := range checks {
+				s, _ := c.(string)
+				blocked = append(blocked, s)
 			}
 		}
 		for _, c := range checksOf(doc) {
 			if matchAny(c, blocked) {
 				t.Fatalf("finding %s although its part is a gap (%v)", c, blocked)
 			}
-		}
-		if _, err := spdoc.Marshal(doc, 1, true); err != nil {
-			t.Fatal(err)
 		}
 	})
 }

@@ -6,7 +6,7 @@ import (
 	"strconv"
 
 	"github.com/MIERAI/security-platform/internal/cloud/dyn"
-	"github.com/MIERAI/security-platform/internal/collectors/cloud/pyjson"
+	"github.com/MIERAI/security-platform/internal/ledger/pyjson"
 	"github.com/MIERAI/security-platform/internal/pyvalue"
 )
 

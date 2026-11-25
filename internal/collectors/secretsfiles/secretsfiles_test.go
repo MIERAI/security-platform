@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/MIERAI/security-platform/internal/collectors/collkit"
-	"github.com/MIERAI/security-platform/internal/collectors/spdoc"
+	"github.com/MIERAI/security-platform/internal/collectors/rundoc"
+	"github.com/MIERAI/security-platform/internal/ledger/pyjson"
 	"github.com/MIERAI/security-platform/internal/pyvalue"
 )
 
@@ -64,11 +65,11 @@ func TestParseScanRejects(t *testing.T) {
 	}
 }
 
-func newRun(t *testing.T, now time.Time) *collkit.Run {
+func newRun(t *testing.T, now time.Time) *job {
 	t.Helper()
 	clock := func() time.Time { return now }
-	return &collkit.Run{Env: collkit.Env{Stderr: &bytes.Buffer{}, Now: clock}, Inst: pyvalue.NewMap(), Dir: t.TempDir(),
-		Doc: spdoc.New("secrets-files", Version, "", clock)}
+	return &job{Run: &rundoc.Run{Instance: pyvalue.NewMap(), Dir: t.TempDir(), Doc: rundoc.New("secrets-files", Version, "", clock)},
+		env: &rundoc.Env{Stderr: &bytes.Buffer{}, Now: clock}}
 }
 
 // TestReport: severities from mode bits and properties, the host-key and kubeconfig exceptions, age thresholds.
@@ -99,7 +100,7 @@ func TestReport(t *testing.T) {
 		t.Fatal(err)
 	}
 	var got []string
-	findings, _ := r.Doc.Doc(now)["findings"].([]any)
+	findings, _ := docJSON(t, r.Doc, now)["findings"].([]any)
 	for _, f := range findings {
 		m, _ := f.(map[string]any)
 		got = append(got, pyvalue.Str(m["asset"])+" "+pyvalue.Str(m["check"])+" "+pyvalue.Str(m["severity"]))
@@ -170,8 +171,8 @@ func TestNoContentReachesOutput(t *testing.T) {
 	vars := map[string]string{"SP_RUN_DIR": run, "SP_INSTANCE": inst, "HOME": home}
 	environ := []string{"HOME=" + home, "PATH=/usr/bin:/bin", "LC_ALL=C"}
 	var stderr bytes.Buffer
-	code := Main(context.Background(), collkit.Env{Getenv: func(k string) string { return vars[k] }, Environ: environ,
-		Stderr: &stderr, Now: time.Now})
+	code := Main(context.Background(), []string{"collect"}, &rundoc.Env{Getenv: func(k string) string { return vars[k] },
+		Environ: environ, Stderr: &stderr, Now: time.Now}, io.Discard)
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, stderr.String())
 	}
@@ -208,4 +209,18 @@ func assertNoCanary(t *testing.T, run, stderr string) {
 	if err != nil || n < 3 {
 		t.Fatalf("walked %d output files: %v", n, err)
 	}
+}
+
+// docJSON is the document as encoding/json reads it.
+func docJSON(t *testing.T, d *rundoc.Document, now time.Time) map[string]any {
+	t.Helper()
+	data, err := pyjson.Marshal(d.Doc(now), pyjson.Options{Indent: 1, SortKeys: true, EnsureASCII: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(data, &doc); err != nil {
+		t.Fatal(err)
+	}
+	return doc
 }

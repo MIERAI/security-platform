@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/MIERAI/security-platform/internal/collectors/execad"
+	"github.com/MIERAI/security-platform/internal/collectors/execadapter"
 	"github.com/MIERAI/security-platform/internal/collectors/rundoc"
 	"github.com/MIERAI/security-platform/internal/pyvalue"
 )
@@ -100,14 +100,14 @@ func (s *source) intOr(key string, def int64) (int64, error) {
 	return n, nil
 }
 
-func (s *source) executor() (*execad.Executor, error) {
+func (s *source) executor() (*execadapter.Executor, error) {
 	cfg := s.cfg.Value("exec")
 	if !pyvalue.Truthy(cfg) {
 		cfg = nil
 	}
-	e, err := execad.FromConfig(cfg)
+	e, err := execadapter.New(cfg, nil)
 	if err != nil {
-		return nil, pyErr("NotImplementedError", err.Error())
+		return nil, pyErr("NotImplementedError", execadapter.Reason(err))
 	}
 	return e, nil
 }
@@ -197,7 +197,7 @@ func (s *source) runCommand(ctx context.Context, since float64) (string, error) 
 	if err != nil {
 		return "", err
 	}
-	res := ex.Run(ctx, argv, nil, time.Duration(timeout)*time.Second, false)
+	res := ex.Output(ctx, argv, time.Duration(timeout)*time.Second)
 	if res.RC != 0 {
 		return "", pyErr("RuntimeError", fmt.Sprintf("command rc=%d: %s", res.RC, lastChars(pyStrip(res.Err), 200)))
 	}
@@ -317,7 +317,7 @@ func (s *source) fileIntegrity(ctx context.Context) ([]*event, *pyvalue.Map, err
 		if err != nil {
 			return nil, nil, err
 		}
-		res := ex.Run(ctx, []string{"sh", "-c", fiScript, "_", path}, nil, 60*time.Second, false)
+		res := ex.Output(ctx, []string{"sh", "-c", fiScript, "_", path}, 60*time.Second)
 		if res.RC != 0 {
 			return nil, nil, pyErr("RuntimeError", fmt.Sprintf("%s: rc=%d: %s", path, res.RC, lastChars(pyStrip(res.Err), 160)))
 		}

@@ -15,7 +15,7 @@ import (
 	"unicode"
 
 	"github.com/MIERAI/security-platform/internal/collectors/credential"
-	"github.com/MIERAI/security-platform/internal/collectors/execad"
+	"github.com/MIERAI/security-platform/internal/collectors/execadapter"
 	"github.com/MIERAI/security-platform/internal/collectors/roclient"
 	"github.com/MIERAI/security-platform/internal/collectors/rundoc"
 	"github.com/MIERAI/security-platform/internal/pyvalue"
@@ -113,12 +113,12 @@ func jsonErrorText(body []byte) string {
 }
 
 func (e *endpoint) viaExec(ctx context.Context, q string) ([]byte, error) {
-	ex, err := execad.FromConfig(e.exec)
+	ex, err := execadapter.New(e.exec, nil)
 	if err != nil {
-		return nil, &pyError{"NotImplementedError", strings.TrimPrefix(err.Error(), execad.ErrUnsupported.Error()+": ")}
+		return nil, &pyError{"NotImplementedError", execadapter.Reason(err)}
 	}
 	secs := strconv.Itoa(int(e.timeout / time.Second))
-	res := ex.Run(ctx, []string{"curl", "-sf", "--max-time", secs, "--", q}, nil, e.timeout+execGrace, false)
+	res := ex.Output(ctx, []string{"curl", "-sf", "--max-time", secs, "--", q}, e.timeout+execGrace)
 	if res.RC != 0 {
 		return nil, &pyError{"RuntimeError", fmt.Sprintf("curl rc=%d %s", res.RC, rundoc.Cut(strings.TrimSpace(res.Err), maxStderrText))}
 	}

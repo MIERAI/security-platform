@@ -8,7 +8,8 @@ import (
 	"time"
 
 	"github.com/MIERAI/security-platform/internal/cloud/dyn"
-	"github.com/MIERAI/security-platform/internal/collectors/cloud/pyjson"
+	"github.com/MIERAI/security-platform/internal/collectors/rundoc"
+	"github.com/MIERAI/security-platform/internal/ledger/pyjson"
 )
 
 // Every parser of engine output and provider exports is fuzzed: whatever the bytes, it returns verdicts in the
@@ -36,14 +37,14 @@ func checkResults(t *testing.T, provider string, rs []Result) {
 		checkResult(t, &rs[i])
 		pool.Add(provider, dyn.Or(rs[i].Account, "acct"), &rs[i])
 	}
-	c := &collector{doc: NewDocument("cloud", Version, "", time.Now), pool: pool}
+	c := &collector{doc: rundoc.New("cloud", Version, "", time.Now), pool: pool}
 	c.emit()
-	if _, err := pyjson.Marshal(c.doc.Doc(time.Now()), 1); err != nil {
+	if _, err := pyjson.Marshal(c.doc.Doc(time.Now()), pyjson.Options{Indent: 1, SortKeys: true, EnsureASCII: true}); err != nil {
 		t.Fatal(err)
 	}
-	for _, f := range c.doc.findings {
-		if !strings.HasPrefix(dyn.Str(f["asset"]), "cloud:"+provider+"/") && !strings.HasPrefix(dyn.Str(f["asset"]), "cloud:aws/") {
-			t.Fatalf("asset %v outside the provider", f["asset"])
+	for _, f := range c.doc.Findings() {
+		if a := f.Str("asset"); !strings.HasPrefix(a, "cloud:"+provider+"/") && !strings.HasPrefix(a, "cloud:aws/") {
+			t.Fatalf("asset %v outside the provider", a)
 		}
 	}
 }

@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/MIERAI/security-platform/internal/collectors/pytext"
-	"github.com/MIERAI/security-platform/internal/collectors/spdoc"
+	"github.com/MIERAI/security-platform/internal/collectors/rundoc"
 	"github.com/MIERAI/security-platform/internal/pyvalue"
 )
 
@@ -28,25 +28,21 @@ func dbPorts() map[float64]bool {
 
 // checker evaluates one host's probe values.
 type checker struct {
-	doc       *spdoc.Document
+	doc       *rundoc.Document
 	asset, ev string
 	kv        *ordered
 	now       time.Time
-	err       error
 }
 
 // add reports a finding a human must act on when human is set (needs_human).
-func (c *checker) add(f spdoc.Finding, human bool) {
-	if c.err != nil {
-		return
-	}
+func (c *checker) add(f rundoc.Finding, human bool) {
 	f.Asset, f.Evidence, f.NeedsHuman = c.asset, c.ev, human
-	c.err = c.doc.Add(&f)
+	c.doc.AddFinding(&f)
 }
 
 // f is a finding of this host: layer, check, title, severity, remediation.
-func f(layer, check, title, severity, fix string) spdoc.Finding {
-	return spdoc.Finding{Layer: layer, Check: check, Title: title, Severity: severity, Remediation: fix}
+func f(layer, check, title, severity, fix string) rundoc.Finding {
+	return rundoc.Finding{Layer: layer, Check: check, Title: title, Severity: severity, Remediation: fix}
 }
 
 // str is kv.get(k) as an f-string prints it ("None" when absent).

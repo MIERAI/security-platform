@@ -4,6 +4,15 @@ Components are versioned independently (docs/design.md §5). Entries name the co
 
 ## Unreleased
 
+- **Go collectors: one document package, one exec adapter** (no change to any document, evidence, inventory, metric
+  or conformance result): the findings-document builders `spdoc`, `collkit` and the cloud collector's own `Document`
+  (with its private JSON writer `cloud/pyjson`) are folded into `internal/collectors/rundoc`, which every Go collector
+  now uses; the exec adapters `execad`, `execadapter` and the k8s collector's kube-bench executor are one,
+  `internal/collectors/execadapter`, whose processes run through `rundoc.Exec`. depguard refuses the retired
+  packages. Edge cases now follow the Python adapter everywhere: output decoded with replacement characters and
+  universal newlines, a process ended by a signal reports minus the signal, a missing program is
+  `<program>: not found` (status 127), output over 256 MiB is a failed run instead of a silently truncated one.
+
 - **collectors/host 0.4.0, collectors/host-sbom 0.2.0, collectors/secrets-files 0.3.0 — Go implementations**
   (`sp host|host-sbom|secrets-files collect`, internal/collectors/{host,hostsbom,secretsfiles}): the orchestration,
   output parsing, exec adapters (`local`, `ssh`; internal/collectors/execadapter), findings and coverage logic in Go;

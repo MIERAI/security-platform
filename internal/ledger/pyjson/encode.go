@@ -10,6 +10,7 @@ import (
 // Options select the json.dumps variant to reproduce.
 type Options struct {
 	Indent      int  // json.dumps(indent=N); 0 = no indentation (separators ", " and ": ")
+	LineBreaks  bool // with Indent 0: json.dumps(indent=0), a line break before every element, no indentation
 	SortKeys    bool // sort_keys=True
 	EnsureASCII bool // ensure_ascii=True (Python's default)
 }
@@ -60,7 +61,7 @@ func encode(b *bytes.Buffer, v Value, opt Options, level int) error {
 }
 
 func newline(b *bytes.Buffer, opt Options, level int) {
-	if opt.Indent <= 0 {
+	if opt.Indent <= 0 && !opt.LineBreaks {
 		return
 	}
 	b.WriteByte('\n')
@@ -70,7 +71,7 @@ func newline(b *bytes.Buffer, opt Options, level int) {
 }
 
 func separator(b *bytes.Buffer, opt Options) {
-	if opt.Indent > 0 {
+	if opt.Indent > 0 || opt.LineBreaks {
 		b.WriteByte(',')
 		return
 	}

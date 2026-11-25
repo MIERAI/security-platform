@@ -16,9 +16,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/MIERAI/security-platform/internal/collectors/collkit"
 	"github.com/MIERAI/security-platform/internal/collectors/host"
 	"github.com/MIERAI/security-platform/internal/collectors/hostsbom"
+	"github.com/MIERAI/security-platform/internal/collectors/rundoc"
 	"github.com/MIERAI/security-platform/internal/collectors/secretsfiles"
 )
 
@@ -134,10 +134,10 @@ func run(t *testing.T, root, comp string, env map[string]string) int {
 		}
 		return 0
 	}
-	mains := map[string]func(context.Context, collkit.Env) int{"collector-host": host.Main,
+	mains := map[string]func(context.Context, []string, *rundoc.Env, io.Writer) int{"collector-host": host.Main,
 		"collector-host-sbom": hostsbom.Main, "collector-secrets-files": secretsfiles.Main}
-	return mains[comp](context.Background(), collkit.Env{Getenv: func(k string) string { return env[k] }, Environ: environ,
-		Stderr: io.Discard, Now: time.Now})
+	return mains[comp](context.Background(), []string{"collect"}, &rundoc.Env{Getenv: func(k string) string { return env[k] },
+		Environ: environ, Stderr: io.Discard, Now: time.Now}, io.Discard)
 }
 
 // sandbox is one case's directory with the harness's staging rules (conformance/run.py Sandbox.stage).

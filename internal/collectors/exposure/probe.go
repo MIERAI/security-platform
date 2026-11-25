@@ -14,7 +14,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/MIERAI/security-platform/internal/collectors/execad"
+	"github.com/MIERAI/security-platform/internal/collectors/execadapter"
 	"github.com/MIERAI/security-platform/internal/collectors/roclient"
 	"github.com/MIERAI/security-platform/internal/collectors/rundoc"
 	"github.com/MIERAI/security-platform/internal/pyvalue"
@@ -54,7 +54,7 @@ func keepFields(path string) []string {
 func noHTTPPorts() []int { return []int{22, 8022, 53, 139, 445, 5432, 2379} }
 
 // RunFunc runs a program (nmap) with a timeout.
-type RunFunc func(ctx context.Context, argv []string, timeout time.Duration) execad.Result
+type RunFunc func(ctx context.Context, argv []string, timeout time.Duration) execadapter.Result
 
 // Prober is the probe: nmap from this host, then GETs.
 type Prober struct {
@@ -64,12 +64,12 @@ type Prober struct {
 
 // NewProber is the probe with local programs and the fingerprinting client.
 func NewProber() (*Prober, error) {
-	local, err := execad.FromConfig(nil)
+	local, err := execadapter.New(nil, nil)
 	if err != nil {
 		return nil, err
 	}
-	run := func(ctx context.Context, argv []string, timeout time.Duration) execad.Result {
-		return local.Run(ctx, argv, nil, timeout, false)
+	run := func(ctx context.Context, argv []string, timeout time.Duration) execadapter.Result {
+		return local.Output(ctx, argv, timeout)
 	}
 	return &Prober{Run: run, Client: probeClient()}, nil
 }

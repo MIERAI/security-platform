@@ -30,6 +30,7 @@ type Cmd struct {
 	Stdin   io.Reader
 	Timeout time.Duration
 	MaxOut  int64 // bytes of stdout kept (default 64 MiB); stderr keeps at most 1 MiB
+	Partial bool  // on timeout, keep the output printed before the process group was stopped
 }
 
 // Result is a finished child process.
@@ -37,6 +38,7 @@ type Result struct {
 	RC             int // exit status; RCTimeout, RCNotFound, or 126 when it could not be started
 	Stdout, Stderr string
 	Truncated      bool // stdout was longer than MaxOut
+	Signal         int  // the signal that ended the process (RC is then 1), 0 otherwise
 }
 
 // Exec runs c in its own process group (killed as a whole on timeout), found on the PATH of c.Env.
@@ -62,7 +64,11 @@ func Exec(ctx context.Context, c *Cmd) Result {
 	cmd.Stdout, cmd.Stderr = so, &capped{b: &errb, n: 1 << 20}
 	err = cmd.Run()
 	if ctx.Err() != nil && errors.Is(ctx.Err(), context.DeadlineExceeded) {
-		return Result{RC: RCTimeout, Stderr: "timeout"}
+		res := Result{RC: RCTimeout, Stderr: "timeout"}
+		if c.Partial {
+			res.Stdout, res.Truncated = out.String(), so.over
+		}
+		return res
 	}
 	res := Result{Stdout: out.String(), Stderr: errb.String(), Truncated: so.over}
 	var exitErr *exec.ExitError
@@ -71,7 +77,7 @@ func Exec(ctx context.Context, c *Cmd) Result {
 	case errors.As(err, &exitErr):
 		res.RC = exitErr.ExitCode()
 		if res.RC < 0 {
-			res.RC = 1 // ended by a signal
+			res.RC, res.Signal = 1, signalOf(exitErr.ProcessState) // ended by a signal
 		}
 	default:
 		res.RC, res.Stderr = 126, fmt.Sprintf("%s: cannot start: %v", filepath.Base(prog), errors.Unwrap(err))
