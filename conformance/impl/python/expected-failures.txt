@@ -22,6 +22,9 @@ collector-k8s/namespaced-role-is-evaluated             K8S-D4  RoleBindings to n
 
 # ---- collector vuln-intel (contracts/collector-protocol/SPEC.md, "Collector vuln-intel") ----
 # (entries below this line)
+collector-vuln-intel/feed-mirror-conditional-get        VULN-D1  feed URLs are fixed: no mirror, no `url`
+collector-vuln-intel/corrupt-feed-keeps-last-good-copy  VULN-D2  a bad download replaces the good cached copy
+collector-vuln-intel/feed-outage-uses-cached-copy       VULN-D3  a failed refresh discards a usable cached copy
 
 
 # ---- collector identity (contracts/collector-protocol/SPEC.md, "Collector identity") ----

@@ -1,0 +1,18 @@
+{
+ "bomFormat": "CycloneDX",
+ "components": [
+  {
+   "name": "example.com/lib",
+   "purl": "pkg:golang/example.com/lib@v1.3.0",
+   "type": "library",
+   "version": "v1.3.0"
+  }
+ ],
+ "metadata": {
+  "component": {
+   "name": "web1 /opt",
+   "type": "container"
+  }
+ },
+ "specVersion": "1.5"
+}

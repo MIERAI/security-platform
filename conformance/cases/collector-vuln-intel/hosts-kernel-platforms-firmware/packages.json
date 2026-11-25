@@ -1,0 +1,54 @@
+{
+ "items": [
+  {
+   "arch": "amd64",
+   "ecosystem": "deb",
+   "host": "web1",
+   "name": "openssl",
+   "source_name": "openssl",
+   "source_version": "3.0.13-0ubuntu3.4",
+   "version": "3.0.13-0ubuntu3.4"
+  },
+  {
+   "arch": "amd64",
+   "ecosystem": "deb",
+   "host": "web1",
+   "name": "libssl3t64",
+   "source_name": "openssl",
+   "source_version": "3.0.13-0ubuntu3.4",
+   "version": "3.0.13-0ubuntu3.4"
+  },
+  {
+   "arch": "amd64",
+   "ecosystem": "deb",
+   "host": "web1",
+   "name": "linux-image-6.8.0-40-generic",
+   "source_name": "linux-signed",
+   "source_version": "6.8.0-40.40",
+   "version": "6.8.0-40.40"
+  },
+  {
+   "arch": "amd64",
+   "ecosystem": "deb",
+   "host": "web1",
+   "name": "linux-image-6.8.0-45-generic",
+   "source_name": "linux-signed",
+   "source_version": "6.8.0-45.45",
+   "version": "6.8.0-45.45"
+  },
+  {
+   "ecosystem": "opkg",
+   "host": "router",
+   "name": "dropbear",
+   "version": "2022.82"
+  },
+  {
+   "ecosystem": "brew",
+   "host": "laptop",
+   "name": "wget",
+   "version": "1.21.4"
+  }
+ ],
+ "kind": "host-package",
+ "schema": "security-platform/inventory/v1"
+}
