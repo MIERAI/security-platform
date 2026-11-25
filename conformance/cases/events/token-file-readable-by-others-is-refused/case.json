@@ -1,0 +1,108 @@
+{
+ "component": "events",
+ "title": "A push token in a file readable by group/others is refused: the source fails, nothing is pushed, and the token never appears in the summary, the state or the output",
+ "contract": "events/1.0 (secrets)",
+ "origin": "events/ship.py read_secret",
+ "services": [
+  {
+   "name": "obs",
+   "argv": [
+    "{python}",
+    "{case}/mock_events.py"
+   ]
+  }
+ ],
+ "files": {
+  "out/.keep": {
+   "text": ""
+  },
+  "events.json": {
+   "json": {
+    "loki": {
+     "url": "{svc_obs}/loki/api/v1/push",
+     "token_file": "{sandbox}/secrets/loki.token"
+    },
+    "sources": [
+     {
+      "name": "lab-auth",
+      "type": "command",
+      "host": "lab",
+      "parser": "openssh",
+      "argv": [
+       "cat",
+       "{sandbox}/auth.log"
+      ]
+     }
+    ]
+   }
+  },
+  "auth.log": {
+   "text": "2026-11-25T11:40:00+00:00 lab sshd[101]: Accepted publickey for ops from 10.0.0.1 port 50000 ssh2\n2026-11-25T11:41:00+00:00 lab sshd[102]: Failed password for invalid user admin from 192.0.2.7 port 50001 ssh2\n2026-11-25T11:42:00+00:00 lab sudo:      ops : TTY=pts/0 ; PWD=/home/ops ; USER=root ; COMMAND=/usr/bin/id\n2026-11-25T11:43:00+00:00 lab cron[5]: unrelated\n"
+  },
+  "secrets/loki.token": {
+   "text": "{canary_token}\n",
+   "mode": "0644"
+  }
+ },
+ "steps": [
+  {
+   "name": "ship",
+   "exec": {
+    "impl": "events",
+    "args": [
+     "--config",
+     "{sandbox}/events.json",
+     "--state",
+     "{sandbox}/state",
+     "--summary",
+     "{sandbox}/out/summary.json",
+     "--now",
+     "1795608000"
+    ],
+    "writes_only_under": [
+     "state",
+     "out",
+     "pushed",
+     "leak"
+    ]
+   },
+   "exit": 1,
+   "expect": [
+    {
+     "json": "out/summary.json",
+     "subset": {
+      "sources": {
+       "lab-auth": {
+        "ok": false,
+        "error": {
+         "$regex": "group/others|chmod 600"
+        }
+       }
+      }
+     }
+    },
+    {
+     "absent": "pushed/0001.json"
+    },
+    {
+     "absent": "state/lab-auth.json"
+    },
+    {
+     "no_secret": [
+      "{canary_token}"
+     ],
+     "in": ".",
+     "except": [
+      "secrets"
+     ]
+    },
+    {
+     "absent": "mutations.log"
+    },
+    {
+     "writes_only_under": true
+    }
+   ]
+  }
+ ]
+}

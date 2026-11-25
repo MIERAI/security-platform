@@ -970,9 +970,144 @@ def detection_cases(write_case):
 # ==================================================================================================================
 # events (contract events/1.0)
 # ==================================================================================================================
+EVENTS = "events"
+NOW = 1795608000                     # 2026-11-25T12:00:00Z: every case runs with this --now
+EV_ARGS = ["--config", "{sandbox}/events.json", "--state", "{sandbox}/state", "--summary", "{sandbox}/out/summary.json",
+           "--now", str(NOW)]
+AUTH_1 = ("2026-11-25T11:40:00+00:00 lab sshd[101]: Accepted publickey for ops from 10.0.0.1 port 50000 ssh2\n"
+          "2026-11-25T11:41:00+00:00 lab sshd[102]: Failed password for invalid user admin from 192.0.2.7 port 50001 ssh2\n"
+          "2026-11-25T11:42:00+00:00 lab sudo:      ops : TTY=pts/0 ; PWD=/home/ops ; USER=root ; COMMAND=/usr/bin/id\n"
+          "2026-11-25T11:43:00+00:00 lab cron[5]: unrelated\n")
+AUTH_2 = AUTH_1 + ("2026-11-25T11:55:00+00:00 lab sshd[103]: Accepted publickey for ops from 10.0.0.1 port 50002 ssh2\n"
+                   "2026-11-25T11:56:00+00:00 lab sshd[104]: Accepted publickey for ops from 10.0.0.9 port 50003 ssh2\n")
+
+
+def events_config(sources, loki=None):
+    return {"loki": dict({"url": "{svc_obs}/loki/api/v1/push"}, **(loki or {})), "sources": sources}
+
+
+def auth_source(name="lab-auth", **kw):
+    return dict({"name": name, "type": "command", "host": "lab", "parser": "openssh", "argv": ["cat", "{sandbox}/auth.log"]},
+                **kw)
+
+
+def ship(expect, name="ship", exit_=0, env=None, extra_args=(), **kw):
+    ex = {"impl": EVENTS, "args": EV_ARGS + list(extra_args), "writes_only_under": ["state", "out", "pushed", "leak"]}
+    if env:
+        ex["env"] = env
+    step = {"name": name, "exec": ex, "exit": exit_, "expect": expect + [{"absent": "mutations.log"}, {"writes_only_under": True}]}
+    step.update(kw)
+    return step
+
+
 def events_cases(write_case):
-    """events (contract events/1.0): cases written here."""
-    return None
+    C_EV = "events/1.0"
+    svc = [{"name": "obs", "argv": ["{python}", "{case}/mock_events.py"]}]
+    mock = {"mock_events.py": tool("mock_events.py")}
+    write_case(EVENTS, "baseline-then-new-lines", {
+        "title": "The first run of a source is a baseline (cursor stored, nothing novel); the next run ships only the lines "
+                 "after the cursor, with structured metadata, and marks a login from a new address novel; every run "
+                 "sends a heartbeat line",
+        "contract": C_EV, "origin": "tests/test_events.py; events/ship.py CommandSource",
+        "services": svc, "files": {"out/.keep": {"text": ""}, "events.json": {"json": events_config([auth_source()])}, "auth.log": {"text": AUTH_1}},
+        "steps": [
+            ship([{"json": "out/summary.json", "subset": {"sources": {"lab-auth": {"ok": True, "shipped": 3, "baseline": True,
+                                                                                "events": {"ssh_login_success": 1, "ssh_login_failure": 1, "sudo": 1}}}}},
+                  {"file": "pushed/0001.json", "regex": ['"source": "auth"', '"host": "lab"', '"novel": "false"',
+                                                         '"event": "ssh_login_failure"', '"src_ip": "192.0.2.7"']},
+                  {"file": "pushed/0002.json", "regex": ['heartbeat.{1,3}: .{1,3}lab-auth', '"event": "heartbeat"']},
+                  {"exists": "state/lab-auth.json"}], name="first run (baseline)"),
+            ship([{"json": "out/summary.json", "subset": {"sources": {"lab-auth": {"ok": True, "shipped": 2, "baseline": False}}}},
+                  {"file": "pushed/0003.json", "regex": ['"src_ip": "10.0.0.9", "novel": "true"',
+                                                         '"src_ip": "10.0.0.1", "novel": "false"']},
+                  {"file": "pushed/0003.json", "regex": ["^(?!.*192\\.0\\.2\\.7)"]}],
+                 name="second run (two new lines)", files={"auth.log": {"text": AUTH_2}})]}, mock)
+
+    write_case(EVENTS, "push-failure-keeps-the-cursor", {
+        "title": "A failed push keeps the cursor (exit 1, no state written); the next run delivers the same events "
+                 "(at least once)",
+        "contract": C_EV, "origin": "events/ship.py main: the cursor is stored only after the push",
+        "services": svc, "files": {"out/.keep": {"text": ""}, "events.json": {"json": events_config([auth_source()])}, "auth.log": {"text": AUTH_1},
+                                   "loki-fail": {"text": ""}},
+        "steps": [
+            ship([{"json": "out/summary.json", "subset": {"sources": {"lab-auth": {"ok": False, "error": {"$regex": "500"}}}}},
+                  {"absent": "state/lab-auth.json"}, {"absent": "pushed/0001.json"},
+                  {"stderr": {"regex": ["lab-auth: FAILED .*cursor kept"]}}], name="store down", exit_=1),
+            ship([{"json": "out/summary.json", "subset": {"sources": {"lab-auth": {"ok": True, "shipped": 3}}}},
+                  {"file": "pushed/0001.json", "regex": ['"event": "sudo"']}, {"exists": "state/lab-auth.json"}],
+                 name="store back", remove=["loki-fail"])]}, mock)
+
+    write_case(EVENTS, "one-failing-source-does-not-stop-the-others", {
+        "title": "One failing source does not stop the others: they ship, it is reported failed, the exit status is 1",
+        "contract": C_EV, "origin": "events/ship.py main",
+        "services": svc, "files": {"out/.keep": {"text": ""}, "events.json": {"json": events_config([
+            auth_source("broken", argv=["sh", "-c", "echo boom >&2; exit 3"]), auth_source()])}, "auth.log": {"text": AUTH_1}},
+        "steps": [ship([{"json": "out/summary.json", "subset": {"sources": {
+            "broken": {"ok": False, "error": {"$regex": "rc=3"}}, "lab-auth": {"ok": True, "shipped": 3}}}},
+            {"absent": "state/broken.json"}, {"exists": "state/lab-auth.json"}], exit_=1)]}, mock)
+
+    write_case(EVENTS, "token-file-readable-by-others-is-refused", {
+        "title": "A push token in a file readable by group/others is refused: the source fails, nothing is pushed, and the "
+                 "token never appears in the summary, the state or the output",
+        "contract": C_EV + " (secrets)", "origin": "events/ship.py read_secret",
+        "services": svc, "files": {"out/.keep": {"text": ""}, "events.json": {"json": events_config([auth_source()], {"token_file": "{sandbox}/secrets/loki.token"})},
+                                   "auth.log": {"text": AUTH_1}, "secrets/loki.token": {"text": "{canary_token}\n", "mode": "0644"}},
+        "steps": [ship([{"json": "out/summary.json", "subset": {"sources": {"lab-auth": {"ok": False,
+                                                                                       "error": {"$regex": "group/others|chmod 600"}}}}},
+                        {"absent": "pushed/0001.json"}, {"absent": "state/lab-auth.json"},
+                        {"no_secret": ["{canary_token}"], "in": ".", "except": ["secrets"]}], exit_=1)]}, mock)
+
+    write_case(EVENTS, "dry-run-prints-and-keeps-state", {
+        "title": "--dry-run prints the push body and changes nothing: no push, no state",
+        "contract": C_EV, "origin": "events/ship.py --dry-run",
+        "services": svc, "files": {"out/.keep": {"text": ""}, "events.json": {"json": events_config([auth_source()])}, "auth.log": {"text": AUTH_1}},
+        "steps": [ship([{"stdout": {"regex": ['"streams"', '"ssh_login_success"']}}, {"absent": "pushed/0001.json"},
+                        {"absent": "state/lab-auth.json"}], extra_args=["--dry-run"])]}, mock)
+
+    write_case(EVENTS, "bad-source-name", {
+        "title": "A source name that is not letters, digits, . _ - (it names the state file) is refused before anything runs",
+        "contract": C_EV, "origin": "events/ship.py main",
+        "services": svc, "files": {"out/.keep": {"text": ""}, "events.json": {"json": events_config([auth_source("../escape")])}, "auth.log": {"text": AUTH_1}},
+        "steps": [ship([{"stderr": {"regex": ["letters, digits"]}}, {"absent": "pushed/0001.json"}], exit_={"not": 0})]}, mock)
+
+    gh_canary = "{canary_token}"
+    me = [200, {"login": "acme-bot"}]
+    base_routes = {"/user": me, "/user/keys": [200, [{"id": 1, "title": "laptop", "created_at": "2026-01-01T00:00:00Z"}]],
+                   "/user/gpg_keys": [404, {"message": "Not Found"}], "/user/ssh_signing_keys": [200, []],
+                   "/user/repos": [200, [{"full_name": "acme-bot/site", "visibility": "private", "owner": {"login": "acme-bot"},
+                                          "pushed_at": "2026-11-01T00:00:00Z"}]],
+                   "/repos/acme-bot/site/keys": [200, []], "/repos/acme-bot/site/hooks": [200, []],
+                   "/user/installations": [200, {"installations": []}], "/users/acme-bot/events": [200, []]}
+    changed = dict(base_routes, **{"/user/keys": [200, [{"id": 1, "title": "laptop", "created_at": "2026-01-01T00:00:00Z"},
+                                                         {"id": 2, "title": "unknown", "created_at": "2026-11-25T11:00:00Z"}]],
+                                   "/user/repos": [200, [{"full_name": "acme-bot/site", "visibility": "public",
+                                                          "owner": {"login": "acme-bot"}, "pushed_at": "2026-11-01T00:00:00Z"}]]})
+    gh_src = {"name": "gh", "type": "github-account", "host": "acme-bot", "api": "{svc_obs}", "token_env": "EV_GH_TOKEN"}
+    write_case(EVENTS, "code-host-account-changes", {
+        "title": "Code host account: the first snapshot is a baseline; a new SSH key and a repository made public are "
+                 "shipped as events (source codehost); an endpoint the token cannot read is recorded as unsupported; only "
+                 "GET requests; the token never appears in the output",
+        "contract": C_EV, "origin": "events/ship.py GitHubAccountSource",
+        "services": svc, "files": {"out/.keep": {"text": ""}, "events.json": {"json": events_config([gh_src])}, "api.json": {"json": base_routes}},
+        "steps": [
+            ship([{"json": "out/summary.json", "subset": {"sources": {"gh": {"ok": True, "shipped": 0, "baseline": True,
+                                                                         "unsupported": {"/user/gpg_keys": 404}}}}}],
+                 name="baseline", env={"EV_GH_TOKEN": gh_canary}),
+            ship([{"json": "out/summary.json", "subset": {"sources": {"gh": {"ok": True, "shipped": 2,
+                                                                         "events": {"ssh_key_added": 1, "repo_made_public": 1}}}}},
+                  {"file": "pushed/0002.json", "regex": ['"source": "codehost"', '"event": "ssh_key_added"',
+                                                         '"event": "repo_made_public"']},
+                  {"no_secret": [gh_canary], "in": "."}],
+                 name="a key added, a repository made public", env={"EV_GH_TOKEN": gh_canary},
+                 files={"api.json": {"json": changed}})]}, mock)
+
+    redirect = dict(base_routes, **{"/user/gpg_keys": {"redirect": "/elsewhere"}, "/elsewhere": [200, []]})
+    write_case(EVENTS, "credentials-not-sent-to-another-host", {
+        "title": "A redirect to another host does not take the API token along",
+        "contract": C_EV + " (secrets)", "origin": "events/ship.py HTTP: urllib copies the Authorization header to the "
+                                                   "redirect target", "deviation": "EVENTS-D1",
+        "services": svc, "files": {"out/.keep": {"text": ""}, "events.json": {"json": events_config([gh_src])}, "api.json": {"json": redirect}},
+        "steps": [ship([{"absent": "leak/auth.txt"}], env={"EV_GH_TOKEN": gh_canary}, exit_={"in": [0, 1]})]}, mock)
 
 
 def cases(write_case):

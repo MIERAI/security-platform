@@ -23,3 +23,4 @@ collector-codehost-gitea/server-page-size-below-50         GITEA-D1   a page sho
 collector-codehost-gitea/token-not-sent-to-another-host    GITEA-D2   the token follows a redirect to another host
 collector-exposure/target-is-never-an-nmap-option  EXPOSURE-D1  a discovered address is passed to nmap unchecked
 collector-exposure/timed-out-host-is-a-gap         EXPOSURE-D2  a partial (timed-out) nmap result covers the address
+events/credentials-not-sent-to-another-host           EVENTS-D1  the API token follows a redirect to another host

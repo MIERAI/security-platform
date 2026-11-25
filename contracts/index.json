@@ -80,6 +80,14 @@
    "conformance": [
     "cli"
    ]
+  },
+  "events": {
+   "version": "1.0",
+   "spec": "events/SPEC.md",
+   "schemas": [],
+   "conformance": [
+    "events"
+   ]
   }
  },
  "known_deviations": {
@@ -109,6 +117,7 @@
   "GITEA-D1": "collector-codehost-gitea/server-page-size-below-50",
   "GITEA-D2": "collector-codehost-gitea/token-not-sent-to-another-host",
   "EXPOSURE-D1": "collector-exposure/target-is-never-an-nmap-option",
-  "EXPOSURE-D2": "collector-exposure/timed-out-host-is-a-gap"
+  "EXPOSURE-D2": "collector-exposure/timed-out-host-is-a-gap",
+  "EVENTS-D1": "events/credentials-not-sent-to-another-host"
  }
 }
