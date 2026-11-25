@@ -1,0 +1,215 @@
+{
+ "component": "scorecard",
+ "title": "A dimension whose applies_when does not hold ({any: [{instance: cloud.accounts}, {coverage_prefix: cloud:}]}) is listed under not_applicable and in no score; it applies once a newest document covered (even as a gap) such an asset, or the instance has a non-empty value at the key; a dimension all of whose controls are not applicable is not applicable too",
+ "contract": "scorecard/1.1",
+ "origin": "tests/test_scorecard.py::test_cloud_dimension_applies_only_with_cloud_accounts",
+ "files": {
+  "catalog/01-base.yaml": "catalog/01-base.yaml",
+  "catalog/12-cloud.yaml": "catalog/12-cloud.yaml",
+  "catalog/13-agents.yaml": "catalog/13-agents.yaml",
+  "instance.json": "instance.json",
+  "data/ledger.json": "ledger.json"
+ },
+ "steps": [
+  {
+   "name": "compute at 2030-01-10T00:00:00Z",
+   "exec": {
+    "impl": "scorecard",
+    "args": [
+     "compute",
+     "--data",
+     "{sandbox}/data",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--now",
+     "1894233600"
+    ]
+   },
+   "expect": [
+    {
+     "json": "data/reports/scorecard.json",
+     "schema": "scorecard",
+     "subset": {
+      "status": "PASS",
+      "overall": 100.0,
+      "weakest": "base",
+      "dimensions": {
+       "base": {
+        "score": 100.0
+       },
+       "cloud": {
+        "$absent": true
+       },
+       "agents": {
+        "$absent": true
+       }
+      },
+      "not_applicable": {
+       "cloud": {
+        "title": "Cloud",
+        "order": 12,
+        "controls": 1,
+        "reason": "instance has no cloud.accounts and no cloud:* asset in scope"
+       },
+       "agents": {
+        "reason": "every control is not applicable",
+        "controls": 1
+       }
+      },
+      "pillars": {
+       "software": {
+        "score": 0.0,
+        "controls": 2,
+        "status": "FAIL"
+       }
+      },
+      "dimension_pillar": {
+       "cloud|software": {
+        "$absent": true
+       }
+      },
+      "controls": {
+       "$contains": [
+        {
+         "id": "cloud.logging",
+         "status": "na",
+         "detail": "not applicable: instance has no cloud.accounts and no cloud:* asset in scope"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "prom": "data/metrics/scorecard.prom",
+     "absent": [
+      {
+       "name": "security_score",
+       "labels": {
+        "dimension": "cloud"
+       }
+      },
+      {
+       "name": "security_score_controls",
+       "labels": {
+        "dimension": "cloud",
+        "status": "na"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "a cloud asset in the newest documents (a gap counts: the account exists)",
+   "exec": {
+    "impl": "scorecard",
+    "args": [
+     "compute",
+     "--data",
+     "{sandbox}/data",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--now",
+     "1894233600"
+    ]
+   },
+   "expect": [
+    {
+     "json": "data/reports/scorecard.json",
+     "schema": "scorecard",
+     "subset": {
+      "dimensions": {
+       "cloud": {
+        "score": 100.0,
+        "status": "PASS"
+       }
+      },
+      "not_applicable": {
+       "cloud": {
+        "$absent": true
+       }
+      },
+      "dimension_pillar": {
+       "cloud|software": 100.0
+      }
+     }
+    }
+   ],
+   "files": {
+    "data/latest/cloud.findings.json": "cloud.findings.json"
+   }
+  },
+  {
+   "name": "an empty value does not count",
+   "exec": {
+    "impl": "scorecard",
+    "args": [
+     "compute",
+     "--data",
+     "{sandbox}/data",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--now",
+     "1894233600"
+    ]
+   },
+   "expect": [
+    {
+     "json": "data/reports/scorecard.json",
+     "schema": "scorecard",
+     "subset": {
+      "not_applicable": {
+       "cloud": {
+        "reason": {
+         "$regex": "^instance has no cloud.accounts"
+        }
+       }
+      }
+     }
+    }
+   ],
+   "files": {
+    "instance.json": "instance-empty.json"
+   },
+   "remove": [
+    "data/latest/cloud.findings.json"
+   ]
+  },
+  {
+   "name": "cloud accounts in the instance",
+   "exec": {
+    "impl": "scorecard",
+    "args": [
+     "compute",
+     "--data",
+     "{sandbox}/data",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--now",
+     "1894233600"
+    ]
+   },
+   "expect": [
+    {
+     "json": "data/reports/scorecard.json",
+     "schema": "scorecard",
+     "subset": {
+      "dimensions": {
+       "cloud": {
+        "score": 100.0
+       }
+      },
+      "not_applicable": {
+       "cloud": {
+        "$absent": true
+       }
+      }
+     }
+    }
+   ],
+   "files": {
+    "instance.json": "instance-cloud.json"
+   }
+  }
+ ]
+}

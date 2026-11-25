@@ -1,0 +1,357 @@
+{
+ "attestations": {
+  "expired": 2,
+  "expiring": 1,
+  "missing": 3,
+  "valid": 4
+ },
+ "computed_at": "2030-01-10T00:00:00Z",
+ "controls": [
+  {
+   "attestable": true,
+   "check": "attested",
+   "cis": [],
+   "csf": "GV.OV",
+   "detail": "attested by alice until 2030-02-04",
+   "dimension": "att",
+   "expires": "2030-02-04",
+   "function": "GV",
+   "id": "att.at-validity",
+   "needs_human": true,
+   "pillars": [
+    "people"
+   ],
+   "question": "Does at-validity hold?",
+   "remediation": "",
+   "status": "pass",
+   "title": "Attestation at-validity",
+   "weight": 1
+  },
+  {
+   "attestable": true,
+   "check": "attested",
+   "cis": [],
+   "csf": "GV.OV",
+   "detail": "attestation by alice expired 2030-01-10: re-attest",
+   "dimension": "att",
+   "expires": "2030-01-10",
+   "function": "GV",
+   "id": "att.expired",
+   "needs_human": true,
+   "pillars": [
+    "people"
+   ],
+   "question": "Does expired hold?",
+   "remediation": "",
+   "status": "expired",
+   "title": "Attestation expired",
+   "weight": 1
+  },
+  {
+   "attestable": true,
+   "check": "attested",
+   "cis": [],
+   "csf": "GV.OV",
+   "detail": "attested by alice until 2030-01-20 (expires within 14 days)",
+   "dimension": "att",
+   "expires": "2030-01-20",
+   "function": "GV",
+   "id": "att.expiring",
+   "needs_human": true,
+   "pillars": [
+    "people"
+   ],
+   "question": "Does expiring hold?",
+   "remediation": "",
+   "status": "pass",
+   "title": "Attestation expiring",
+   "weight": 1
+  },
+  {
+   "attestable": true,
+   "check": "automated",
+   "cis": [],
+   "csf": "GV.OV",
+   "detail": "SLI crit = 0 (objective <= 0)",
+   "dimension": "att",
+   "expires": null,
+   "function": "GV",
+   "id": "att.fallback-api",
+   "needs_human": false,
+   "pillars": [
+    "people"
+   ],
+   "question": "Holds?",
+   "remediation": "",
+   "status": "pass",
+   "title": "The API decides",
+   "weight": 1
+  },
+  {
+   "attestable": true,
+   "check": "automated",
+   "cis": [],
+   "csf": "GV.OV",
+   "detail": "attested by dave until 2030-03-01",
+   "dimension": "att",
+   "expires": "2030-03-01",
+   "function": "GV",
+   "id": "att.fallback-human",
+   "needs_human": false,
+   "pillars": [
+    "people"
+   ],
+   "question": "Holds?",
+   "remediation": "",
+   "status": "pass",
+   "title": "API cannot tell, a human can",
+   "weight": 1
+  },
+  {
+   "attestable": true,
+   "check": "attested",
+   "cis": [],
+   "csf": "GV.OV",
+   "detail": "attested as NOT holding by bob: it does not hold",
+   "dimension": "att",
+   "expires": "2031-01-01",
+   "function": "GV",
+   "id": "att.false",
+   "needs_human": true,
+   "pillars": [
+    "people"
+   ],
+   "question": "Does false hold?",
+   "remediation": "",
+   "status": "fail",
+   "title": "Attestation false",
+   "weight": 1
+  },
+  {
+   "attestable": true,
+   "check": "attested",
+   "cis": [],
+   "csf": "GV.OV",
+   "detail": "not attested: a human answers \"Does missing hold?\" (scorecard.py attest)",
+   "dimension": "att",
+   "expires": null,
+   "function": "GV",
+   "id": "att.missing",
+   "needs_human": true,
+   "pillars": [
+    "people"
+   ],
+   "question": "Does missing hold?",
+   "remediation": "",
+   "status": "unattested",
+   "title": "Attestation missing",
+   "weight": 1
+  },
+  {
+   "attestable": true,
+   "check": "attested",
+   "cis": [],
+   "csf": "GV.OV",
+   "detail": "attestation by carol expired 2029-06-01: re-attest",
+   "dimension": "att",
+   "expires": "2029-06-01",
+   "function": "GV",
+   "id": "att.na-expired",
+   "needs_human": true,
+   "pillars": [
+    "people"
+   ],
+   "question": "Does na-expired hold?",
+   "remediation": "",
+   "status": "expired",
+   "title": "Attestation na-expired",
+   "weight": 1
+  },
+  {
+   "attestable": true,
+   "check": "attested",
+   "cis": [],
+   "csf": "GV.OV",
+   "detail": "not applicable (approved by carol): not used here",
+   "dimension": "att",
+   "expires": null,
+   "function": "GV",
+   "id": "att.na-valid",
+   "needs_human": true,
+   "pillars": [
+    "people"
+   ],
+   "question": "Does na-valid hold?",
+   "remediation": "",
+   "status": "na",
+   "title": "Attestation na-valid",
+   "weight": 1
+  },
+  {
+   "attestable": true,
+   "check": "attested",
+   "cis": [],
+   "csf": "GV.OV",
+   "detail": "attestation without attested_by is ignored",
+   "dimension": "att",
+   "expires": null,
+   "function": "GV",
+   "id": "att.no-by",
+   "needs_human": true,
+   "pillars": [
+    "people"
+   ],
+   "question": "Does no-by hold?",
+   "remediation": "",
+   "status": "unattested",
+   "title": "Attestation no-by",
+   "weight": 1
+  },
+  {
+   "attestable": true,
+   "check": "attested",
+   "cis": [],
+   "csf": "GV.OV",
+   "detail": "attestation without a date (at/expires) is ignored",
+   "dimension": "att",
+   "expires": null,
+   "function": "GV",
+   "id": "att.no-date",
+   "needs_human": true,
+   "pillars": [
+    "people"
+   ],
+   "question": "Does no-date hold?",
+   "remediation": "",
+   "status": "unattested",
+   "title": "Attestation no-date",
+   "weight": 1
+  },
+  {
+   "attestable": true,
+   "check": "attested",
+   "cis": [],
+   "csf": "GV.OV",
+   "detail": "attested by alice until 2031-01-01",
+   "dimension": "att",
+   "expires": "2031-01-01",
+   "function": "GV",
+   "id": "att.valid",
+   "needs_human": true,
+   "pillars": [
+    "people"
+   ],
+   "question": "Does valid hold?",
+   "remediation": "",
+   "status": "pass",
+   "title": "Attestation valid",
+   "weight": 1
+  }
+ ],
+ "dimension_pillar": {
+  "att|people": 45.5
+ },
+ "dimensions": {
+  "att": {
+   "controls": 12,
+   "failing": [
+    "att.expired",
+    "att.false",
+    "att.missing",
+    "att.na-expired",
+    "att.no-by",
+    "att.no-date"
+   ],
+   "functions": [
+    "GV"
+   ],
+   "order": 1,
+   "owner": null,
+   "pillars": [
+    "people"
+   ],
+   "score": 45.5,
+   "status": "FAIL",
+   "threshold": 75.0,
+   "title": "Attestations",
+   "weight_passed": 5,
+   "weight_total": 11
+  }
+ },
+ "functions": {
+  "DE": {
+   "controls": 0,
+   "score": 0.0,
+   "title": "Detect"
+  },
+  "GV": {
+   "controls": 12,
+   "score": 45.5,
+   "title": "Govern"
+  },
+  "ID": {
+   "controls": 0,
+   "score": 0.0,
+   "title": "Identify"
+  },
+  "PR": {
+   "controls": 0,
+   "score": 0.0,
+   "title": "Protect"
+  },
+  "RC": {
+   "controls": 0,
+   "score": 0.0,
+   "title": "Recover"
+  },
+  "RS": {
+   "controls": 0,
+   "score": 0.0,
+   "title": "Respond"
+  }
+ },
+ "mean": 45.5,
+ "not_applicable": {},
+ "overall": 45.5,
+ "pillars": {
+  "device": {
+   "controls": 0,
+   "failing": [],
+   "score": 0.0,
+   "status": "FAIL"
+  },
+  "network": {
+   "controls": 0,
+   "failing": [],
+   "score": 0.0,
+   "status": "FAIL"
+  },
+  "people": {
+   "controls": 12,
+   "failing": [
+    "att.expired",
+    "att.false",
+    "att.missing",
+    "att.na-expired",
+    "att.no-by",
+    "att.no-date"
+   ],
+   "score": 45.5,
+   "status": "FAIL"
+  },
+  "software": {
+   "controls": 0,
+   "failing": [],
+   "score": 0.0,
+   "status": "FAIL"
+  }
+ },
+ "regressions_total": {
+  "att": 0
+ },
+ "schema": "security-platform/scorecard/v1",
+ "scorecard_version": "0.5.0",
+ "status": "FAIL",
+ "threshold": 75.0,
+ "weakest": "att"
+}

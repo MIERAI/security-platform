@@ -663,6 +663,580 @@ def scorecard_cases():
                        files={"instance.json": "instance-noreason.json"}, exit={"not": 0})]},
         dict(files, **{"instance-na.json": inst_na,
                        "instance-noreason.json": dict(inst_na, scorecard=dict(inst_na["scorecard"], not_applicable={"beta.*": ""}))}))
+    scorecard_scope_cases()
+    scorecard_score_cases()
+    scorecard_attestation_cases()
+    scorecard_evaluator_cases()
+
+
+SC_HEAD = "schema: security-platform/scorecard-catalog/v1\n"
+PASSING_SRC = "{type: findings}"            # nothing open in the ledger: passes
+FAILING_SRC = "{type: findings, max: -1}"   # 0 findings > -1: fails
+
+
+def sc_inst(**sc):
+    return {"name": "conformance", "scorecard": dict({"replace_catalog": True, "catalog_dirs": ["{sandbox}/catalog"]}, **sc)}
+
+
+def sc_ledger(collectors=None, sli=None, entries=()):
+    d = ledger_doc(*entries)
+    if collectors is not None:
+        d["collectors"] = collectors
+    if sli is not None:
+        d["sli"] = sli
+    return d
+
+
+def SCF(*regex):
+    """The printed report: number formatting is part of the contract (SPEC §4, rounding and printing)."""
+    return {"file": "data/reports/scorecard.json", "regex": list(regex)}
+
+
+def controls_are(**status):
+    return {"controls": {"$contains": [{"id": k.replace("__", ".").replace("_", "-"), "status": v} for k, v in status.items()]}}
+
+
+def scorecard_scope_cases():
+    C = "scorecard/1.1"
+    catalog = SC_HEAD + """dimension: {id: scope, order: 1, title: Scope, pillars: [device]}
+controls:
+  - {id: scope.exact, title: Exact id, csf: PR.PS, check: automated, weight: 1, source: {type: findings}}
+  - {id: scope.glob-a, title: Glob a, csf: PR.PS, check: automated, weight: 1, source: {type: findings}}
+  - {id: scope.glob-b, title: Glob b, csf: PR.PS, check: automated, weight: 1, source: {type: findings}}
+  - {id: scope.bracket1, title: Character class, csf: PR.PS, check: automated, weight: 1, source: {type: findings}}
+  - {id: scope.tagged, title: Tagged, csf: PR.PS, check: automated, weight: 1, tags: [ai-agent], source: {type: findings}}
+  - {id: scope.disabled, title: Disabled with a reason, csf: PR.PS, check: automated, weight: 1, source: {type: findings}}
+  - {id: scope.disabled-flag, title: Disabled, csf: PR.PS, check: automated, weight: 1, source: {type: findings}}
+  - {id: scope.needs-col, title: Needs k8s, csf: DE.CM, check: automated, weight: 1, source: {type: findings, require_collector: k8s}}
+  - id: scope.nested-col
+    title: Needs identity or cloud, nested
+    csf: DE.CM
+    check: automated
+    weight: 1
+    source: {type: all, of: [{type: findings, require_collector: [identity, cloud]}, {type: findings}]}
+  - id: scope.col-fallback
+    title: Needs k8s, or a human
+    csf: DE.CM
+    check: automated
+    weight: 1
+    validity: 30d
+    question: Does it hold?
+    source: {type: first_known, of: [{type: findings, require_collector: k8s}, {type: attestation}]}
+  - {id: scope.col-job, title: Collector of a runner job, csf: DE.CM, check: automated, weight: 1, source: {type: findings, require_collector: vuln}}
+  - {id: scope.col-ledger, title: Collector in the ledger, csf: DE.CM, check: automated, weight: 1, source: {type: findings, require_collector: host}}
+  - {id: scope.star, title: Any collector, csf: DE.CM, check: automated, weight: 1, source: {type: findings, require_collector: "*"}}
+  - {id: scope.plain, title: Plain, csf: PR.PS, check: automated, weight: 1, source: {type: findings}}
+"""
+
+    def instance(unconfigured=None):
+        return ("""name: conformance
+runner:
+  jobs:
+    scan: {type: collector, collector: vuln-intel, as: vuln}
+    report: {type: export, as: k8s}
+scorecard:
+  replace_catalog: true
+  catalog_dirs: ["{sandbox}/catalog"]
+""" + (f"  unconfigured_collectors: {unconfigured}\n" if unconfigured else "") + """  not_applicable:
+    scope.exact: an exact id
+    "scope.glob-?": one character
+    "scope.bracket[0-9]": a character class
+    "tag:ai-agent": no AI coding agents in use
+    "scope.tag*": never used (the tag above matches first)
+  overrides:
+    scope.disabled: {disabled: replaced by a manual check}
+    scope.disabled-flag: {disabled: true}
+""")
+    write_case("scorecard", "not-applicable-scope", {
+        "title": "Instance scope: not_applicable by exact id, glob (?, [..]) and tag: (the first matching entry gives the "
+                 "reason), overrides.<id>.disabled, and unconfigured_collectors: not_applicable for controls that need a "
+                 "collector this instance never ran (nested sources too; a control a human can attest is never excluded; "
+                 "a non-collector job does not count); the default `unknown` counts them as failing",
+        "contract": C, "origin": "tests/test_scorecard.py::test_opt_outs_are_not_applicable, test_unconfigured_collectors",
+        "files": {"catalog/01-scope.yaml": "catalog/01-scope.yaml", "instance.yaml": "instance-na.yaml",
+                  "data/ledger.json": "ledger.json"},
+        "steps": [
+            dict(compute(NOW, [SC({
+                "status": "FAIL",
+                "dimensions": {"scope": {"score": 60.0, "weight_total": 5, "weight_passed": 3, "controls": 14,
+                                         "failing": ["scope.col-fallback", "scope.col-job"]}},
+                "controls": {"$contains": [
+                    {"id": "scope.exact", "status": "na", "detail": {"$regex": r"\(scope\.exact\): an exact id$"}},
+                    {"id": "scope.glob-a", "status": "na", "detail": {"$regex": "one character$"}},
+                    {"id": "scope.glob-b", "status": "na", "detail": {"$regex": "one character$"}},
+                    {"id": "scope.bracket1", "status": "na", "detail": {"$regex": "a character class$"}},
+                    {"id": "scope.tagged", "status": "na", "detail": {"$regex": r"\(tag:ai-agent\): no AI coding agents in use$"}},
+                    {"id": "scope.disabled", "status": "na",
+                     "detail": "not applicable: disabled by the instance: replaced by a manual check"},
+                    {"id": "scope.disabled-flag", "status": "na", "detail": "not applicable: disabled by the instance"},
+                    {"id": "scope.needs-col", "status": "na", "detail": "not applicable: collector not configured: k8s"},
+                    {"id": "scope.nested-col", "status": "na",
+                     "detail": "not applicable: collector not configured: cloud, identity"},
+                    {"id": "scope.col-fallback", "status": "unattested", "attestable": True},
+                    {"id": "scope.col-job", "status": "unknown", "detail": {"$regex": "vuln: never covered anything"}},
+                    {"id": "scope.col-ledger", "status": "pass"},
+                    {"id": "scope.star", "status": "pass", "detail": "0 matching finding(s) (max 0)"},
+                    {"id": "scope.plain", "status": "pass", "detail": "0 matching finding(s) (max 0)"}]}}),
+                {"prom": "data/metrics/scorecard.prom", "has": [
+                    {"name": "security_score_controls", "labels": {"dimension": "scope", "status": "na"}, "value": 9},
+                    {"name": "security_score_controls", "labels": {"dimension": "scope", "status": "fail"}, "value": 2},
+                    {"name": "security_score_controls", "labels": {"dimension": "scope", "status": "pass"}, "value": 3}]},
+                SCF(r'"score": 60\.0,')]), exec=_inst_exec("instance.yaml")),
+            dict(compute(NOW, [SC({
+                "dimensions": {"scope": {"score": 42.9, "weight_total": 7, "weight_passed": 3}},
+                "controls": {"$contains": [
+                    {"id": "scope.needs-col", "status": "unknown", "detail": {"$regex": "^no recent coverage \\(k8s: never"}},
+                    {"id": "scope.nested-col", "status": "unknown"}]}})],
+                name="default unconfigured_collectors: unknown (no data is not secure)",
+                files={"instance.yaml": "instance-unknown.yaml"}), exec=_inst_exec("instance.yaml")),
+            dict(compute(NOW, [], name="unconfigured_collectors must be unknown or not_applicable",
+                         files={"instance.yaml": "instance-bad.yaml"}), exec=_inst_exec("instance.yaml"), exit={"not": 0}),
+        ]},
+        {"catalog/01-scope.yaml": catalog, "instance-na.yaml": instance("not_applicable"),
+         "instance-unknown.yaml": instance(), "instance-bad.yaml": instance("sometimes"),
+         "ledger.json": sc_ledger(collectors={"host": {"version": "1.0.0", "last_good_run": "2030-01-09T12:00:00Z"}})})
+
+    base = SC_HEAD + """dimension: {id: base, order: 1, title: Base, pillars: [device]}
+controls:
+  - {id: base.ok, title: Ok, csf: PR.PS, check: automated, weight: 1, source: {type: findings}}
+"""
+    cloud = SC_HEAD + """dimension:
+  id: cloud
+  order: 12
+  title: Cloud
+  pillars: [software]
+  applies_when: {any: [{instance: cloud.accounts}, {coverage_prefix: "cloud:"}]}
+controls:
+  - {id: cloud.logging, title: Audit logging, csf: DE.CM, check: automated, weight: 1, source: {type: findings}}
+"""
+    agents = SC_HEAD + """dimension: {id: agents, order: 13, title: Agents, pillars: [software]}
+controls:
+  - {id: agents.deny, title: Deny rules, csf: PR.PS, check: automated, weight: 1, tags: [ai-agent], source: {type: findings}}
+"""
+    inst = sc_inst(not_applicable={"tag:ai-agent": "no AI coding agents"})
+    cloud_doc = doc("cloud", [], [gap("cloud:gcp/project-1", reason="no credentials")], finished="2030-01-09T00:00:00Z")
+    write_case("scorecard", "cloud-dimension-not-applicable", {
+        "title": "A dimension whose applies_when does not hold ({any: [{instance: cloud.accounts}, {coverage_prefix: "
+                 "cloud:}]}) is listed under not_applicable and in no score; it applies once a newest document covered "
+                 "(even as a gap) such an asset, or the instance has a non-empty value at the key; a dimension all of whose "
+                 "controls are not applicable is not applicable too",
+        "contract": C, "origin": "tests/test_scorecard.py::test_cloud_dimension_applies_only_with_cloud_accounts",
+        "files": {"catalog/01-base.yaml": "catalog/01-base.yaml", "catalog/12-cloud.yaml": "catalog/12-cloud.yaml",
+                  "catalog/13-agents.yaml": "catalog/13-agents.yaml", "instance.json": "instance.json",
+                  "data/ledger.json": "ledger.json"},
+        "steps": [
+            compute(NOW, [SC({
+                "status": "PASS", "overall": 100.0, "weakest": "base",
+                "dimensions": {"base": {"score": 100.0}, "cloud": {"$absent": True}, "agents": {"$absent": True}},
+                "not_applicable": {
+                    "cloud": {"title": "Cloud", "order": 12, "controls": 1,
+                              "reason": "instance has no cloud.accounts and no cloud:* asset in scope"},
+                    "agents": {"reason": "every control is not applicable", "controls": 1}},
+                "pillars": {"software": {"score": 0.0, "controls": 2, "status": "FAIL"}},
+                "dimension_pillar": {"cloud|software": {"$absent": True}},
+                "controls": {"$contains": [{"id": "cloud.logging", "status": "na",
+                                            "detail": "not applicable: instance has no cloud.accounts and no cloud:* asset in scope"}]}}),
+                {"prom": "data/metrics/scorecard.prom", "absent": [
+                    {"name": "security_score", "labels": {"dimension": "cloud"}},
+                    {"name": "security_score_controls", "labels": {"dimension": "cloud", "status": "na"}}]}]),
+            compute(NOW, [SC({"dimensions": {"cloud": {"score": 100.0, "status": "PASS"}},
+                              "not_applicable": {"cloud": {"$absent": True}},
+                              "dimension_pillar": {"cloud|software": 100.0}})],
+                    name="a cloud asset in the newest documents (a gap counts: the account exists)",
+                    files={"data/latest/cloud.findings.json": "cloud.findings.json"}),
+            dict(compute(NOW, [SC({"not_applicable": {"cloud": {"reason": {"$regex": "^instance has no cloud.accounts"}}}})],
+                         name="an empty value does not count", files={"instance.json": "instance-empty.json"}),
+                 remove=["data/latest/cloud.findings.json"]),
+            compute(NOW, [SC({"dimensions": {"cloud": {"score": 100.0}}, "not_applicable": {"cloud": {"$absent": True}}})],
+                    name="cloud accounts in the instance", files={"instance.json": "instance-cloud.json"}),
+        ]},
+        {"catalog/01-base.yaml": base, "catalog/12-cloud.yaml": cloud, "catalog/13-agents.yaml": agents,
+         "instance.json": inst, "instance-empty.json": dict(inst, cloud={"accounts": []}),
+         "instance-cloud.json": dict(inst, cloud={"accounts": [{"id": "project-1"}]}),
+         "cloud.findings.json": cloud_doc, "ledger.json": sc_ledger()})
+
+
+def _inst_exec(name):
+    return {"impl": "scorecard", "args": ["compute", "--data", "{sandbox}/data", "--instance", f"{{sandbox}}/{name}",
+                                          "--now", str(epoch(NOW))]}
+
+
+def scorecard_score_cases():
+    C = "scorecard/1.1"
+    P, F = PASSING_SRC, FAILING_SRC
+    cat = {
+        "01-one.yaml": SC_HEAD + f"""dimension: {{id: one, order: 1, title: One, pillars: [network]}}
+controls:
+  - {{id: one.a, title: A, csf: GV.OC, pillars: [network], check: automated, weight: 1, source: {P}}}
+  - {{id: one.b, title: B, csf: ID.AM, pillars: [network, device], check: automated, weight: 15, source: {F}}}
+""",
+        "02-two.yaml": SC_HEAD + f"""dimension: {{id: two, order: 2, title: Two, pillars: [device]}}
+controls:
+  - {{id: two.a, title: A, csf: PR.AA, check: automated, weight: 3, source: {P}}}
+  - {{id: two.b, title: B, csf: PR.PS, check: automated, weight: 13, source: {F}}}
+""",
+        "03-three.yaml": SC_HEAD + f"""dimension: {{id: three, order: 3, title: Three, pillars: [software], threshold: 80}}
+controls:
+  - {{id: three.a, title: A, csf: DE.CM, check: automated, weight: 2.5, source: {P}}}
+  - {{id: three.b, title: B, csf: RS.MA, check: automated, weight: 0.5, source: {F}}}
+  - {{id: three.c, title: Declared only, csf: DE.AE, check: evidence, weight: 0, source: {{type: none, reason: later}}}}
+""",
+        "05-five.yaml": SC_HEAD + f"""dimension: {{id: five, order: 5, title: Five, pillars: [people]}}
+controls:
+  - {{id: five.a, title: A, csf: GV.RR, check: automated, weight: 1, source: {P}}}
+  - {{id: five.b, title: B, csf: ID.RA, check: automated, weight: 15, source: {F}}}
+""",
+    }
+    inst = sc_inst(threshold=75.5, pillars=["network", "device", "people", "software", "physical"])
+    write_case("scorecard", "weights-rounding-and-weakest-link", {
+        "title": "Weighted pass ratio rounded to one decimal, ties to even on the exact binary value (1/16 = 6.25 -> 6.2, "
+                 "3/16 = 18.75 -> 18.8); float weights; weight 0; per-dimension threshold; overall = the minimum, weakest = "
+                 "the first dimension (in catalog order) with it; mean; pillars (instance list, an empty pillar scores 0 and "
+                 "fails), NIST CSF functions (all six, an empty one scores 0 and has no metric), dimension x pillar; "
+                 "numbers printed as the contract says",
+        "contract": C, "origin": "tests/test_scorecard.py::test_weakest_link_and_weights",
+        "files": dict({f"catalog/{k}": f"catalog/{k}" for k in cat},
+                      **{"instance.json": "instance.json", "data/ledger.json": "ledger.json"}),
+        "steps": [compute(NOW, [
+            SC({"threshold": 75.5, "status": "FAIL", "overall": 6.2, "weakest": "one", "mean": 28.6,
+                "dimensions": {
+                    "one": {"score": 6.2, "status": "FAIL", "weight_total": 16, "weight_passed": 1, "threshold": 75.5,
+                            "pillars": ["device", "network"], "functions": ["GV", "ID"]},
+                    "two": {"score": 18.8, "status": "FAIL", "weight_total": 16, "weight_passed": 3},
+                    "three": {"score": 83.3, "status": "PASS", "threshold": 80.0, "weight_total": 3.0, "weight_passed": 2.5,
+                              "failing": ["three.b", "three.c"], "controls": 3},
+                    "five": {"score": 6.2, "status": "FAIL"}},
+                "pillars": {"network": {"score": 6.2, "controls": 2, "status": "FAIL"},
+                            "device": {"score": 9.7, "controls": 3},
+                            "people": {"score": 6.2, "controls": 2},
+                            "software": {"score": 83.3, "controls": 3, "status": "PASS"},
+                            "physical": {"score": 0.0, "controls": 0, "status": "FAIL", "failing": []}},
+                "functions": {"GV": {"title": "Govern", "score": 100.0, "controls": 2},
+                              "ID": {"score": 0.0, "controls": 2}, "PR": {"score": 18.8, "controls": 2},
+                              "DE": {"score": 100.0, "controls": 2}, "RS": {"score": 0.0, "controls": 1},
+                              "RC": {"title": "Recover", "score": 0.0, "controls": 0}},
+                "dimension_pillar": {"one|network": 6.2, "one|device": 0.0, "two|device": 18.8, "three|software": 83.3,
+                                     "five|people": 6.2, "one|people": {"$absent": True}},
+                "controls": {"$contains": [{"id": "three.c", "status": "not_implemented", "detail": "later", "weight": 0},
+                                           {"id": "five.a", "pillars": ["people"], "function": "GV", "csf": "GV.RR"}]}}),
+            SCF(r'"score": 6\.2,', r'"score": 18\.8,', r'"weight_total": 3\.0\n', r'"weight_passed": 2\.5,',
+                r'"weight_total": 16\n', r'"mean": 28\.6,', r'"threshold": 75\.5,', r'"threshold": 80\.0,'),
+            {"file": "data/metrics/scorecard.prom",
+             "regex": [r'(?m)^security_score\{dimension="one"\} 6\.2$', r'(?m)^security_score\{dimension="two"\} 18\.8$',
+                       r'(?m)^security_score\{function="GV"\} 100$', r'(?m)^security_score_threshold 75\.5$',
+                       r'(?m)^security_score_overall 6\.2$', r'(?m)^security_score\{dimension="one",pillar="device"\} 0$',
+                       r'(?m)^security_score_pass 0$']},
+            {"prom": "data/metrics/scorecard.prom", "absent": [{"name": "security_score", "labels": {"function": "RC"}}],
+             "has": [{"name": "security_score", "labels": {"pillar": "physical"}, "value": 0},
+                     {"name": "security_score", "labels": {"dimension": "three", "pillar": "software"}, "value": 83.3}]},
+        ])]},
+        dict({f"catalog/{k}": v for k, v in cat.items()}, **{"instance.json": inst, "ledger.json": sc_ledger()}))
+
+    # regression counter over several computes: recover, fail again, and a dimension that left the catalog
+    reg = {
+        "01-alpha.yaml": SC_HEAD + """dimension: {id: alpha, order: 1, title: Alpha, pillars: [device]}
+controls:
+  - {id: alpha.ok, title: Ok, csf: PR.PS, check: automated, weight: 1, source: {type: findings, severity_in: [critical]}}
+""",
+        "02-beta.yaml": SC_HEAD + """dimension: {id: beta, order: 2, title: Beta, pillars: [device]}
+controls:
+  - {id: beta.ok, title: Ok, csf: PR.PS, check: automated, weight: 1, source: {type: findings, check_in: [nothing]}}
+""",
+    }
+    crit = finding("host:h1", "host.crit", severity="critical")
+    clean, dirty = sc_ledger(), sc_ledger(entries=[entry(crit)])
+    R = lambda alpha, beta=None: SC({"regressions_total": dict({"alpha": alpha}, **({"beta": beta} if beta is not None else {}))})
+    write_case("scorecard", "regression-counter-recovers", {
+        "title": "Every pass -> fail transition of a dimension adds one regression; recovering and failing again counts "
+                 "again; the counter of a dimension that left the catalog is kept (a counter never goes back)",
+        "contract": C, "origin": "tests/test_scorecard.py::test_regression_counter_and_metrics_contract",
+        "files": dict({f"catalog/{k}": f"catalog/{k}" for k in reg},
+                      **{"instance.json": "instance.json", "data/ledger.json": "clean.json"}),
+        "steps": [
+            compute(NOW, [R(0, 0), {"json": "data/state/scorecard.json",
+                                    "subset": {"below": {"alpha": False, "beta": False}, "regressions_total": {"alpha": 0}}}],
+                    name="baseline"),
+            compute(NOW, [R(1, 0), {"json": "data/state/scorecard.json", "subset": {"below": {"alpha": True}}}],
+                    name="alpha fails", files={"data/ledger.json": "dirty.json"}),
+            compute(NOW, [R(1)], name="alpha still failing"),
+            compute(NOW, [R(1)], name="alpha recovers", files={"data/ledger.json": "clean.json"}),
+            compute(NOW, [R(2), {"prom": "data/metrics/scorecard.prom", "has": [
+                {"name": "security_score_regressions_total", "labels": {"dimension": "alpha"}, "value": 2}],
+                "types": {"security_score_regressions_total": "counter"}}],
+                    name="alpha fails again", files={"data/ledger.json": "dirty.json"}),
+            dict(compute(NOW, [SC({"regressions_total": {"alpha": 2, "beta": 0}, "dimensions": {"beta": {"$absent": True}}}),
+                               {"prom": "data/metrics/scorecard.prom", "has": [
+                                   {"name": "security_score_regressions_total", "labels": {"dimension": "beta"}, "value": 0}]}],
+                         name="beta left the catalog: its counter stays"), remove=["catalog/02-beta.yaml"]),
+        ]},
+        dict({f"catalog/{k}": v for k, v in reg.items()},
+             **{"instance.json": sc_inst(), "clean.json": clean, "dirty.json": dirty}))
+
+
+def scorecard_attestation_cases():
+    C = "scorecard/1.1"
+
+    def att(name, extra=""):
+        return (f"  - {{id: att.{name}, title: \"Attestation {name}\", csf: GV.OV, check: attested, weight: 1, validity: 30d, "
+                f"question: \"Does {name} hold?\"{extra}}}\n")
+    cat = SC_HEAD + "dimension: {id: att, order: 1, title: Attestations, pillars: [people]}\ncontrols:\n" + "".join(
+        att(n) for n in ("valid", "expiring", "expired", "missing", "no-by", "no-date", "at-validity", "false",
+                         "na-expired", "na-valid")) + """  - id: att.fallback-human
+    title: API cannot tell, a human can
+    csf: GV.OV
+    check: automated
+    weight: 1
+    validity: 30d
+    question: Holds?
+    source: {type: first_known, of: [{type: sli, sli: missing}, {type: attestation}]}
+  - id: att.fallback-api
+    title: The API decides
+    csf: GV.OV
+    check: automated
+    weight: 1
+    validity: 30d
+    question: Holds?
+    source: {type: first_known, of: [{type: sli, sli: crit}, {type: attestation}]}
+"""
+    attest = """schema: security-platform/attestations/v1
+attestations:
+  att.valid: {attested_by: alice, at: 2030-01-01, expires: 2031-01-01}
+  att.expiring: {attested_by: alice, at: '2030-01-01', expires: '2030-01-20'}
+  att.expired: {attested_by: alice, at: '2029-11-01', expires: '2030-01-10'}
+  att.no-by: {at: '2030-01-01', expires: '2031-01-01'}
+  att.no-date: {attested_by: alice}
+  att.at-validity: {attested_by: alice, at: '2030-01-05T12:00:00Z'}
+  att.false: {attested_by: bob, at: '2030-01-01', expires: '2031-01-01', value: false, note: it does not hold}
+  att.na-expired: {attested_by: carol, at: '2029-01-01', expires: '2029-06-01', not_applicable: no longer used}
+  att.na-valid: {attested_by: carol, at: '2030-01-01', expires: '2030-06-01', not_applicable: not used here}
+  att.fallback-human: {attested_by: dave, at: '2030-01-01', expires: '2030-03-01'}
+  att.fallback-api: {attested_by: dave, at: '2030-01-01', expires: '2030-01-15'}
+"""
+    write_case("scorecard", "attestation-states", {
+        "title": "Attestations: valid, expiring within 14 days, expired (expires <= now), missing (none, no attested_by, "
+                 "no date); expires defaults to at + validity; value: false fails but is a current attestation; a "
+                 "human not_applicable needs an unexpired expiry; an automated control with an attestation fallback "
+                 "counts only when the human decided it; YAML dates may be unquoted",
+        "contract": C, "origin": "tests/test_scorecard.py::test_attestations_expire_and_need_a_human",
+        "files": {"catalog/01-att.yaml": "catalog/01-att.yaml", "instance.json": "instance.json",
+                  "data/attestations.yaml": "attestations.yaml", "data/ledger.json": "ledger.json"},
+        "steps": [compute(NOW, [SC({
+            "attestations": {"valid": 4, "expiring": 1, "expired": 2, "missing": 3},
+            "dimensions": {"att": {"score": 45.5, "weight_total": 11, "weight_passed": 5}},
+            "controls": {"$contains": [
+                {"id": "att.valid", "status": "pass", "expires": "2031-01-01", "needs_human": True, "attestable": True,
+                 "detail": "attested by alice until 2031-01-01"},
+                {"id": "att.expiring", "status": "pass", "expires": "2030-01-20",
+                 "detail": "attested by alice until 2030-01-20 (expires within 14 days)"},
+                {"id": "att.expired", "status": "expired", "detail": "attestation by alice expired 2030-01-10: re-attest"},
+                {"id": "att.missing", "status": "unattested", "expires": None,
+                 "detail": "not attested: a human answers \"Does missing hold?\" (scorecard.py attest)"},
+                {"id": "att.no-by", "status": "unattested", "detail": "attestation without attested_by is ignored"},
+                {"id": "att.no-date", "status": "unattested", "detail": "attestation without a date (at/expires) is ignored"},
+                {"id": "att.at-validity", "status": "pass", "expires": "2030-02-04"},
+                {"id": "att.false", "status": "fail", "detail": "attested as NOT holding by bob: it does not hold"},
+                {"id": "att.na-expired", "status": "expired"},
+                {"id": "att.na-valid", "status": "na", "detail": "not applicable (approved by carol): not used here"},
+                {"id": "att.fallback-human", "status": "pass", "expires": "2030-03-01", "needs_human": False},
+                {"id": "att.fallback-api", "status": "pass", "expires": None, "detail": {"$regex": "^SLI crit = 0 "}}]}}),
+            {"prom": "data/metrics/scorecard.prom", "has": [
+                {"name": "security_attestations", "labels": {"state": s}, "value": v}
+                for s, v in (("valid", 4), ("expiring", 1), ("expired", 2), ("missing", 3))]}])]},
+        {"catalog/01-att.yaml": cat, "attestations.yaml": attest, "instance.json": sc_inst(),
+         "ledger.json": sc_ledger(sli={"crit": {"ok": True, "value": 0, "target": 0}})})
+
+    summer = SC_HEAD + "dimension: {id: att, order: 1, title: Attestations, pillars: [people]}\ncontrols:\n" + att("summer")
+    late_june = "2030-06-30T23:30:00Z"
+    write_case("scorecard", "attestation-expiry-is-utc", {
+        "title": "Dates are UTC whatever the local time zone: an attestation that expires on 2030-07-01 holds until "
+                 "2030-07-01T00:00:00Z, also where daylight saving time is in effect",
+        "contract": C, "origin": "SCORECARD-D1", "deviation": "SCORECARD-D1",
+        "files": {"catalog/01-att.yaml": "catalog/01-att.yaml", "instance.json": "instance.json",
+                  "data/attestations.yaml": "attestations.yaml", "data/ledger.json": "ledger.json"},
+        "steps": [dict(compute(late_june, [SC({
+            "attestations": {"expiring": 1, "expired": 0},
+            "controls": {"$contains": [{"id": "att.summer", "status": "pass", "expires": "2030-07-01",
+                                        "detail": "attested by alice until 2030-07-01 (expires within 14 days)"}]}})]),
+                       exec=dict(compute(late_june, [])["exec"], env={"TZ": "Europe/Berlin"}))]},
+        {"catalog/01-att.yaml": summer, "instance.json": sc_inst(), "ledger.json": sc_ledger(),
+         "attestations.yaml": "schema: security-platform/attestations/v1\nattestations:\n"
+                              "  att.summer: {attested_by: alice, at: '2030-06-01', expires: '2030-07-01'}\n"})
+
+    sli_cat = SC_HEAD + """dimension: {id: sli, order: 1, title: SLIs, pillars: [software]}
+controls:
+  - {id: sli.crit, title: No open critical, csf: DE.CM, check: automated, weight: 1, source: {type: sli, sli: crit}}
+  - {id: sli.ttr, title: Time to remediate, csf: RS.MI, check: automated, weight: 1, source: {type: sli, sli: ttr}}
+  - {id: sli.gone, title: Not computed yet, csf: RS.MI, check: automated, weight: 1, source: {type: sli, sli: gone}}
+  - {id: sli.broken, title: No SLI named, csf: RS.MI, check: automated, weight: 1, source: {type: sli}}
+"""
+    write_case("scorecard", "sli-objectives", {
+        "title": "An `sli` control passes while the ledger's SLI meets its objective, fails when not, is unknown when "
+                 "the SLI is not computed; a broken source is unknown (one broken control never hides the others)",
+        "contract": C, "origin": "tests/test_scorecard.py::test_evaluators",
+        "files": {"catalog/01-sli.yaml": "catalog/01-sli.yaml", "instance.json": "instance.json",
+                  "data/ledger.json": "ledger.json"},
+        "steps": [compute(NOW, [SC({
+            "dimensions": {"sli": {"score": 25.0, "failing": ["sli.broken", "sli.gone", "sli.ttr"]}},
+            "controls": {"$contains": [
+                {"id": "sli.crit", "status": "pass", "detail": "SLI crit = 0 (objective <= 0)"},
+                {"id": "sli.ttr", "status": "fail", "detail": "SLI ttr = 3.5 (objective <= 1)"},
+                {"id": "sli.gone", "status": "unknown", "detail": "SLI gone not computed yet"},
+                {"id": "sli.broken", "status": "unknown", "detail": {"$regex": "^evaluator error: "}}]}})])]},
+        {"catalog/01-sli.yaml": sli_cat, "instance.json": sc_inst(),
+         "ledger.json": sc_ledger(sli={"crit": {"ok": True, "value": 0, "target": 0},
+                                       "ttr": {"ok": False, "value": 3.5, "target": 1}})})
+
+
+def scorecard_evaluator_cases():
+    C = "scorecard/1.1"
+    now = epoch(NOW)
+    cat = SC_HEAD + """dimension: {id: ev, order: 1, title: Evaluators, pillars: [software]}
+controls:
+  - {id: ev.metric-age, title: Metric age, csf: DE.CM, check: automated, weight: 1,
+     source: {type: metric, name: security_collector_last_run_timestamp_seconds, match: {collector: host}, age: true, value: 2h}}
+  - {id: ev.metric-old, title: Metric too old, csf: DE.CM, check: automated, weight: 1,
+     source: {type: metric, name: security_collector_last_run_timestamp_seconds, match: {collector: "k8.*"}, age: true, value: 1d}}
+  - {id: ev.metric-count, title: Metric count, csf: DE.CM, check: automated, weight: 1,
+     source: {type: metric, name: security_collector_last_run_timestamp_seconds, agg: count, op: ">=", value: 2}}
+  - {id: ev.metric-sum, title: Metric sum, csf: DE.CM, check: automated, weight: 1,
+     source: {type: metric, name: security_sli, agg: sum, op: "<", value: 4}}
+  - {id: ev.metric-absent, title: Metric absent, csf: DE.CM, check: automated, weight: 1, source: {type: metric, name: nope}}
+  - {id: ev.metric-absent-ok, title: Absent is fine, csf: DE.CM, check: automated, weight: 1, source: {type: metric, name: nope, absent: pass}}
+  - {id: ev.metric-own, title: Own scores are ignored, csf: DE.CM, check: automated, weight: 1, source: {type: metric, name: security_score_overall, absent: fail}}
+  - {id: ev.job-ok, title: Job ok, csf: DE.CM, check: automated, weight: 1, source: {type: job, jobs: [scan]}}
+  - {id: ev.job-rc, title: Job failed, csf: DE.CM, check: automated, weight: 1, source: {type: job, jobs: [broken]}}
+  - {id: ev.job-site, title: Site job old, csf: DE.CM, check: automated, weight: 1, source: {type: job, jobs: [remote], max_age: 2d}}
+  - {id: ev.job-all, title: Every job, csf: DE.CM, check: automated, weight: 1, source: {type: job}}
+  - {id: ev.job-ghost, title: Never ran, csf: DE.CM, check: automated, weight: 1, source: {type: job, jobs: ghost}}
+  - {id: ev.fresh, title: Host fresh, csf: DE.CM, check: automated, weight: 1, source: {type: collector_fresh, collectors: [host]}}
+  - {id: ev.fresh-all, title: Every collector fresh, csf: DE.CM, check: automated, weight: 1, source: {type: collector_fresh, max_age: 2d}}
+  - {id: ev.find-prefix, title: ssh findings, csf: PR.PS, check: automated, weight: 1, source: {type: findings, check_prefix: [ssh.], max: 1}}
+  - {id: ev.find-sev, title: critical findings, csf: PR.PS, check: automated, weight: 1, source: {type: findings, severity_in: [critical, high]}}
+  - {id: ev.find-status, title: accepted too, csf: PR.PS, check: automated, weight: 1, source: {type: findings, check_in: [tls.weak], status_in: [open, accepted]}}
+  - {id: ev.find-asset, title: on h2, csf: PR.PS, check: automated, weight: 1, source: {type: findings, asset_contains: "${site}", layer_in: [host]}}
+  - {id: ev.find-kind, title: vulnerabilities, csf: PR.PS, check: automated, weight: 1, source: {type: findings, kind: vulnerability, attr_true: kev}}
+  - {id: ev.find-cov, title: needs host coverage, csf: PR.PS, check: automated, weight: 1, source: {type: findings, require_coverage: "host:", require_collector: host}}
+  - {id: ev.find-nocov, title: needs k8s coverage, csf: PR.PS, check: automated, weight: 1, source: {type: findings, require_coverage: "k8s:"}}
+  - {id: ev.var-missing, title: unset variable, csf: PR.PS, check: automated, weight: 1, source: {type: findings, asset_contains: "${nope}"}}
+  - {id: ev.file-ok, title: policy, csf: GV.PO, check: evidence, weight: 1, source: {type: file, path: "${data}/policy.md", contains: "^## Scope", mode_max: "0644"}}
+  - {id: ev.file-mode, title: secret mode, csf: GV.PO, check: evidence, weight: 1, source: {type: file, path: "${data}/policy.md", mode_max: "0600"}}
+  - {id: ev.file-text, title: lacks text, csf: GV.PO, check: evidence, weight: 1, source: {type: file, path: "${data}/policy.md", contains: "^## Owner"}}
+  - {id: ev.file-missing, title: missing, csf: GV.PO, check: evidence, weight: 1, source: {type: file, path: "${data}/nothing.md"}}
+  - {id: ev.all-unknown, title: all with unknown, csf: ID.AM, check: automated, weight: 1, source: {type: all, of: [{type: findings, check_in: [nothing]}, {type: sli, sli: gone}]}}
+  - {id: ev.all-fail, title: all with none, csf: ID.AM, check: automated, weight: 1, source: {type: all, of: [{type: findings, check_in: [nothing]}, {type: none}]}}
+  - {id: ev.any-pass, title: any, csf: ID.AM, check: automated, weight: 1, source: {type: any, of: [{type: findings, check_in: [nothing], max: -1}, {type: findings, check_in: [nothing]}]}}
+  - {id: ev.any-unknown, title: any unknown, csf: ID.AM, check: automated, weight: 1, source: {type: any, of: [{type: sli, sli: a}, {type: sli, sli: b}]}}
+  - {id: ev.first-known, title: first known, csf: ID.AM, check: automated, weight: 1, source: {type: first_known, of: [{type: sli, sli: gone}, {type: findings, check_in: [nothing], max: -1}, {type: findings, check_in: [nothing]}]}}
+  - {id: ev.none, title: declared, csf: RC.RP, check: automated, weight: 1, source: {type: none, reason: needs a restore drill}}
+  - {id: ev.bogus, title: bogus type, csf: RC.RP, check: automated, weight: 1, source: {type: bogus}}
+  - {id: ev.bad-builtin, title: bad builtin, csf: RC.RP, check: automated, weight: 1, source: {type: builtin, name: nothing}}
+  - {id: ev.pillars, title: pillars covered, csf: GV.OV, check: automated, weight: 1, source: {type: builtin, name: pillars_covered}}
+  - {id: ev.functions, title: functions covered, csf: GV.OV, check: automated, weight: 1, source: {type: builtin, name: functions_covered}}
+  - {id: ev.current, title: attestations current, csf: GV.OV, check: automated, weight: 1, source: {type: builtin, name: attestations_current}}
+  - {id: ev.replaced, title: product version, csf: GV.OV, check: automated, weight: 1, source: {type: findings, check_in: [nothing], max: -1}}
+  - {id: ev.weighty, title: weight from the instance, csf: GV.OV, check: automated, weight: 1, source: {type: findings, check_in: [nothing]}}
+"""
+    extra = SC_HEAD + """dimension: {id: ev, order: 1, title: Evaluators, pillars: [software]}
+controls:
+  - {id: ev.replaced, title: organisation version, csf: GV.OV, check: automated, weight: 1, source: {type: findings, check_in: [nothing]}}
+"""
+    prom = f"""# HELP security_collector_last_run_timestamp_seconds Heartbeat
+# TYPE security_collector_last_run_timestamp_seconds gauge
+security_collector_last_run_timestamp_seconds{{collector="host"}} {now - 3600}
+security_collector_last_run_timestamp_seconds{{collector="k8s"}} {now - 200000}
+security_sli{{sli="a"}} 1.5
+security_sli{{sli="b"}} 2
+security_score_overall 100
+"""
+    def f(asset, check, sev="medium", kind="compliance", layer="host", **kw):
+        return finding(asset, check, layer=layer, severity=sev, kind=kind, **kw)
+    entries = [entry(f("host:h1", "ssh.root_login")), entry(f("host:h2", "ssh.password_auth_enabled")),
+               entry(f("host:h1", "tls.weak", layer="network"), status="accepted"),
+               entry(f("host:h3", "host.crit", sev="critical"), status="fixed"),
+               entry(f("image:x", "CVE-1", kind="vulnerability", layer="image", attributes={"kev": True}))]
+    inst = sc_inst(catalog_dirs=["{sandbox}/catalog", "{sandbox}/catalog-org"], vars={"site": "h2"},
+                   overrides={"ev.weighty": {"weight": 4}})
+    host_doc = doc("host", [], [ok("host:h1"), gap("host:h9")], finished="2030-01-09T00:00:00Z")
+    st = lambda **kw: {"json": dict(kw)}
+    expect = {
+        "ev.metric-age": ("pass", "security_collector_last_run_timestamp_seconds age 1.0h (<= 2h)"),
+        "ev.metric-old": ("fail", "security_collector_last_run_timestamp_seconds age 2.3d (<= 1d)"),
+        "ev.metric-count": ("pass", "count(security_collector_last_run_timestamp_seconds) = 2 (>= 2)"),
+        "ev.metric-sum": ("pass", "sum(security_sli) = 3.5 (< 4)"),
+        "ev.metric-absent": ("unknown", "metric nope absent"),
+        "ev.metric-absent-ok": ("pass", "metric nope absent"),
+        "ev.metric-own": ("fail", "metric security_score_overall absent"),
+        "ev.job-ok": ("pass", "1 job(s) healthy"),
+        "ev.job-rc": ("fail", "broken: last run failed (rc=2)"),
+        "ev.job-site": ("fail", "remote: no success within 2d"),
+        "ev.job-all": ("fail", "broken: last run failed (rc=2); remote: no success within 2d"),
+        "ev.job-ghost": ("fail", "ghost: never ran"),
+        "ev.fresh": ("pass", "1 collector(s) fresh"),
+        "ev.fresh-all": ("fail", "k8s: last good run 40.0d ago"),
+        "ev.find-prefix": ("fail", "2 matching finding(s) (max 1): ssh.password_auth_enabled, ssh.root_login"),
+        "ev.find-sev": ("pass", "0 matching finding(s) (max 0)"),
+        "ev.find-status": ("fail", "1 matching finding(s) (max 0): tls.weak"),
+        "ev.find-asset": ("fail", "1 matching finding(s) (max 0): ssh.password_auth_enabled"),
+        "ev.find-kind": ("fail", "1 matching finding(s) (max 0): CVE-1"),
+        "ev.find-cov": ("fail", "3 matching finding(s) (max 0): CVE-1, ssh.password_auth_enabled, ssh.root_login"),
+        "ev.find-nocov": ("unknown", "nothing covered k8s:* (adapter not configured or failing)"),
+        "ev.var-missing": ("unknown", "configure scorecard.vars: nope"),
+        "ev.file-ok": ("pass", None),
+        "ev.file-mode": ("fail", None),
+        "ev.file-text": ("fail", None),
+        "ev.file-missing": ("fail", None),
+        "ev.all-unknown": ("unknown", "SLI gone not computed yet"),
+        "ev.all-fail": ("fail", "not implemented yet"),
+        "ev.any-pass": ("pass", "0 matching finding(s) (max 0)"),
+        "ev.any-unknown": ("unknown", "SLI a not computed yet; SLI b not computed yet"),
+        "ev.first-known": ("fail", "0 matching finding(s) (max -1)"),
+        "ev.none": ("not_implemented", "needs a restore drill"),
+        "ev.bogus": ("unknown", "unknown source type 'bogus'"),
+        "ev.bad-builtin": ("unknown", "evaluator error: ValueError: unknown builtin 'nothing'"),
+        "ev.pillars": ("fail", "no passing automated control for: network, device, people"),
+        "ev.functions": ("fail", None),
+        "ev.current": ("pass", "0 attested controls, none expired"),
+        "ev.replaced": ("pass", None),
+        "ev.weighty": ("pass", None),
+    }
+    ctls = []
+    for cid, (s, d) in expect.items():
+        x = {"id": cid, "status": s}
+        if d is not None:
+            x["detail"] = d
+        ctls.append(x)
+    ctls.append({"id": "ev.replaced", "title": "organisation version"})
+    ctls.append({"id": "ev.weighty", "weight": 4})
+    write_case("scorecard", "evaluators", {
+        "title": "Every evaluator type (metric incl. age/agg/match/absent and the scorecard's own series ignored, job incl. "
+                 "site states, collector_fresh, findings selectors with require_collector/require_coverage/status_in, "
+                 "file, all/any/first_known, builtin, none), ${var} substitution, a later catalog directory replacing a "
+                 "control, an instance override, details as specified",
+        "contract": C, "origin": "tests/test_scorecard.py::test_evaluators",
+        "files": {"catalog/01-ev.yaml": "catalog/01-ev.yaml", "catalog-org/01-ev.yaml": "catalog-org/01-ev.yaml",
+                  "instance.json": "instance.json", "data/ledger.json": "ledger.json",
+                  "data/metrics/security-platform.prom": "security-platform.prom",
+                  "data/latest/host.findings.json": "host.findings.json",
+                  "data/state/runner/scan.json": st(last_success=now - 3600, last_rc=0),
+                  "data/state/runner/broken.json": st(last_success=now - 3600, last_rc=2),
+                  "data/state/runner/sinks.json": st(failing=True),
+                  "data/state/sites/site-1.json": st(jobs={"remote": {"last_success": now - 10 * 86400, "last_rc": 0},
+                                                           "scan": {"last_success": 1, "last_rc": 1}}),
+                  "data/policy.md": {"text": "# Policy\n\n## Scope\n\nEverything.\n", "mode": "0644"}},
+        "steps": [compute(NOW, [SC({"controls": {"$contains": ctls}}),
+                                {"exists": "data/reports/scorecard.md"}])]},
+        {"catalog/01-ev.yaml": cat, "catalog-org/01-ev.yaml": extra, "instance.json": inst,
+         "security-platform.prom": prom, "host.findings.json": host_doc,
+         "ledger.json": sc_ledger(entries=entries, collectors={
+             "host": {"version": "1.0.0", "last_good_run": "2030-01-09T00:00:00Z"},
+             "k8s": {"version": "1.0.0", "last_good_run": "2029-12-01T00:00:00Z"}})})
+
+    write_case("scorecard", "catalog-errors", {
+        "title": "A catalog file without the catalog schema is a configuration error: non-zero exit, no report",
+        "contract": C, "origin": "tests/test_scorecard.py::test_catalog_schema_required",
+        "files": {"catalog/01-x.yaml": {"text": "schema: something/else\ndimension: {id: x, order: 1, title: X}\n"},
+                  "instance.json": {"json": sc_inst()}, "data/ledger.json": {"json": sc_ledger()}},
+        "steps": [dict(compute(NOW, [{"absent": "data/reports/scorecard.json"}]), exit={"not": 0})]})
 
 
 # ==================================================================================================================

@@ -1,0 +1,239 @@
+{
+ "component": "scorecard",
+ "title": "Instance scope: not_applicable by exact id, glob (?, [..]) and tag: (the first matching entry gives the reason), overrides.<id>.disabled, and unconfigured_collectors: not_applicable for controls that need a collector this instance never ran (nested sources too; a control a human can attest is never excluded; a non-collector job does not count); the default `unknown` counts them as failing",
+ "contract": "scorecard/1.1",
+ "origin": "tests/test_scorecard.py::test_opt_outs_are_not_applicable, test_unconfigured_collectors",
+ "files": {
+  "catalog/01-scope.yaml": "catalog/01-scope.yaml",
+  "instance.yaml": "instance-na.yaml",
+  "data/ledger.json": "ledger.json"
+ },
+ "steps": [
+  {
+   "name": "compute at 2030-01-10T00:00:00Z",
+   "exec": {
+    "impl": "scorecard",
+    "args": [
+     "compute",
+     "--data",
+     "{sandbox}/data",
+     "--instance",
+     "{sandbox}/instance.yaml",
+     "--now",
+     "1894233600"
+    ]
+   },
+   "expect": [
+    {
+     "json": "data/reports/scorecard.json",
+     "schema": "scorecard",
+     "subset": {
+      "status": "FAIL",
+      "dimensions": {
+       "scope": {
+        "score": 60.0,
+        "weight_total": 5,
+        "weight_passed": 3,
+        "controls": 14,
+        "failing": [
+         "scope.col-fallback",
+         "scope.col-job"
+        ]
+       }
+      },
+      "controls": {
+       "$contains": [
+        {
+         "id": "scope.exact",
+         "status": "na",
+         "detail": {
+          "$regex": "\\(scope\\.exact\\): an exact id$"
+         }
+        },
+        {
+         "id": "scope.glob-a",
+         "status": "na",
+         "detail": {
+          "$regex": "one character$"
+         }
+        },
+        {
+         "id": "scope.glob-b",
+         "status": "na",
+         "detail": {
+          "$regex": "one character$"
+         }
+        },
+        {
+         "id": "scope.bracket1",
+         "status": "na",
+         "detail": {
+          "$regex": "a character class$"
+         }
+        },
+        {
+         "id": "scope.tagged",
+         "status": "na",
+         "detail": {
+          "$regex": "\\(tag:ai-agent\\): no AI coding agents in use$"
+         }
+        },
+        {
+         "id": "scope.disabled",
+         "status": "na",
+         "detail": "not applicable: disabled by the instance: replaced by a manual check"
+        },
+        {
+         "id": "scope.disabled-flag",
+         "status": "na",
+         "detail": "not applicable: disabled by the instance"
+        },
+        {
+         "id": "scope.needs-col",
+         "status": "na",
+         "detail": "not applicable: collector not configured: k8s"
+        },
+        {
+         "id": "scope.nested-col",
+         "status": "na",
+         "detail": "not applicable: collector not configured: cloud, identity"
+        },
+        {
+         "id": "scope.col-fallback",
+         "status": "unattested",
+         "attestable": true
+        },
+        {
+         "id": "scope.col-job",
+         "status": "unknown",
+         "detail": {
+          "$regex": "vuln: never covered anything"
+         }
+        },
+        {
+         "id": "scope.col-ledger",
+         "status": "pass"
+        },
+        {
+         "id": "scope.star",
+         "status": "pass",
+         "detail": "0 matching finding(s) (max 0)"
+        },
+        {
+         "id": "scope.plain",
+         "status": "pass",
+         "detail": "0 matching finding(s) (max 0)"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "prom": "data/metrics/scorecard.prom",
+     "has": [
+      {
+       "name": "security_score_controls",
+       "labels": {
+        "dimension": "scope",
+        "status": "na"
+       },
+       "value": 9
+      },
+      {
+       "name": "security_score_controls",
+       "labels": {
+        "dimension": "scope",
+        "status": "fail"
+       },
+       "value": 2
+      },
+      {
+       "name": "security_score_controls",
+       "labels": {
+        "dimension": "scope",
+        "status": "pass"
+       },
+       "value": 3
+      }
+     ]
+    },
+    {
+     "file": "data/reports/scorecard.json",
+     "regex": [
+      "\"score\": 60\\.0,"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "default unconfigured_collectors: unknown (no data is not secure)",
+   "exec": {
+    "impl": "scorecard",
+    "args": [
+     "compute",
+     "--data",
+     "{sandbox}/data",
+     "--instance",
+     "{sandbox}/instance.yaml",
+     "--now",
+     "1894233600"
+    ]
+   },
+   "expect": [
+    {
+     "json": "data/reports/scorecard.json",
+     "schema": "scorecard",
+     "subset": {
+      "dimensions": {
+       "scope": {
+        "score": 42.9,
+        "weight_total": 7,
+        "weight_passed": 3
+       }
+      },
+      "controls": {
+       "$contains": [
+        {
+         "id": "scope.needs-col",
+         "status": "unknown",
+         "detail": {
+          "$regex": "^no recent coverage \\(k8s: never"
+         }
+        },
+        {
+         "id": "scope.nested-col",
+         "status": "unknown"
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "files": {
+    "instance.yaml": "instance-unknown.yaml"
+   }
+  },
+  {
+   "name": "unconfigured_collectors must be unknown or not_applicable",
+   "exec": {
+    "impl": "scorecard",
+    "args": [
+     "compute",
+     "--data",
+     "{sandbox}/data",
+     "--instance",
+     "{sandbox}/instance.yaml",
+     "--now",
+     "1894233600"
+    ]
+   },
+   "expect": [],
+   "files": {
+    "instance.yaml": "instance-bad.yaml"
+   },
+   "exit": {
+    "not": 0
+   }
+  }
+ ]
+}

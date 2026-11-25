@@ -16,7 +16,7 @@ Components are versioned independently (docs/design.md §5). Entries name the co
   stopped, files private to the user (umask 077), `runner.implementations` to choose each component's program.
   The Python runner is unchanged and stays the default trigger; switching and switching back is one line
   (docs/runner.md "The Go runner"). Soak: `bench/runner_soak.py` (three simulated days, a two-hour downtime, both
-  runners on the same inputs, every difference classified). Dependency: `go.yaml.in/yaml/v3` (docs/go.md).
+  runners on the same inputs, every difference classified). YAML through the scorecard's `pyvalue` (the same module and typing).
 - **runner**: the usage text says what the program does: jobs are positional, `run` without jobs runs all (RUNNER-D3
   fixed).
 - **cli 0.3.1**: `sp status` marks a job `LATE` when a scheduled slot passed without a run (CLI-D1 fixed: after
@@ -24,6 +24,20 @@ Components are versioned independently (docs/design.md §5). Entries name the co
 - **contracts**: runner 1.1 (§3.1 daylight saving time, missed/pending slots, the job environment, `env_passthrough`,
   `implementations`; RUNNER-D4…D8 recorded, with conformance cases `runner/dst-*` in Europe/Berlin and
   `runner/job-environment-allow-list`); CLI-D1 closed.
+- **scorecard 0.5.0 — Go implementation** (`sp scorecard compute|lint|list|version`, `internal/scorecard`): the
+  first component with a Go implementation next to the Python one. It reads the same catalog, instance, ledger,
+  metrics, job states and attestations and writes the same `scorecard.json`, `scorecard.md`, `scorecard.prom` and
+  regression state **byte for byte** (checked on every conformance case and on 10k-finding data from
+  `bench/scale.py` with the product catalog); `sp scorecard attest` hands the command to `scorecard/scorecard.py`.
+  The runner still calls the Python implementation; switching is the runner's per-component choice. YAML is read with
+  `go.yaml.in/yaml/v3` v3.0.6, the module's first dependency (docs/go.md, "Dependencies in use").
+- **contract scorecard 1.1**: §6 fixes what implementations must agree on bit for bit — YAML 1.1 typing, dates
+  (UTC), sums (integers exact, floats with Neumaier compensation), rounding (half to even on the exact binary value:
+  6.25 → 6.2), number printing in the report and the metrics, evaluator error details. New known deviations
+  SCORECARD-D1 (dates read as local time: an expiry is an hour early under daylight saving time) and SCORECARD-D2
+  (site job states in directory order). 9 more conformance cases (13): not applicable by id, glob, tag and
+  unconfigured collector, weights and rounding, weakest link, pillars and CSF functions, attestation states, SLI
+  objectives, regression counters over several computes, the cloud dimension, every evaluator type, catalog errors.
 - **contracts 1.x** (new, documentation of existing behaviour; no component changed): `contracts/` defines every
   component boundary language-neutrally — findings 1.2 (incl. OCSF mapping), collector-protocol 1.0, ledger 1.0
   (merge + remediation tracking), scorecard 1.0, runner 1.0, metrics 1.0 (`registry.json`), cli 1.0 — each with JSON

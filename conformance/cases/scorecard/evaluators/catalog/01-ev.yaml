@@ -1,0 +1,46 @@
+schema: security-platform/scorecard-catalog/v1
+dimension: {id: ev, order: 1, title: Evaluators, pillars: [software]}
+controls:
+  - {id: ev.metric-age, title: Metric age, csf: DE.CM, check: automated, weight: 1,
+     source: {type: metric, name: security_collector_last_run_timestamp_seconds, match: {collector: host}, age: true, value: 2h}}
+  - {id: ev.metric-old, title: Metric too old, csf: DE.CM, check: automated, weight: 1,
+     source: {type: metric, name: security_collector_last_run_timestamp_seconds, match: {collector: "k8.*"}, age: true, value: 1d}}
+  - {id: ev.metric-count, title: Metric count, csf: DE.CM, check: automated, weight: 1,
+     source: {type: metric, name: security_collector_last_run_timestamp_seconds, agg: count, op: ">=", value: 2}}
+  - {id: ev.metric-sum, title: Metric sum, csf: DE.CM, check: automated, weight: 1,
+     source: {type: metric, name: security_sli, agg: sum, op: "<", value: 4}}
+  - {id: ev.metric-absent, title: Metric absent, csf: DE.CM, check: automated, weight: 1, source: {type: metric, name: nope}}
+  - {id: ev.metric-absent-ok, title: Absent is fine, csf: DE.CM, check: automated, weight: 1, source: {type: metric, name: nope, absent: pass}}
+  - {id: ev.metric-own, title: Own scores are ignored, csf: DE.CM, check: automated, weight: 1, source: {type: metric, name: security_score_overall, absent: fail}}
+  - {id: ev.job-ok, title: Job ok, csf: DE.CM, check: automated, weight: 1, source: {type: job, jobs: [scan]}}
+  - {id: ev.job-rc, title: Job failed, csf: DE.CM, check: automated, weight: 1, source: {type: job, jobs: [broken]}}
+  - {id: ev.job-site, title: Site job old, csf: DE.CM, check: automated, weight: 1, source: {type: job, jobs: [remote], max_age: 2d}}
+  - {id: ev.job-all, title: Every job, csf: DE.CM, check: automated, weight: 1, source: {type: job}}
+  - {id: ev.job-ghost, title: Never ran, csf: DE.CM, check: automated, weight: 1, source: {type: job, jobs: ghost}}
+  - {id: ev.fresh, title: Host fresh, csf: DE.CM, check: automated, weight: 1, source: {type: collector_fresh, collectors: [host]}}
+  - {id: ev.fresh-all, title: Every collector fresh, csf: DE.CM, check: automated, weight: 1, source: {type: collector_fresh, max_age: 2d}}
+  - {id: ev.find-prefix, title: ssh findings, csf: PR.PS, check: automated, weight: 1, source: {type: findings, check_prefix: [ssh.], max: 1}}
+  - {id: ev.find-sev, title: critical findings, csf: PR.PS, check: automated, weight: 1, source: {type: findings, severity_in: [critical, high]}}
+  - {id: ev.find-status, title: accepted too, csf: PR.PS, check: automated, weight: 1, source: {type: findings, check_in: [tls.weak], status_in: [open, accepted]}}
+  - {id: ev.find-asset, title: on h2, csf: PR.PS, check: automated, weight: 1, source: {type: findings, asset_contains: "${site}", layer_in: [host]}}
+  - {id: ev.find-kind, title: vulnerabilities, csf: PR.PS, check: automated, weight: 1, source: {type: findings, kind: vulnerability, attr_true: kev}}
+  - {id: ev.find-cov, title: needs host coverage, csf: PR.PS, check: automated, weight: 1, source: {type: findings, require_coverage: "host:", require_collector: host}}
+  - {id: ev.find-nocov, title: needs k8s coverage, csf: PR.PS, check: automated, weight: 1, source: {type: findings, require_coverage: "k8s:"}}
+  - {id: ev.var-missing, title: unset variable, csf: PR.PS, check: automated, weight: 1, source: {type: findings, asset_contains: "${nope}"}}
+  - {id: ev.file-ok, title: policy, csf: GV.PO, check: evidence, weight: 1, source: {type: file, path: "${data}/policy.md", contains: "^## Scope", mode_max: "0644"}}
+  - {id: ev.file-mode, title: secret mode, csf: GV.PO, check: evidence, weight: 1, source: {type: file, path: "${data}/policy.md", mode_max: "0600"}}
+  - {id: ev.file-text, title: lacks text, csf: GV.PO, check: evidence, weight: 1, source: {type: file, path: "${data}/policy.md", contains: "^## Owner"}}
+  - {id: ev.file-missing, title: missing, csf: GV.PO, check: evidence, weight: 1, source: {type: file, path: "${data}/nothing.md"}}
+  - {id: ev.all-unknown, title: all with unknown, csf: ID.AM, check: automated, weight: 1, source: {type: all, of: [{type: findings, check_in: [nothing]}, {type: sli, sli: gone}]}}
+  - {id: ev.all-fail, title: all with none, csf: ID.AM, check: automated, weight: 1, source: {type: all, of: [{type: findings, check_in: [nothing]}, {type: none}]}}
+  - {id: ev.any-pass, title: any, csf: ID.AM, check: automated, weight: 1, source: {type: any, of: [{type: findings, check_in: [nothing], max: -1}, {type: findings, check_in: [nothing]}]}}
+  - {id: ev.any-unknown, title: any unknown, csf: ID.AM, check: automated, weight: 1, source: {type: any, of: [{type: sli, sli: a}, {type: sli, sli: b}]}}
+  - {id: ev.first-known, title: first known, csf: ID.AM, check: automated, weight: 1, source: {type: first_known, of: [{type: sli, sli: gone}, {type: findings, check_in: [nothing], max: -1}, {type: findings, check_in: [nothing]}]}}
+  - {id: ev.none, title: declared, csf: RC.RP, check: automated, weight: 1, source: {type: none, reason: needs a restore drill}}
+  - {id: ev.bogus, title: bogus type, csf: RC.RP, check: automated, weight: 1, source: {type: bogus}}
+  - {id: ev.bad-builtin, title: bad builtin, csf: RC.RP, check: automated, weight: 1, source: {type: builtin, name: nothing}}
+  - {id: ev.pillars, title: pillars covered, csf: GV.OV, check: automated, weight: 1, source: {type: builtin, name: pillars_covered}}
+  - {id: ev.functions, title: functions covered, csf: GV.OV, check: automated, weight: 1, source: {type: builtin, name: functions_covered}}
+  - {id: ev.current, title: attestations current, csf: GV.OV, check: automated, weight: 1, source: {type: builtin, name: attestations_current}}
+  - {id: ev.replaced, title: product version, csf: GV.OV, check: automated, weight: 1, source: {type: findings, check_in: [nothing], max: -1}}
+  - {id: ev.weighty, title: weight from the instance, csf: GV.OV, check: automated, weight: 1, source: {type: findings, check_in: [nothing]}}

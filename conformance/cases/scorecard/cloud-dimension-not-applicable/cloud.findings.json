@@ -1,0 +1,20 @@
+{
+ "collector": {
+  "name": "cloud",
+  "version": "1.0.0"
+ },
+ "coverage": [
+  {
+   "asset": "cloud:gcp/project-1",
+   "reason": "no credentials",
+   "status": "gap"
+  }
+ ],
+ "findings": [],
+ "run": {
+  "finished_at": "2030-01-09T00:00:00Z",
+  "instance": "conformance",
+  "started_at": "2030-01-09T00:00:00Z"
+ },
+ "schema_version": "1.2"
+}

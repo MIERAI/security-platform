@@ -35,7 +35,7 @@
    ]
   },
   "scorecard": {
-   "version": "1.0",
+   "version": "1.1",
    "spec": "scorecard/SPEC.md",
    "schemas": [
     "scorecard/scorecard-v1.schema.json",
@@ -96,6 +96,8 @@
   "RUNNER-D7": "runner/job-environment-allow-list",
   "RUNNER-D8": null,
   "COLLECTOR-D1": null,
-  "METRICS-D1": null
+  "METRICS-D1": null,
+  "SCORECARD-D1": "scorecard/attestation-expiry-is-utc",
+  "SCORECARD-D2": null
  }
 }

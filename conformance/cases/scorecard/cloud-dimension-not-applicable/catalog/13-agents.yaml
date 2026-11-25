@@ -1,0 +1,4 @@
+schema: security-platform/scorecard-catalog/v1
+dimension: {id: agents, order: 13, title: Agents, pillars: [software]}
+controls:
+  - {id: agents.deny, title: Deny rules, csf: PR.PS, check: automated, weight: 1, tags: [ai-agent], source: {type: findings}}

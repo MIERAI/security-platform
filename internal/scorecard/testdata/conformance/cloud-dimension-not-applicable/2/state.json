@@ -1,0 +1,10 @@
+{
+ "below": {
+  "base": false,
+  "cloud": false
+ },
+ "regressions_total": {
+  "base": 0,
+  "cloud": 0
+ }
+}

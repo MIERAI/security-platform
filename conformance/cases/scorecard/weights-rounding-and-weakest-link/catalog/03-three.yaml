@@ -1,0 +1,6 @@
+schema: security-platform/scorecard-catalog/v1
+dimension: {id: three, order: 3, title: Three, pillars: [software], threshold: 80}
+controls:
+  - {id: three.a, title: A, csf: DE.CM, check: automated, weight: 2.5, source: {type: findings}}
+  - {id: three.b, title: B, csf: RS.MA, check: automated, weight: 0.5, source: {type: findings, max: -1}}
+  - {id: three.c, title: Declared only, csf: DE.AE, check: evidence, weight: 0, source: {type: none, reason: later}}

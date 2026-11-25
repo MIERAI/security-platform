@@ -1,0 +1,39 @@
+# HELP security_score Security scorecard: weighted pass ratio of the controls (0-100); the weakest dimension decides
+# TYPE security_score gauge
+security_score{dimension="ev"} 35.7
+security_score{pillar="network"} 0
+security_score{pillar="device"} 0
+security_score{pillar="people"} 0
+security_score{pillar="software"} 35.7
+security_score{function="GV"} 58.3
+security_score{function="ID"} 20
+security_score{function="PR"} 12.5
+security_score{function="DE"} 42.9
+security_score{function="RC"} 0
+security_score{dimension="ev",pillar="software"} 35.7
+# HELP security_score_overall Overall score = the weakest dimension's score
+# TYPE security_score_overall gauge
+security_score_overall 35.7
+# HELP security_score_threshold A dimension below this fails the scorecard
+# TYPE security_score_threshold gauge
+security_score_threshold 75
+# HELP security_score_pass 1 while every dimension meets its threshold
+# TYPE security_score_pass gauge
+security_score_pass 0
+# HELP security_score_controls Controls per dimension and result (details in the private scorecard report)
+# TYPE security_score_controls gauge
+security_score_controls{dimension="ev",status="pass"} 12
+security_score_controls{dimension="ev",status="fail"} 27
+security_score_controls{dimension="ev",status="na"} 0
+# HELP security_score_regressions_total Times the dimension dropped below its threshold (counter; the alert fires on increases)
+# TYPE security_score_regressions_total counter
+security_score_regressions_total{dimension="ev"} 0
+# HELP security_attestations Attested (human) controls by state; expired ones fail again
+# TYPE security_attestations gauge
+security_attestations{state="valid"} 0
+security_attestations{state="expiring"} 0
+security_attestations{state="expired"} 0
+security_attestations{state="missing"} 0
+# HELP security_scorecard_last_compute_timestamp_seconds When the scorecard was last computed
+# TYPE security_scorecard_last_compute_timestamp_seconds gauge
+security_scorecard_last_compute_timestamp_seconds 1894233600

@@ -12,3 +12,4 @@ runner/dst-fall-back-runs-once           RUNNER-D5  a repeated wall-clock time f
 runner/dst-catch-up-across-spring-forward RUNNER-D6 day jump assumes 24-hour days: previous week's slot
 runner/job-environment-allow-list        RUNNER-D7  jobs inherit the runner's whole environment
 ledger/removed-exception-reopens         LEDGER-D5  an exception deleted by a human leaves the finding accepted
+scorecard/attestation-expiry-is-utc       SCORECARD-D1  dates parsed as local time: an expiry is an hour early under DST

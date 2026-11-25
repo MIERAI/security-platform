@@ -1,0 +1,277 @@
+{
+ "component": "scorecard",
+ "title": "Every evaluator type (metric incl. age/agg/match/absent and the scorecard's own series ignored, job incl. site states, collector_fresh, findings selectors with require_collector/require_coverage/status_in, file, all/any/first_known, builtin, none), ${var} substitution, a later catalog directory replacing a control, an instance override, details as specified",
+ "contract": "scorecard/1.1",
+ "origin": "tests/test_scorecard.py::test_evaluators",
+ "files": {
+  "catalog/01-ev.yaml": "catalog/01-ev.yaml",
+  "catalog-org/01-ev.yaml": "catalog-org/01-ev.yaml",
+  "instance.json": "instance.json",
+  "data/ledger.json": "ledger.json",
+  "data/metrics/security-platform.prom": "security-platform.prom",
+  "data/latest/host.findings.json": "host.findings.json",
+  "data/state/runner/scan.json": {
+   "json": {
+    "last_success": 1894230000,
+    "last_rc": 0
+   }
+  },
+  "data/state/runner/broken.json": {
+   "json": {
+    "last_success": 1894230000,
+    "last_rc": 2
+   }
+  },
+  "data/state/runner/sinks.json": {
+   "json": {
+    "failing": true
+   }
+  },
+  "data/state/sites/site-1.json": {
+   "json": {
+    "jobs": {
+     "remote": {
+      "last_success": 1893369600,
+      "last_rc": 0
+     },
+     "scan": {
+      "last_success": 1,
+      "last_rc": 1
+     }
+    }
+   }
+  },
+  "data/policy.md": {
+   "text": "# Policy\n\n## Scope\n\nEverything.\n",
+   "mode": "0644"
+  }
+ },
+ "steps": [
+  {
+   "name": "compute at 2030-01-10T00:00:00Z",
+   "exec": {
+    "impl": "scorecard",
+    "args": [
+     "compute",
+     "--data",
+     "{sandbox}/data",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--now",
+     "1894233600"
+    ]
+   },
+   "expect": [
+    {
+     "json": "data/reports/scorecard.json",
+     "schema": "scorecard",
+     "subset": {
+      "controls": {
+       "$contains": [
+        {
+         "id": "ev.metric-age",
+         "status": "pass",
+         "detail": "security_collector_last_run_timestamp_seconds age 1.0h (<= 2h)"
+        },
+        {
+         "id": "ev.metric-old",
+         "status": "fail",
+         "detail": "security_collector_last_run_timestamp_seconds age 2.3d (<= 1d)"
+        },
+        {
+         "id": "ev.metric-count",
+         "status": "pass",
+         "detail": "count(security_collector_last_run_timestamp_seconds) = 2 (>= 2)"
+        },
+        {
+         "id": "ev.metric-sum",
+         "status": "pass",
+         "detail": "sum(security_sli) = 3.5 (< 4)"
+        },
+        {
+         "id": "ev.metric-absent",
+         "status": "unknown",
+         "detail": "metric nope absent"
+        },
+        {
+         "id": "ev.metric-absent-ok",
+         "status": "pass",
+         "detail": "metric nope absent"
+        },
+        {
+         "id": "ev.metric-own",
+         "status": "fail",
+         "detail": "metric security_score_overall absent"
+        },
+        {
+         "id": "ev.job-ok",
+         "status": "pass",
+         "detail": "1 job(s) healthy"
+        },
+        {
+         "id": "ev.job-rc",
+         "status": "fail",
+         "detail": "broken: last run failed (rc=2)"
+        },
+        {
+         "id": "ev.job-site",
+         "status": "fail",
+         "detail": "remote: no success within 2d"
+        },
+        {
+         "id": "ev.job-all",
+         "status": "fail",
+         "detail": "broken: last run failed (rc=2); remote: no success within 2d"
+        },
+        {
+         "id": "ev.job-ghost",
+         "status": "fail",
+         "detail": "ghost: never ran"
+        },
+        {
+         "id": "ev.fresh",
+         "status": "pass",
+         "detail": "1 collector(s) fresh"
+        },
+        {
+         "id": "ev.fresh-all",
+         "status": "fail",
+         "detail": "k8s: last good run 40.0d ago"
+        },
+        {
+         "id": "ev.find-prefix",
+         "status": "fail",
+         "detail": "2 matching finding(s) (max 1): ssh.password_auth_enabled, ssh.root_login"
+        },
+        {
+         "id": "ev.find-sev",
+         "status": "pass",
+         "detail": "0 matching finding(s) (max 0)"
+        },
+        {
+         "id": "ev.find-status",
+         "status": "fail",
+         "detail": "1 matching finding(s) (max 0): tls.weak"
+        },
+        {
+         "id": "ev.find-asset",
+         "status": "fail",
+         "detail": "1 matching finding(s) (max 0): ssh.password_auth_enabled"
+        },
+        {
+         "id": "ev.find-kind",
+         "status": "fail",
+         "detail": "1 matching finding(s) (max 0): CVE-1"
+        },
+        {
+         "id": "ev.find-cov",
+         "status": "fail",
+         "detail": "3 matching finding(s) (max 0): CVE-1, ssh.password_auth_enabled, ssh.root_login"
+        },
+        {
+         "id": "ev.find-nocov",
+         "status": "unknown",
+         "detail": "nothing covered k8s:* (adapter not configured or failing)"
+        },
+        {
+         "id": "ev.var-missing",
+         "status": "unknown",
+         "detail": "configure scorecard.vars: nope"
+        },
+        {
+         "id": "ev.file-ok",
+         "status": "pass"
+        },
+        {
+         "id": "ev.file-mode",
+         "status": "fail"
+        },
+        {
+         "id": "ev.file-text",
+         "status": "fail"
+        },
+        {
+         "id": "ev.file-missing",
+         "status": "fail"
+        },
+        {
+         "id": "ev.all-unknown",
+         "status": "unknown",
+         "detail": "SLI gone not computed yet"
+        },
+        {
+         "id": "ev.all-fail",
+         "status": "fail",
+         "detail": "not implemented yet"
+        },
+        {
+         "id": "ev.any-pass",
+         "status": "pass",
+         "detail": "0 matching finding(s) (max 0)"
+        },
+        {
+         "id": "ev.any-unknown",
+         "status": "unknown",
+         "detail": "SLI a not computed yet; SLI b not computed yet"
+        },
+        {
+         "id": "ev.first-known",
+         "status": "fail",
+         "detail": "0 matching finding(s) (max -1)"
+        },
+        {
+         "id": "ev.none",
+         "status": "not_implemented",
+         "detail": "needs a restore drill"
+        },
+        {
+         "id": "ev.bogus",
+         "status": "unknown",
+         "detail": "unknown source type 'bogus'"
+        },
+        {
+         "id": "ev.bad-builtin",
+         "status": "unknown",
+         "detail": "evaluator error: ValueError: unknown builtin 'nothing'"
+        },
+        {
+         "id": "ev.pillars",
+         "status": "fail",
+         "detail": "no passing automated control for: network, device, people"
+        },
+        {
+         "id": "ev.functions",
+         "status": "fail"
+        },
+        {
+         "id": "ev.current",
+         "status": "pass",
+         "detail": "0 attested controls, none expired"
+        },
+        {
+         "id": "ev.replaced",
+         "status": "pass"
+        },
+        {
+         "id": "ev.weighty",
+         "status": "pass"
+        },
+        {
+         "id": "ev.replaced",
+         "title": "organisation version"
+        },
+        {
+         "id": "ev.weighty",
+         "weight": 4
+        }
+       ]
+      }
+     }
+    },
+    {
+     "exists": "data/reports/scorecard.md"
+    }
+   ]
+  }
+ ]
+}

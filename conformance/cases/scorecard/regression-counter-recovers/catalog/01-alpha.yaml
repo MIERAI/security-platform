@@ -1,0 +1,4 @@
+schema: security-platform/scorecard-catalog/v1
+dimension: {id: alpha, order: 1, title: Alpha, pillars: [device]}
+controls:
+  - {id: alpha.ok, title: Ok, csf: PR.PS, check: automated, weight: 1, source: {type: findings, severity_in: [critical]}}

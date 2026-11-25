@@ -1,0 +1,218 @@
+{
+ "component": "scorecard",
+ "title": "Weighted pass ratio rounded to one decimal, ties to even on the exact binary value (1/16 = 6.25 -> 6.2, 3/16 = 18.75 -> 18.8); float weights; weight 0; per-dimension threshold; overall = the minimum, weakest = the first dimension (in catalog order) with it; mean; pillars (instance list, an empty pillar scores 0 and fails), NIST CSF functions (all six, an empty one scores 0 and has no metric), dimension x pillar; numbers printed as the contract says",
+ "contract": "scorecard/1.1",
+ "origin": "tests/test_scorecard.py::test_weakest_link_and_weights",
+ "files": {
+  "catalog/01-one.yaml": "catalog/01-one.yaml",
+  "catalog/02-two.yaml": "catalog/02-two.yaml",
+  "catalog/03-three.yaml": "catalog/03-three.yaml",
+  "catalog/05-five.yaml": "catalog/05-five.yaml",
+  "instance.json": "instance.json",
+  "data/ledger.json": "ledger.json"
+ },
+ "steps": [
+  {
+   "name": "compute at 2030-01-10T00:00:00Z",
+   "exec": {
+    "impl": "scorecard",
+    "args": [
+     "compute",
+     "--data",
+     "{sandbox}/data",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--now",
+     "1894233600"
+    ]
+   },
+   "expect": [
+    {
+     "json": "data/reports/scorecard.json",
+     "schema": "scorecard",
+     "subset": {
+      "threshold": 75.5,
+      "status": "FAIL",
+      "overall": 6.2,
+      "weakest": "one",
+      "mean": 28.6,
+      "dimensions": {
+       "one": {
+        "score": 6.2,
+        "status": "FAIL",
+        "weight_total": 16,
+        "weight_passed": 1,
+        "threshold": 75.5,
+        "pillars": [
+         "device",
+         "network"
+        ],
+        "functions": [
+         "GV",
+         "ID"
+        ]
+       },
+       "two": {
+        "score": 18.8,
+        "status": "FAIL",
+        "weight_total": 16,
+        "weight_passed": 3
+       },
+       "three": {
+        "score": 83.3,
+        "status": "PASS",
+        "threshold": 80.0,
+        "weight_total": 3.0,
+        "weight_passed": 2.5,
+        "failing": [
+         "three.b",
+         "three.c"
+        ],
+        "controls": 3
+       },
+       "five": {
+        "score": 6.2,
+        "status": "FAIL"
+       }
+      },
+      "pillars": {
+       "network": {
+        "score": 6.2,
+        "controls": 2,
+        "status": "FAIL"
+       },
+       "device": {
+        "score": 9.7,
+        "controls": 3
+       },
+       "people": {
+        "score": 6.2,
+        "controls": 2
+       },
+       "software": {
+        "score": 83.3,
+        "controls": 3,
+        "status": "PASS"
+       },
+       "physical": {
+        "score": 0.0,
+        "controls": 0,
+        "status": "FAIL",
+        "failing": []
+       }
+      },
+      "functions": {
+       "GV": {
+        "title": "Govern",
+        "score": 100.0,
+        "controls": 2
+       },
+       "ID": {
+        "score": 0.0,
+        "controls": 2
+       },
+       "PR": {
+        "score": 18.8,
+        "controls": 2
+       },
+       "DE": {
+        "score": 100.0,
+        "controls": 2
+       },
+       "RS": {
+        "score": 0.0,
+        "controls": 1
+       },
+       "RC": {
+        "title": "Recover",
+        "score": 0.0,
+        "controls": 0
+       }
+      },
+      "dimension_pillar": {
+       "one|network": 6.2,
+       "one|device": 0.0,
+       "two|device": 18.8,
+       "three|software": 83.3,
+       "five|people": 6.2,
+       "one|people": {
+        "$absent": true
+       }
+      },
+      "controls": {
+       "$contains": [
+        {
+         "id": "three.c",
+         "status": "not_implemented",
+         "detail": "later",
+         "weight": 0
+        },
+        {
+         "id": "five.a",
+         "pillars": [
+          "people"
+         ],
+         "function": "GV",
+         "csf": "GV.RR"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "file": "data/reports/scorecard.json",
+     "regex": [
+      "\"score\": 6\\.2,",
+      "\"score\": 18\\.8,",
+      "\"weight_total\": 3\\.0\\n",
+      "\"weight_passed\": 2\\.5,",
+      "\"weight_total\": 16\\n",
+      "\"mean\": 28\\.6,",
+      "\"threshold\": 75\\.5,",
+      "\"threshold\": 80\\.0,"
+     ]
+    },
+    {
+     "file": "data/metrics/scorecard.prom",
+     "regex": [
+      "(?m)^security_score\\{dimension=\"one\"\\} 6\\.2$",
+      "(?m)^security_score\\{dimension=\"two\"\\} 18\\.8$",
+      "(?m)^security_score\\{function=\"GV\"\\} 100$",
+      "(?m)^security_score_threshold 75\\.5$",
+      "(?m)^security_score_overall 6\\.2$",
+      "(?m)^security_score\\{dimension=\"one\",pillar=\"device\"\\} 0$",
+      "(?m)^security_score_pass 0$"
+     ]
+    },
+    {
+     "prom": "data/metrics/scorecard.prom",
+     "absent": [
+      {
+       "name": "security_score",
+       "labels": {
+        "function": "RC"
+       }
+      }
+     ],
+     "has": [
+      {
+       "name": "security_score",
+       "labels": {
+        "pillar": "physical"
+       },
+       "value": 0
+      },
+      {
+       "name": "security_score",
+       "labels": {
+        "dimension": "three",
+        "pillar": "software"
+       },
+       "value": 83.3
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}
