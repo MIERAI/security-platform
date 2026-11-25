@@ -9,7 +9,8 @@
 # permissions (read-only expected; an over-privileged identity is a finding and is refused), runs THREE engines
 # (Prowler, Steampipe, ScoutSuite) plus a Security Hub export against the same account into ONE ledger without double counting, classifies
 # findings into the four pillars, closes findings when the resources are fixed (next covered run), records every
-# failure (expired token, wrong audience, missing role, denied impersonation, unknown app) as a coverage gap with its
+# failure (expired token, wrong audience, missing role, denied impersonation, unknown app; GCP ADC missing / revoked /
+# a key file / denied / missing service account) as a coverage gap with its
 # reason, writes no credential to disk, and the scorecard's cloud dimension is applicable here and N/A without cloud.
 # What it does NOT prove: see docs/cloud.md "What is validated where" (LocalStack does not enforce IAM; the GCP/Azure
 # endpoints are our mocks; GCP/Azure scans use contract fixtures).
@@ -109,6 +110,9 @@ scan 2
 
 say "6. failure modes: every one is a coverage gap with its reason (never 'no findings')"
 "$PY" -I "$HERE/assert_cloud.py" failures "$WORK" "$PY" "$ROOT"
+
+say "6b. GCP with the operator's ADC (source adc): impersonated service account, evidence, discovery gcp"
+"$PY" -I "$HERE/assert_cloud.py" adc "$WORK" "$ROOT"
 
 say "7. scorecard: the cloud dimension applies here; without cloud it is N/A and the overall score is unchanged"
 "$PY" -I "$HERE/assert_cloud.py" scorecard "$WORK" "$PY" "$ROOT"
