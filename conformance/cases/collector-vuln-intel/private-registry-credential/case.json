@@ -1,0 +1,140 @@
+{
+ "component": "collector-vuln-intel",
+ "title": "A read-only registry credential from a 0600 token file reaches trivy in its environment only (never an argument, a log or an output); a token file readable by others is refused (gap); a private image without a credential is a gap that says so",
+ "contract": "collector-protocol/1.0 / findings/1.2",
+ "origin": "docs/threat-model.md (registry token); collectors/vuln-intel/collector.py registry_env",
+ "files": {
+  "instance.json": "instance.json",
+  "data/.keep": {
+   "text": ""
+  },
+  "fake_trivy.json": "trivy.json",
+  "bin/trivy": {
+   "text": "#!/bin/sh\nexec \"{python}\" \"{case}/fake_trivy.py\" \"$@\"\n",
+   "mode": "0755"
+  },
+  "secrets/registry.token": {
+   "text": "registry-conformance-token-5e2a\n",
+   "mode": "0600"
+  },
+  "secrets/loose.token": {
+   "text": "registry-conformance-token-5e2a\n",
+   "mode": "0644"
+  },
+  "data/latest/inventory.k8s-images.json": "inventory.json"
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-vuln-intel",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance",
+     "PATH": "{sandbox}/bin:{path}",
+     "FAKE_TRIVY_DATA": "{sandbox}/fake_trivy.json",
+     "FAKE_TRIVY_LOG": "{sandbox}/.svc-trivy.calls",
+     "https_proxy": "http://127.0.0.1:9",
+     "HTTPS_PROXY": "http://127.0.0.1:9",
+     "http_proxy": "http://127.0.0.1:9",
+     "HTTP_PROXY": "http://127.0.0.1:9",
+     "no_proxy": "",
+     "NO_PROXY": ""
+    },
+    "writes_only_under": [
+     "run",
+     "data/cache",
+     "data/sbom"
+    ]
+   },
+   "expect": [
+    {
+     "json": "run/vuln-intel.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "vuln-intel"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "no_secret": [
+      "registry-conformance-token-5e2a"
+     ],
+     "in": "run"
+    },
+    {
+     "json": "run/vuln-intel.findings.json",
+     "subset": {
+      "coverage": [
+       {
+        "asset": "registry-auth:registry.private.example",
+        "status": "ok"
+       },
+       {
+        "asset": "registry-auth:registry.loose.example",
+        "status": "gap",
+        "reason": {
+         "$regex": "^read-only registry credential unavailable \\(PermissionError\\)"
+        }
+       },
+       {
+        "asset": "inventory:container-image",
+        "status": "ok",
+        "complete_scope": "image:"
+       },
+       {
+        "asset": "image:registry.private.example/app:1",
+        "status": "ok"
+       },
+       {
+        "asset": "image:registry.other.example/app:2",
+        "status": "gap",
+        "reason": {
+         "$regex": "^sbom rc=1 \\(private image: no registry credential configured - coverage gap\\): UNAUTHORIZED"
+        }
+       },
+       {
+        "asset": "image:registry.loose.example/x:1",
+        "status": "gap",
+        "reason": {
+         "$regex": "^sbom rc=1 \\(private image: no registry credential configured - coverage gap\\): UNAUTHORIZED"
+        }
+       }
+      ],
+      "findings": [
+       {
+        "check": "vuln.cve-2099-0001",
+        "asset": "image:registry.private.example/app:1",
+        "severity": "high"
+       }
+      ]
+     }
+    },
+    {
+     "no_secret": [
+      "registry-conformance-token-5e2a"
+     ],
+     "in": ".",
+     "except": [
+      "secrets"
+     ]
+    },
+    {
+     "file": ".svc-trivy.calls",
+     "regex": [
+      "^image .* registry\\.private\\.example/app:1 auth=yes$",
+      "^image .* registry\\.other\\.example/app:2 auth=no$"
+     ]
+    }
+   ]
+  }
+ ]
+}

@@ -1,5 +1,5 @@
 // Package secretsfiles is the `secrets-files` collector (collectors/secrets-files/collector.py in Go,
-// `sp collect secrets-files`): where secrets live, never what they are. It runs the scan program
+// `sp secrets-files collect`): where secrets live, never what they are. It runs the scan program
 // (collectors/secrets-files/remote/scan.py, sent unchanged on standard input to the target's python3) through an exec
 // adapter; the scan prints metadata only — path, kind, permissions, owner, size, age and boolean properties
 // (encrypted, passphrase, embedded key) — and this collector turns that into findings. The collector itself never

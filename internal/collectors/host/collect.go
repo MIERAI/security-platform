@@ -1,4 +1,4 @@
-// Package host is the `host` collector (collectors/host/collector.py in Go, `sp collect host`): host and endpoint
+// Package host is the `host` collector (collectors/host/collector.py in Go, `sp host collect`): host and endpoint
 // hardening, read-only, through an exec adapter and an OS profile. A profile is a script printing key=value lines
 // (collectors/host/profiles, sent unchanged); the checks only read those keys. Every probe has its own time limit
 // (probe.sh, probe.ps1): a probe that does not finish prints `probe.timeout=<key>`, and the checks reading that key

@@ -13,6 +13,29 @@ runner/dst-catch-up-across-spring-forward RUNNER-D6 day jump assumes 24-hour day
 runner/job-environment-allow-list        RUNNER-D7  jobs inherit the runner's whole environment
 ledger/removed-exception-reopens         LEDGER-D5  an exception deleted by a human leaves the finding accepted
 scorecard/attestation-expiry-is-utc       SCORECARD-D1  dates parsed as local time: an expiry is an hour early under DST
+
+# ---- collector k8s (contracts/collector-protocol/SPEC.md, "Collector k8s") ----
+collector-k8s/failing-part-is-a-gap-of-that-part       K8S-D1  one unreadable part gaps the whole cluster, skips the rest; Secrets: zero
+collector-k8s/unreadable-policy-reports-are-a-gap      K8S-D2  any PolicyReport error read as "no policy engine"
+collector-k8s/kube-bench-failure-keeps-cis-findings    K8S-D3  failed kube-bench: gap on cis:<name> only, CIS findings fixed
+collector-k8s/namespaced-role-is-evaluated             K8S-D4  RoleBindings to namespaced Roles never evaluated
+
+# ---- collector vuln-intel (contracts/collector-protocol/SPEC.md, "Collector vuln-intel") ----
+# (entries below this line)
+collector-vuln-intel/feed-mirror-conditional-get        VULN-D1  feed URLs are fixed: no mirror, no `url`
+collector-vuln-intel/corrupt-feed-keeps-last-good-copy  VULN-D2  a bad download replaces the good cached copy
+collector-vuln-intel/feed-outage-uses-cached-copy       VULN-D3  a failed refresh discards a usable cached copy
+
+
+# ---- collector identity (contracts/collector-protocol/SPEC.md, "Collector identity") ----
+# (entries below this line)
+collector-identity/pagination-is-followed          IDENTITY-D1  only the first page of every listing is read
+collector-identity/unreadable-listings-are-gaps    IDENTITY-D2  members / outside collaborators / deploy keys / fork-PR policy errors dropped
+collector-identity/rate-limit-is-a-gap-until-reset IDENTITY-D3  a rate-limited listing read as empty; calls continue
+collector-identity/org-members-without-2fa         IDENTITY-D4  members' 2FA never read
+collector-identity/overlay-network-api             IDENTITY-D5  overlay-network API base fixed to the vendor's host
+
+# ---- exec-adapter collectors host, host-sbom, secrets-files (contracts/collector-protocol/SPEC.md, COLLECTOR-D2..D6) ----
 collector-host/one-host-never-fails-the-run          COLLECTOR-D2  unparsable date / missing exec program -> exception, exit 1
 collector-host-sbom/missing-tool-is-a-gap            COLLECTOR-D3  trivy / powershell not installed -> FileNotFoundError, exit 1
 collector-secrets-files/unreadable-scan-output-is-a-gap COLLECTOR-D4 scan output not JSON / missing interpreter -> exit 1

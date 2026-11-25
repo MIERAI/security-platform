@@ -1,0 +1,160 @@
+{
+ "component": "collector-vuln-intel",
+ "title": "A download that does not parse (an HTML error page) or exceeds the feed's size limit never replaces the last good cached copy: the copy stays in use (KEV enrichment applies) and the feed is a coverage gap that says so",
+ "contract": "collector-protocol/1.0 / findings/1.2",
+ "deviation": "VULN-D2",
+ "origin": "adapters/feeds.py fetch(): fixed source URLs, cache replaced before the payload is read",
+ "services": [
+  {
+   "name": "feeds",
+   "argv": [
+    "{python}",
+    "{case}/mock_feeds.py",
+    "--routes",
+    "{case}/routes.json",
+    "--log",
+    "{sandbox}/.svc-feeds.calls"
+   ]
+  }
+ ],
+ "files": {
+  "instance.json": "instance.json",
+  "data/.keep": {
+   "text": ""
+  },
+  "fake_trivy.json": "trivy.json",
+  "bin/trivy": {
+   "text": "#!/bin/sh\nexec \"{python}\" \"{case}/fake_trivy.py\" \"$@\"\n",
+   "mode": "0755"
+  },
+  "data/latest/inventory.k8s-images.json": "inventory.json",
+  "data/cache/feeds/known_exploited_vulnerabilities.json": "stale-known_exploited_vulnerabilities.json",
+  "data/cache/feeds/known_exploited_vulnerabilities.json.meta.json": {
+   "json": {
+    "etag": "\"kev-1\"",
+    "last_modified": null,
+    "url": "x",
+    "checked_at": 1000
+   }
+  },
+  "data/cache/feeds/epss_scores-current.csv.gz": {
+   "raw": "stale-epss_scores-current.csv.gz"
+  },
+  "data/cache/feeds/epss_scores-current.csv.gz.meta.json": {
+   "json": {
+    "etag": "\"epss-1\"",
+    "last_modified": null,
+    "url": "x",
+    "checked_at": 1000
+   }
+  }
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-vuln-intel",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance",
+     "PATH": "{sandbox}/bin:{path}",
+     "FAKE_TRIVY_DATA": "{sandbox}/fake_trivy.json",
+     "FAKE_TRIVY_LOG": "{sandbox}/.svc-trivy.calls",
+     "https_proxy": "http://127.0.0.1:9",
+     "HTTPS_PROXY": "http://127.0.0.1:9",
+     "http_proxy": "http://127.0.0.1:9",
+     "HTTP_PROXY": "http://127.0.0.1:9",
+     "no_proxy": "",
+     "NO_PROXY": ""
+    },
+    "writes_only_under": [
+     "run",
+     "data/cache",
+     "data/sbom"
+    ]
+   },
+   "expect": [
+    {
+     "json": "run/vuln-intel.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "vuln-intel"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "json": "run/vuln-intel.findings.json",
+     "subset": {
+      "coverage": {
+       "$contains": [
+        {
+         "asset": "feed:cisa-kev",
+         "status": "gap",
+         "reason": {
+          "$regex": "rejected.*using the copy confirmed at 1970-01-01T00:16:40Z"
+         }
+        },
+        {
+         "asset": "feed:epss",
+         "status": "gap",
+         "reason": {
+          "$regex": "rejected.*64 bytes"
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/vuln-intel.findings.json",
+     "subset": {
+      "findings": {
+       "$contains": [
+        {
+         "check": "vuln.cve-2099-0002",
+         "asset": "image:registry.example/web:1.4",
+         "severity": "critical",
+         "title": {
+          "$regex": "\\[KEV\\]$"
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "file": "data/cache/feeds/known_exploited_vulnerabilities.json",
+     "regex": [
+      "CVE-2099-0002"
+     ],
+     "not_regex": [
+      "maintenance"
+     ]
+    },
+    {
+     "file": "data/cache/feeds/known_exploited_vulnerabilities.json.meta.json",
+     "regex": [
+      "kev-1"
+     ],
+     "not_regex": [
+      "kev-2"
+     ]
+    },
+    {
+     "file": ".svc-feeds.calls",
+     "not_regex": [
+      "^(?!GET ).+"
+     ]
+    }
+   ]
+  }
+ ]
+}

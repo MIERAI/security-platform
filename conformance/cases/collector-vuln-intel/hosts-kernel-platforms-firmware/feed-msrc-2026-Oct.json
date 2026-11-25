@@ -1,0 +1,53 @@
+{
+ "ProductTree": {
+  "FullProductName": [
+   {
+    "ProductID": "12345",
+    "Value": "Windows 11 Version 25H2 for x64-based Systems"
+   },
+   {
+    "ProductID": "999",
+    "Value": "Windows Server 2025"
+   }
+  ]
+ },
+ "Vulnerability": [
+  {
+   "CVE": "CVE-2099-0602",
+   "Remediations": [
+    {
+     "Description": {
+      "Value": "5040002"
+     },
+     "FixedBuild": "10.0.26200.400",
+     "ProductID": [
+      "12345",
+      "999"
+     ]
+    },
+    {
+     "Description": {
+      "Value": "workaround"
+     },
+     "ProductID": [
+      "12345"
+     ]
+    }
+   ],
+   "Threats": [
+    {
+     "Description": {
+      "Value": "Exploited:No"
+     },
+     "Type": 1
+    },
+    {
+     "Description": {
+      "Value": "Important"
+     },
+     "Type": 3
+    }
+   ]
+  }
+ ]
+}

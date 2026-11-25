@@ -1,4 +1,4 @@
-// Package hostsbom is the `host-sbom` collector (collectors/host-sbom/collector.py in Go, `sp collect host-sbom`):
+// Package hostsbom is the `host-sbom` collector (collectors/host-sbom/collector.py in Go, `sp host-sbom collect`):
 // the software inventory of every host, read-only, through an exec adapter and an OS profile
 // (collectors/host-sbom/profiles, sent unchanged). A profile prints `key=value` platform facts and
 // `pkg<TAB>ecosystem<TAB>name<TAB>version<TAB>src<TAB>srcver<TAB>arch` lines.

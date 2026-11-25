@@ -1,0 +1,49 @@
+{
+ "items": [
+  {
+   "exposed": true,
+   "fs_sbom": "sbom/host-web1-fs.cdx.json",
+   "host": "web1",
+   "kernel_running": "6.8.0-40-generic",
+   "os_family": "ubuntu",
+   "os_version": "24.04",
+   "prod": true
+  },
+  {
+   "exposed": false,
+   "host": "phone",
+   "os_family": "android",
+   "os_version": "16",
+   "patch_level": "2026-08-01"
+  },
+  {
+   "host": "laptop",
+   "os_family": "macOS",
+   "os_version": "26.6.2"
+  },
+  {
+   "arch": "AMD64",
+   "host": "pc",
+   "os_build": "10.0.26200.200",
+   "os_family": "windows",
+   "os_version": "25H2"
+  },
+  {
+   "exposed": true,
+   "firmware": {
+    "build_date": "2026-01-10",
+    "model": "EX-100",
+    "vendor": "ExampleVendor",
+    "version": "1.2"
+   },
+   "host": "router",
+   "os_family": "openwrt"
+  },
+  {
+   "host": "nas",
+   "os_family": "freebsd"
+  }
+ ],
+ "kind": "host-platform",
+ "schema": "security-platform/inventory/v1"
+}

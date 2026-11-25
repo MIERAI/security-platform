@@ -17,20 +17,28 @@ func TestCollectRunsInGo(t *testing.T) {
 	}
 	for _, name := range []string{"host", "host-sbom", "secrets-files"} {
 		run1 := filepath.Join(dir, name)
-		r := run(t, map[string]string{"SP_RUN_DIR": run1, "SP_INSTANCE": inst}, "", "collect", name)
+		r := run(t, map[string]string{"SP_RUN_DIR": run1, "SP_INSTANCE": inst}, "", name, "collect")
 		if r.code != 0 || !strings.HasPrefix(r.stderr, "["+name+" ") {
 			t.Errorf("collect %s: %+v", name, r)
 		}
 		if _, err := os.Stat(filepath.Join(run1, name+".findings.json")); err != nil {
 			t.Error(err)
 		}
-	}
-	for _, args := range [][]string{{"collect"}, {"collect", "nope"}, {"collect", "host", "x"}} {
-		if r := run(t, nil, "", args...); r.code != ExitUsage || !strings.Contains(r.stderr, "host-sbom") {
-			t.Errorf("%v: %+v", args, r)
+		if r := run(t, nil, "", name, "version"); r.code != 0 || r.stdout == "" {
+			t.Errorf("%s version: %+v", name, r)
+		}
+		usageErrors(t, name)
+		if !slices.Contains(GoSubcommands(), name) {
+			t.Errorf("%s is not listed as a Go subcommand", name)
 		}
 	}
-	if !slices.Contains(GoSubcommands(), "collect") {
-		t.Error("collect is not listed as a Go subcommand")
+}
+
+func usageErrors(t *testing.T, name string) {
+	t.Helper()
+	for _, args := range [][]string{{name}, {name, "nope"}, {name, "collect", "x"}} {
+		if r := run(t, nil, "", args...); r.code != ExitUsage || !strings.Contains(r.stderr, "sp "+name+" collect") {
+			t.Errorf("%v: %+v", args, r)
+		}
 	}
 }

@@ -105,6 +105,11 @@ kubernetes:
 Give it a read-only identity (`deploy/kubernetes/hub/rbac.yaml` has one). An admin kubeconfig works but is itself
 reported (`k8s.operator_cred_system_masters`).
 
+The Go implementation (`sp k8s collect`, [go.md](go.md)) reads the same keys. It also lists namespaced Roles (K8S-D4;
+the RBAC files above already allow it), and a part it cannot read is a gap of that part only — `k8s-identity:<name>`
+(rbac), `k8s-cluster:<name>/secrets`, `k8s-cluster:<name>/policy`, `k8s-cluster:<name>/cis`, ... — while the cluster
+stays covered (contracts/collector-protocol/SPEC.md, K8S-D1..D3).
+
 ## codehost
 
 ```yaml
@@ -142,6 +147,32 @@ intel:
 ```
 
 Defaults: `feeds: []`, OSV `ecosystems: [Go]`, `max_age_hours: 24`, `sbom_max_age_days: 30`, `repos: []`.
+
+The Go implementation (`sp vuln-intel collect`, [go.md](go.md)) reads the same keys and the same cache files, plus per
+feed: `url` (a mirror; `osv` a template with `{ecosystem}`, `msrc-cvrf` also `cvrf_url` with `{id}`; https only,
+plain http only to a loopback address) and `max_bytes` (download limit; default 64 MiB, larger for OSV/Android
+archives). A download that does not parse never replaces the cached copy, and a failed refresh keeps using it (a gap
+says so; VULN-D1..D3). It refuses (exit 2) instances with feed `vendor-advisories` or `code_repos`: keep the Python
+collector for those.
+
+## identity
+
+```yaml
+identity:
+  providers:
+    - {type: github, api_url: https://api.github.com, accounts: [{gh_user: octo}, {token_file: ~/.config/security-platform/gh.token}],
+       orgs: [example-org], repos_owner: octo, expected_collaborators: [a-friend]}
+    - {type: tailscale, api_key_file: ~/.config/security-platform/tailscale-api.key}   # or oauth_client_id + oauth_client_secret_file
+  credentials: {kubeconfigs: [~/.kube/*.yaml], ssh_dirs: [~/.ssh], docker_configs: [~/.docker/config.json], token_files: []}
+  max_token_age_days: 90
+```
+
+Accounts take their token from `gh_user` (`gh auth token --user`), `token_file` (mode 0600, else refused) or
+`token_env` (the name of an environment variable); the token goes only into the API's Authorization header. `api_url`
+(GitHub Enterprise, the overlay network's API, a test server: https only, plain http only to a loopback address),
+`token_file` and `token_env` are read by the Go implementation (`sp identity collect`); the Python one uses `gh_user`
+and the vendors' fixed hosts. Go also follows pagination, reports unreadable or rate-limited listings as gaps and reads
+organisation members without 2FA where the token may (IDENTITY-D1..D5).
 
 ## remediation
 

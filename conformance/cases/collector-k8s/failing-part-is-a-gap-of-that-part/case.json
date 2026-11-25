@@ -1,0 +1,112 @@
+{
+ "component": "collector-k8s",
+ "title": "One part that cannot be read (RBAC or Secrets forbidden) is a gap of that part only: the cluster stays covered, the other parts (PolicyReports, the operator credential) are still evaluated, findings of the failed part stay unknown (a gap on k8s-identity:<cluster>), and an unreadable Secret list is never reported as zero Secrets",
+ "contract": "collector-protocol/1.0 / findings/1.2",
+ "deviation": "K8S-D1",
+ "origin": "an in-cluster reader without `list clusterrolebindings` lost every later part",
+ "files": {
+  "instance.json": "instance.json",
+  "data/.keep": {
+   "text": ""
+  },
+  "bin/kubectl": {
+   "text": "#!/bin/sh\nexec \"{python}\" \"{case}/fake_kubectl.py\" \"$@\"\n",
+   "mode": "0755"
+  },
+  "bin/sudo": {
+   "text": "#!/bin/sh\n[ \"$1\" = \"-n\" ] && shift\nexec \"$@\"\n",
+   "mode": "0755"
+  },
+  "kube/prod.json": "prod.json"
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-k8s",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance",
+     "PATH": "{sandbox}/bin:{path}",
+     "FAKE_KUBE_DIR": "{sandbox}/kube",
+     "FAKE_KUBE_LOG": "{sandbox}/.svc-kubectl.calls"
+    },
+    "writes_only_under": [
+     "run"
+    ]
+   },
+   "expect": [
+    {
+     "json": "run/k8s.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "k8s"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "json": "run/k8s.findings.json",
+     "subset": {
+      "coverage": {
+       "$contains": [
+        {
+         "asset": "k8s-cluster:prod",
+         "status": "ok"
+        },
+        {
+         "asset": "k8s-identity:prod",
+         "status": "gap",
+         "reason": {
+          "$regex": "rbac: .*[Ff]orbidden"
+         }
+        },
+        {
+         "asset": "k8s-cluster:prod/secrets",
+         "status": "gap",
+         "reason": {
+          "$regex": "[Ff]orbidden"
+         }
+        }
+       ]
+      },
+      "findings": {
+       "$contains": [
+        {
+         "check": "k8s.policy.fail.require-limits"
+        },
+        {
+         "check": "k8s.operator_cred_system_masters"
+        },
+        {
+         "check": "k8s.pod.privileged"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "prom": "run/k8s.prom",
+     "absent": [
+      {
+       "name": "security_secrets_total"
+      }
+     ]
+    },
+    {
+     "file": ".svc-kubectl.calls",
+     "not_regex": [
+      "^[a-z-]+: (?!get |auth whoami )"
+     ]
+    }
+   ]
+  }
+ ]
+}

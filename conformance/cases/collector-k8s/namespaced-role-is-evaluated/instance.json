@@ -1,0 +1,13 @@
+{
+ "kubernetes": [
+  {
+   "kubeconfig": "{sandbox}/kube/rbac.yaml",
+   "name": "rbac",
+   "parts": [
+    "rbac"
+   ],
+   "role": "prod"
+  }
+ ],
+ "name": "conformance"
+}

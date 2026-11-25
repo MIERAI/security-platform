@@ -1,0 +1,480 @@
+{
+ "resources": {
+  "clusterpolicyreports.wgpolicyk8s.io": [
+   {
+    "metadata": {
+     "name": "cpr",
+     "uid": "uid-None-cpr"
+    },
+    "results": [
+     {
+      "policy": "require-limits",
+      "result": "fail"
+     },
+     {
+      "policy": "no-host-ns",
+      "result": "error"
+     }
+    ],
+    "summary": {
+     "error": 1,
+     "fail": 1
+    }
+   }
+  ],
+  "clusterrolebindings": {
+   "error": "Error from server (Forbidden): clusterrolebindings.rbac.authorization.k8s.io is forbidden: User \"system:serviceaccount:security:reader\" cannot list resource \"clusterrolebindings\""
+  },
+  "clusterroles": [
+   {
+    "metadata": {
+     "name": "cluster-admin",
+     "uid": "uid-None-cluster-admin"
+    },
+    "rules": [
+     {
+      "apiGroups": [
+       "*"
+      ],
+      "resources": [
+       "*"
+      ],
+      "verbs": [
+       "*"
+      ]
+     }
+    ]
+   },
+   {
+    "metadata": {
+     "name": "secret-reader",
+     "uid": "uid-None-secret-reader"
+    },
+    "rules": [
+     {
+      "apiGroups": [
+       ""
+      ],
+      "resources": [
+       "secrets"
+      ],
+      "verbs": [
+       "get",
+       "list"
+      ]
+     }
+    ]
+   },
+   {
+    "metadata": {
+     "name": "exec",
+     "uid": "uid-None-exec"
+    },
+    "rules": [
+     {
+      "apiGroups": [
+       ""
+      ],
+      "resources": [
+       "pods/exec"
+      ],
+      "verbs": [
+       "create"
+      ]
+     }
+    ]
+   },
+   {
+    "metadata": {
+     "name": "view",
+     "uid": "uid-None-view"
+    },
+    "rules": [
+     {
+      "apiGroups": [
+       ""
+      ],
+      "resources": [
+       "pods"
+      ],
+      "verbs": [
+       "get",
+       "list"
+      ]
+     }
+    ]
+   }
+  ],
+  "namespaces": [
+   {
+    "metadata": {
+     "name": "default",
+     "uid": "uid-None-default"
+    }
+   },
+   {
+    "metadata": {
+     "name": "web",
+     "uid": "uid-None-web"
+    }
+   },
+   {
+    "metadata": {
+     "name": "data",
+     "uid": "uid-None-data"
+    }
+   },
+   {
+    "metadata": {
+     "name": "kube-system",
+     "uid": "uid-None-kube-system"
+    }
+   }
+  ],
+  "networkpolicies": [
+   {
+    "metadata": {
+     "name": "deny-all",
+     "namespace": "web",
+     "uid": "uid-web-deny-all"
+    },
+    "spec": {
+     "podSelector": {}
+    }
+   },
+   {
+    "metadata": {
+     "name": "only-other",
+     "namespace": "data",
+     "uid": "uid-data-only-other"
+    },
+    "spec": {
+     "podSelector": {
+      "matchLabels": {
+       "app": "other"
+      }
+     }
+    }
+   }
+  ],
+  "pods": [
+   {
+    "metadata": {
+     "labels": {
+      "app": "web"
+     },
+     "name": "app-7d4b9c8f6d-abcde",
+     "namespace": "web",
+     "ownerReferences": [
+      {
+       "kind": "ReplicaSet",
+       "name": "app-7d4b9c8f6d"
+      }
+     ],
+     "uid": "uid-web-app-7d4b9c8f6d-abcde"
+    },
+    "spec": {
+     "containers": [
+      {
+       "env": [
+        {
+         "name": "API_TOKEN",
+         "value": "k8s-conformance-env-canary-6b1f"
+        }
+       ],
+       "image": "registry.example/web:1.4",
+       "name": "app",
+       "securityContext": {
+        "runAsNonRoot": true
+       }
+      }
+     ]
+    },
+    "status": {
+     "containerStatuses": [
+      {
+       "imageID": "registry.example/web@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "name": "app"
+      }
+     ],
+     "phase": "Running"
+    }
+   },
+   {
+    "metadata": {
+     "labels": {
+      "app": "web"
+     },
+     "name": "app-7d4b9c8f6d-fghij",
+     "namespace": "web",
+     "ownerReferences": [
+      {
+       "kind": "ReplicaSet",
+       "name": "app-7d4b9c8f6d"
+      }
+     ],
+     "uid": "uid-web-app-7d4b9c8f6d-fghij"
+    },
+    "spec": {
+     "containers": [
+      {
+       "image": "registry.example/web:1.4",
+       "name": "app",
+       "securityContext": {
+        "runAsNonRoot": true
+       }
+      }
+     ]
+    },
+    "status": {
+     "containerStatuses": [
+      {
+       "imageID": "registry.example/web@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "name": "app"
+      }
+     ],
+     "phase": "Running"
+    }
+   },
+   {
+    "metadata": {
+     "labels": {
+      "app": "db"
+     },
+     "name": "db-0",
+     "namespace": "data",
+     "ownerReferences": [
+      {
+       "kind": "StatefulSet",
+       "name": "db"
+      }
+     ],
+     "uid": "uid-data-db-0"
+    },
+    "spec": {
+     "containers": [
+      {
+       "image": "registry.example/db:16",
+       "name": "db",
+       "securityContext": {
+        "capabilities": {
+         "add": [
+          "SYS_ADMIN",
+          "NET_RAW"
+         ]
+        },
+        "privileged": true
+       }
+      }
+     ],
+     "volumes": [
+      {
+       "hostPath": {
+        "path": "/var/lib/db"
+       },
+       "name": "d"
+      }
+     ]
+    },
+    "status": {
+     "containerStatuses": [
+      {
+       "imageID": "",
+       "name": "db"
+      }
+     ],
+     "phase": "Running"
+    }
+   },
+   {
+    "metadata": {
+     "labels": {},
+     "name": "node-agent-x2x9z",
+     "namespace": "kube-system",
+     "ownerReferences": [
+      {
+       "kind": "DaemonSet",
+       "name": "node-agent"
+      }
+     ],
+     "uid": "uid-kube-system-node-agent-x2x9z"
+    },
+    "spec": {
+     "containers": [
+      {
+       "image": "registry.example/agent:2",
+       "name": "agent"
+      }
+     ],
+     "hostNetwork": true,
+     "hostPID": true,
+     "initContainers": [
+      {
+       "image": "registry.example/agent-init:2",
+       "name": "init",
+       "securityContext": {
+        "privileged": true
+       }
+      }
+     ]
+    },
+    "status": {
+     "containerStatuses": [
+      {
+       "imageID": "",
+       "name": "agent"
+      }
+     ],
+     "initContainerStatuses": [
+      {
+       "imageID": "",
+       "name": "init"
+      }
+     ],
+     "phase": "Running"
+    }
+   },
+   {
+    "metadata": {
+     "labels": {},
+     "name": "backup-28123456-q7x2p",
+     "namespace": "web",
+     "ownerReferences": [
+      {
+       "kind": "Job",
+       "name": "backup-28123456"
+      }
+     ],
+     "uid": "uid-web-backup-28123456-q7x2p"
+    },
+    "spec": {
+     "containers": [
+      {
+       "image": "registry.example/backup:1",
+       "name": "backup"
+      }
+     ]
+    },
+    "status": {
+     "containerStatuses": [
+      {
+       "imageID": "",
+       "name": "backup"
+      }
+     ],
+     "phase": "Succeeded"
+    }
+   },
+   {
+    "metadata": {
+     "labels": {},
+     "name": "debug",
+     "namespace": "default",
+     "uid": "uid-default-debug"
+    },
+    "spec": {
+     "containers": [
+      {
+       "image": "busybox:1.36",
+       "name": "sh",
+       "securityContext": {
+        "runAsUser": 1000
+       }
+      }
+     ]
+    },
+    "status": {
+     "containerStatuses": [
+      {
+       "imageID": "",
+       "name": "sh"
+      }
+     ],
+     "phase": "Pending"
+    }
+   }
+  ],
+  "policyreports.wgpolicyk8s.io": [
+   {
+    "metadata": {
+     "name": "pr-web",
+     "namespace": "web",
+     "uid": "uid-web-pr-web"
+    },
+    "results": [
+     {
+      "policy": "require-limits",
+      "result": "fail"
+     },
+     {
+      "policy": "disallow-latest",
+      "result": "pass"
+     }
+    ],
+    "summary": {
+     "fail": 1,
+     "pass": 1
+    }
+   }
+  ],
+  "rolebindings": [
+   {
+    "kind": "RoleBinding",
+    "metadata": {
+     "name": "exec-bob",
+     "namespace": "web",
+     "uid": "uid-web-exec-bob"
+    },
+    "roleRef": {
+     "kind": "ClusterRole",
+     "name": "exec"
+    },
+    "subjects": [
+     {
+      "kind": "User",
+      "name": "bob"
+     }
+    ]
+   }
+  ],
+  "roles": [],
+  "secrets": {
+   "error": "Error from server (Forbidden): secrets is forbidden: User \"system:serviceaccount:security:reader\" cannot list resource \"secrets\""
+  },
+  "services": [
+   {
+    "metadata": {
+     "name": "web",
+     "namespace": "web",
+     "uid": "uid-web-web"
+    },
+    "spec": {
+     "selector": {
+      "app": "web"
+     },
+     "type": "NodePort"
+    }
+   },
+   {
+    "metadata": {
+     "name": "db",
+     "namespace": "data",
+     "uid": "uid-data-db"
+    },
+    "spec": {
+     "selector": {
+      "app": "db"
+     },
+     "type": "ClusterIP"
+    }
+   }
+  ]
+ },
+ "whoami": {
+  "groups": [
+   "system:masters",
+   "system:authenticated"
+  ],
+  "username": "kubernetes-admin"
+ }
+}
