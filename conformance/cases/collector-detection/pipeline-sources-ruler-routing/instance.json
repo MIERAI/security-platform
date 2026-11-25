@@ -1,0 +1,35 @@
+{
+ "detection": {
+  "alert_history": {
+   "exec": {
+    "type": "local"
+   },
+   "url": "{svc_obs}"
+  },
+  "alertmanager": {
+   "url": "{svc_obs}"
+  },
+  "drill_max_age": "36500d",
+  "expected": {
+   "auth": [
+    "web-1",
+    "phone"
+   ],
+   "codehost": [
+    "acct-a"
+   ],
+   "k8s-audit": [
+    "lab",
+    "prod"
+   ]
+  },
+  "log_store": {
+   "token_file": "{sandbox}/loki.token",
+   "url": "{svc_obs}"
+  },
+  "windows": {
+   "auth": "6h"
+  }
+ },
+ "name": "conformance"
+}

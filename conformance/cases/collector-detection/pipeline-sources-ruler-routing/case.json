@@ -1,0 +1,281 @@
+{
+ "component": "collector-detection",
+ "title": "Detection pipeline against fake Loki/Prometheus/Alertmanager read APIs: an expected source without a line in its window (heartbeats count as lines) is silent (k8s-audit/auth high, others medium), a live one is not; ruler with missing and failing rules; page route reaches a notifying receiver; alert minutes per severity (through curl on an exec target); verdicts and drills; GET only, the bearer token (0600 file) is sent and never written anywhere",
+ "contract": "collector-protocol/1.0",
+ "origin": "tests/test_detection_collector.py; collectors/detection",
+ "files": {
+  "instance.json": "instance.json",
+  "loki.token": {
+   "text": "{canary_token}\n",
+   "mode": "0600"
+  },
+  "data/detections/verdicts.yaml": {
+   "text": "verdicts:\n  - {fired_at: \"{utc:-3600}\", verdict: true_positive}\n  - {fired_at: \"{utc:-7200}\", verdict: true_positive}\n  - {fired_at: \"{utc:-1800}\", verdict: false_positive}\n  - {fired_at: \"{utc:-600}\", verdict: benign}\n  - {fired_at: \"{utc:-900}\", verdict: drill}\n  - {fired_at: \"{utc:-5184000}\", verdict: false_positive}\n  - {fired_at: \"not a time\", verdict: false_positive}\n"
+  },
+  "data/detections/drills/2026-a.yaml": {
+   "text": "id: d-a\naction_at: \"2026-01-01T00:00:00\"\nresult: pass\nttd_seconds: 90\n"
+  },
+  "data/detections/drills/.hidden.yaml": {
+   "text": "id: hidden\naction_at: \"{utc:-60}\"\nresult: fail\n"
+  }
+ },
+ "services": [
+  {
+   "name": "obs",
+   "argv": [
+    "{python}",
+    "{case}/mock_obs.py",
+    "--config",
+    "{case}/obs.json",
+    "--token-file",
+    "{sandbox}/loki.token"
+   ]
+  }
+ ],
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-detection",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance"
+    },
+    "writes_only_under": [
+     "run"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "run/detection.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "detection"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "no_secret": [
+      "{canary_token}"
+     ],
+     "in": "run"
+    },
+    {
+     "json": "run/detection.findings.json",
+     "subset": {
+      "findings": {
+       "$contains": [
+        {
+         "check": "detection.source_silent",
+         "asset": "log-source:k8s-audit/prod",
+         "severity": "high",
+         "layer": "detection",
+         "title": "no k8s-audit log lines from prod in the last 30m: detections for it are blind"
+        },
+        {
+         "check": "detection.source_silent",
+         "asset": "log-source:auth/phone",
+         "severity": "high",
+         "title": "no auth log lines from phone in the last 6h: detections for it are blind"
+        },
+        {
+         "check": "detection.source_silent",
+         "asset": "log-source:codehost/acct-a",
+         "severity": "medium"
+        },
+        {
+         "check": "detection.ruler_incomplete",
+         "asset": "detection-ruler:log-store",
+         "severity": "high",
+         "title": {
+          "$regex": "^[0-9]+ catalog rule\\(s\\) not loaded, 1 failing evaluation in the log store's ruler$"
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/detection.findings.json",
+     "subset": {
+      "findings": {
+       "$not_contains": [
+        {
+         "asset": "log-source:k8s-audit/lab"
+        },
+        {
+         "asset": "log-source:auth/web-1"
+        },
+        {
+         "check": "detection.page_route_missing"
+        },
+        {
+         "check": "detection.drill_overdue"
+        },
+        {
+         "check": "detection.drill_failed"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/detection.findings.json",
+     "subset": {
+      "coverage": {
+       "$contains": [
+        {
+         "asset": "log-source:k8s-audit/lab",
+         "status": "ok"
+        },
+        {
+         "asset": "detection-alertmanager:routing",
+         "status": "ok"
+        },
+        {
+         "asset": "detection-alerts:history",
+         "status": "ok"
+        },
+        {
+         "asset": "detection-drills:lab",
+         "status": "ok"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/raw/detection/ruler.json",
+     "subset": {
+      "unhealthy": [
+       "SecurityDetectionAuthSudoFailure"
+      ]
+     }
+    },
+    {
+     "json": "run/raw/detection/source-auth.json",
+     "subset": {
+      "window": "6h",
+      "seen": [
+       "web-1"
+      ]
+     }
+    },
+    {
+     "prom": "run/detection.prom",
+     "has": [
+      {
+       "name": "security_detection_sources_live",
+       "labels": {
+        "source": "k8s-audit"
+       },
+       "value": 1
+      },
+      {
+       "name": "security_detection_sources_expected",
+       "labels": {
+        "source": "k8s-audit"
+       },
+       "value": 2
+      },
+      {
+       "name": "security_detection_sources_live",
+       "labels": {
+        "source": "codehost"
+       },
+       "value": 0
+      },
+      {
+       "name": "security_detection_rules_unhealthy",
+       "labels": {},
+       "value": 1
+      },
+      {
+       "name": "security_detection_rules_loaded",
+       "labels": {},
+       "value": 2
+      },
+      {
+       "name": "security_detection_page_route",
+       "labels": {},
+       "value": 1
+      },
+      {
+       "name": "security_detection_alert_minutes_24h",
+       "labels": {
+        "severity": "page"
+       },
+       "value": 12
+      },
+      {
+       "name": "security_detection_alert_minutes_24h",
+       "labels": {
+        "severity": "ticket"
+       },
+       "value": 3
+      },
+      {
+       "name": "security_detection_alert_minutes_24h",
+       "labels": {
+        "severity": "info"
+       },
+       "value": 0
+      },
+      {
+       "name": "security_detection_verdicts",
+       "labels": {
+        "result": "false_positive"
+       },
+       "value": 1
+      },
+      {
+       "name": "security_detection_verdicts",
+       "labels": {
+        "result": "drill"
+       },
+       "value": 1
+      },
+      {
+       "name": "security_detection_false_positive_ratio",
+       "labels": {},
+       "value": 0.25
+      },
+      {
+       "name": "security_detection_drill_pass",
+       "labels": {},
+       "value": 1
+      },
+      {
+       "name": "security_detection_drill_ttd_seconds",
+       "labels": {},
+       "value": 90
+      }
+     ]
+    },
+    {
+     "file": ".svc-obs-requests.log",
+     "regex": [
+      "^GET /loki/api/v1/query sum by \\(cluster\\) \\(count_over_time\\(\\{source=\"k8s-audit\"\\}\\[30m\\]\\)\\)$",
+      "^GET /loki/api/v1/query sum by \\(host\\) \\(count_over_time\\(\\{source=\"auth\"\\}\\[6h\\]\\)\\)$",
+      "^GET /api/v1/query sum by \\(severity\\) \\(count_over_time\\(ALERTS\\{component=\"security-detection\",alertstate=\"firing\"\\}\\[24h\\]\\)\\)$"
+     ]
+    },
+    {
+     "exists": ".svc-obs-token-seen"
+    },
+    {
+     "absent": ".svc-obs-mutations.log"
+    }
+   ]
+  }
+ ]
+}

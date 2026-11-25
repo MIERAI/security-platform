@@ -1,6 +1,20 @@
 [
- {"case": "collector-agent-claude-code/*", "file": "agent-claude-code\\.findings\\.json$", "path": "^\\$\\.findings\\[\\d+\\]\\.attributes$",
-  "reason": "AGENT-D1: memory-file findings name the credential pattern classes (attributes.pattern_classes)"},
- {"case": "collector-agent-claude-code/*", "file": "memory-scan\\.json$", "path": "^\\$\\.pattern_classes$",
-  "reason": "AGENT-D1: the memory-scan evidence lists the pattern classes per file"}
+ {
+  "case": "collector-agent-claude-code/*",
+  "file": "agent-claude-code\\.findings\\.json$",
+  "path": "^\\$\\.findings\\[\\d+\\]\\.attributes$",
+  "reason": "AGENT-D1: memory-file findings name the credential pattern classes (attributes.pattern_classes)"
+ },
+ {
+  "case": "collector-agent-claude-code/*",
+  "file": "memory-scan\\.json$",
+  "path": "^\\$\\.pattern_classes$",
+  "reason": "AGENT-D1: the memory-scan evidence lists the pattern classes per file"
+ },
+ {
+  "case": "collector-detection/*",
+  "file": "^instance\\.json$",
+  "path": "\\.url$",
+  "reason": "input, not output: the instance names the fake service, whose port is chosen when the case starts"
+ }
 ]

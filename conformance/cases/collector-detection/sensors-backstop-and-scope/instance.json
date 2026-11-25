@@ -1,0 +1,41 @@
+{
+ "detection": {
+  "clusters": [
+   {
+    "name": "lab"
+   },
+   {
+    "kubeconfig": "~/kc/prod.yaml",
+    "name": "prod"
+   },
+   {
+    "kubeconfig": "{sandbox}/kc/dev.yaml",
+    "name": "dev",
+    "sensors": [
+     "falco"
+    ]
+   }
+  ],
+  "expected": {
+   "k8s-audit": [
+    "lab",
+    "dev"
+   ]
+  }
+ },
+ "kubernetes": [
+  {
+   "name": "lab"
+  },
+  {
+   "name": "prod"
+  },
+  {
+   "name": "edge"
+  },
+  {
+   "name": "dev"
+  }
+ ],
+ "name": "conformance"
+}

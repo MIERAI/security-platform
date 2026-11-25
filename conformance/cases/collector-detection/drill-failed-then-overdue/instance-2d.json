@@ -1,0 +1,7 @@
+{
+ "detection": {
+  "drill_max_age": "2d",
+  "ttd_target": "5m"
+ },
+ "name": "conformance"
+}

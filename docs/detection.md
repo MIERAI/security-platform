@@ -112,6 +112,15 @@ rule, page alerts reach a notifying receiver; quality: alert minutes per severit
 ratio from human verdicts, the last drill and its time to detect, rule-content age. The scorecard's detection
 dimension is computed from these. Configuration: the collector's docstring.
 
+**Go implementation** (`sp detection collect`, `internal/collectors/detection`): the same checks, findings, evidence
+and metrics, byte for byte on the conformance fixtures (`conformance/tools/compare_impls.py`). Selected with a
+`command` job (`argv: [sp, detection, collect]`); the catalog comes from the product tree `sp` belongs to (or
+`SP_PY_HOME`). Differences an operator can notice: a `token_file` readable by group or others is refused and the
+checks that need it become gaps (DETECTION-D1; the Python collector sends it); recorded times (`fired_at`,
+`action_at`, the catalog's `released`) are read as UTC whatever the host's time zone (DETECTION-D2; the Python
+collector is an hour off under daylight saving time); only GET requests are ever sent, and a redirect to another
+origin is not followed; a `kubeconfig` that could be read as an option is refused.
+
 ## Measuring detection (dimension "detection & response")
 
 | metric | how |
