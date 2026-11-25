@@ -1,0 +1,13 @@
+schema: security-platform/attestations/v1
+attestations:
+  att.valid: {attested_by: alice, at: 2030-01-01, expires: 2031-01-01}
+  att.expiring: {attested_by: alice, at: '2030-01-01', expires: '2030-01-20'}
+  att.expired: {attested_by: alice, at: '2029-11-01', expires: '2030-01-10'}
+  att.no-by: {at: '2030-01-01', expires: '2031-01-01'}
+  att.no-date: {attested_by: alice}
+  att.at-validity: {attested_by: alice, at: '2030-01-05T12:00:00Z'}
+  att.false: {attested_by: bob, at: '2030-01-01', expires: '2031-01-01', value: false, note: it does not hold}
+  att.na-expired: {attested_by: carol, at: '2029-01-01', expires: '2029-06-01', not_applicable: no longer used}
+  att.na-valid: {attested_by: carol, at: '2030-01-01', expires: '2030-06-01', not_applicable: not used here}
+  att.fallback-human: {attested_by: dave, at: '2030-01-01', expires: '2030-03-01'}
+  att.fallback-api: {attested_by: dave, at: '2030-01-01', expires: '2030-01-15'}

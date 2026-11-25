@@ -149,7 +149,7 @@ func TestCollectConfigurationErrors(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	yaml := filepath.Join(dir, "instance.yaml")
-	if err := os.WriteFile(yaml, []byte("cloud:\n  accounts: []\n"), 0o600); err != nil {
+	if err := os.WriteFile(yaml, []byte("cloud: [\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	tests := []struct {
@@ -159,7 +159,7 @@ func TestCollectConfigurationErrors(t *testing.T) {
 	}{
 		{"no instance", map[string]string{"SP_RUN_DIR": dir}, "SP_INSTANCE not set"},
 		{"no run dir", map[string]string{"SP_INSTANCE": yaml}, "SP_RUN_DIR not set"},
-		{"yaml", map[string]string{"SP_INSTANCE": yaml, "SP_RUN_DIR": dir}, "not JSON"},
+		{"broken yaml", map[string]string{"SP_INSTANCE": yaml, "SP_RUN_DIR": dir}, "not YAML/JSON"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -197,12 +197,23 @@ func TestMainUsage(t *testing.T) {
 
 func TestEngineOrderFollowsTheInstance(t *testing.T) {
 	t.Parallel()
-	cfg, err := parseInstance([]byte(`{"cloud": {"x": {"engines": 1}, "engines": {"steampipe": {}, "prowler": {"a": [1]}, "scoutsuite": null}}}`))
-	if err != nil {
-		t.Fatal(err)
+	tests := []struct{ name, doc string }{
+		{"json", `{"cloud": {"x": {"engines": 1}, "engines": {"steampipe": {}, "prowler": {"a": [1]}, "scoutsuite": null},
+			"refuse_over_privileged": false, "accounts": [{"account_id": "000000000000", "session_seconds": 900}]}}`},
+		{"yaml", "cloud:\n  x: {engines: 1}\n  engines:\n    steampipe: {}\n    prowler: {a: [1]}\n    scoutsuite:\n" +
+			"  refuse_over_privileged: no\n  accounts:\n    - {account_id: \"000000000000\", session_seconds: 900}\n"},
 	}
-	if !reflect.DeepEqual(cfg.engineOrder, []string{"steampipe", "prowler", "scoutsuite"}) {
-		t.Fatalf("order %v", cfg.engineOrder)
+	for _, tc := range tests {
+		cfg, err := parseInstance([]byte(tc.doc))
+		if err != nil {
+			t.Fatal(err)
+		}
+		acct := dyn.Map(dyn.List(cfg.cloud["accounts"])[0])
+		if !reflect.DeepEqual(cfg.engineOrder, []string{"steampipe", "prowler", "scoutsuite"}) ||
+			dyn.Truthy(cfg.cloud["refuse_over_privileged"]) || dyn.Str(acct["account_id"]) != "000000000000" ||
+			dyn.Str(acct["session_seconds"]) != "900" {
+			t.Fatalf("%s: order %v, cloud %v", tc.name, cfg.engineOrder, cfg.cloud)
+		}
 	}
 	if _, err := parseInstance([]byte(`[1]`)); err == nil {
 		t.Fatal("a non-object instance was accepted")

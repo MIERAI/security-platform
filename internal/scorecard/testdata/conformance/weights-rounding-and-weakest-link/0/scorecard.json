@@ -1,0 +1,374 @@
+{
+ "attestations": {
+  "expired": 0,
+  "expiring": 0,
+  "missing": 0,
+  "valid": 0
+ },
+ "computed_at": "2030-01-10T00:00:00Z",
+ "controls": [
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "GV.OC",
+   "detail": "0 matching finding(s) (max 0)",
+   "dimension": "one",
+   "expires": null,
+   "function": "GV",
+   "id": "one.a",
+   "needs_human": false,
+   "pillars": [
+    "network"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "pass",
+   "title": "A",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "ID.AM",
+   "detail": "0 matching finding(s) (max -1)",
+   "dimension": "one",
+   "expires": null,
+   "function": "ID",
+   "id": "one.b",
+   "needs_human": false,
+   "pillars": [
+    "network",
+    "device"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "fail",
+   "title": "B",
+   "weight": 15
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "PR.AA",
+   "detail": "0 matching finding(s) (max 0)",
+   "dimension": "two",
+   "expires": null,
+   "function": "PR",
+   "id": "two.a",
+   "needs_human": false,
+   "pillars": [
+    "device"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "pass",
+   "title": "A",
+   "weight": 3
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "PR.PS",
+   "detail": "0 matching finding(s) (max -1)",
+   "dimension": "two",
+   "expires": null,
+   "function": "PR",
+   "id": "two.b",
+   "needs_human": false,
+   "pillars": [
+    "device"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "fail",
+   "title": "B",
+   "weight": 13
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "DE.CM",
+   "detail": "0 matching finding(s) (max 0)",
+   "dimension": "three",
+   "expires": null,
+   "function": "DE",
+   "id": "three.a",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "pass",
+   "title": "A",
+   "weight": 2.5
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "RS.MA",
+   "detail": "0 matching finding(s) (max -1)",
+   "dimension": "three",
+   "expires": null,
+   "function": "RS",
+   "id": "three.b",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "fail",
+   "title": "B",
+   "weight": 0.5
+  },
+  {
+   "attestable": false,
+   "check": "evidence",
+   "cis": [],
+   "csf": "DE.AE",
+   "detail": "later",
+   "dimension": "three",
+   "expires": null,
+   "function": "DE",
+   "id": "three.c",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "not_implemented",
+   "title": "Declared only",
+   "weight": 0
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "GV.RR",
+   "detail": "0 matching finding(s) (max 0)",
+   "dimension": "five",
+   "expires": null,
+   "function": "GV",
+   "id": "five.a",
+   "needs_human": false,
+   "pillars": [
+    "people"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "pass",
+   "title": "A",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "ID.RA",
+   "detail": "0 matching finding(s) (max -1)",
+   "dimension": "five",
+   "expires": null,
+   "function": "ID",
+   "id": "five.b",
+   "needs_human": false,
+   "pillars": [
+    "people"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "fail",
+   "title": "B",
+   "weight": 15
+  }
+ ],
+ "dimension_pillar": {
+  "five|people": 6.2,
+  "one|device": 0.0,
+  "one|network": 6.2,
+  "three|software": 83.3,
+  "two|device": 18.8
+ },
+ "dimensions": {
+  "five": {
+   "controls": 2,
+   "failing": [
+    "five.b"
+   ],
+   "functions": [
+    "GV",
+    "ID"
+   ],
+   "order": 5,
+   "owner": null,
+   "pillars": [
+    "people"
+   ],
+   "score": 6.2,
+   "status": "FAIL",
+   "threshold": 75.5,
+   "title": "Five",
+   "weight_passed": 1,
+   "weight_total": 16
+  },
+  "one": {
+   "controls": 2,
+   "failing": [
+    "one.b"
+   ],
+   "functions": [
+    "GV",
+    "ID"
+   ],
+   "order": 1,
+   "owner": null,
+   "pillars": [
+    "device",
+    "network"
+   ],
+   "score": 6.2,
+   "status": "FAIL",
+   "threshold": 75.5,
+   "title": "One",
+   "weight_passed": 1,
+   "weight_total": 16
+  },
+  "three": {
+   "controls": 3,
+   "failing": [
+    "three.b",
+    "three.c"
+   ],
+   "functions": [
+    "DE",
+    "RS"
+   ],
+   "order": 3,
+   "owner": null,
+   "pillars": [
+    "software"
+   ],
+   "score": 83.3,
+   "status": "PASS",
+   "threshold": 80.0,
+   "title": "Three",
+   "weight_passed": 2.5,
+   "weight_total": 3.0
+  },
+  "two": {
+   "controls": 2,
+   "failing": [
+    "two.b"
+   ],
+   "functions": [
+    "PR"
+   ],
+   "order": 2,
+   "owner": null,
+   "pillars": [
+    "device"
+   ],
+   "score": 18.8,
+   "status": "FAIL",
+   "threshold": 75.5,
+   "title": "Two",
+   "weight_passed": 3,
+   "weight_total": 16
+  }
+ },
+ "functions": {
+  "DE": {
+   "controls": 2,
+   "score": 100.0,
+   "title": "Detect"
+  },
+  "GV": {
+   "controls": 2,
+   "score": 100.0,
+   "title": "Govern"
+  },
+  "ID": {
+   "controls": 2,
+   "score": 0.0,
+   "title": "Identify"
+  },
+  "PR": {
+   "controls": 2,
+   "score": 18.8,
+   "title": "Protect"
+  },
+  "RC": {
+   "controls": 0,
+   "score": 0.0,
+   "title": "Recover"
+  },
+  "RS": {
+   "controls": 1,
+   "score": 0.0,
+   "title": "Respond"
+  }
+ },
+ "mean": 28.6,
+ "not_applicable": {},
+ "overall": 6.2,
+ "pillars": {
+  "device": {
+   "controls": 3,
+   "failing": [
+    "one.b",
+    "two.b"
+   ],
+   "score": 9.7,
+   "status": "FAIL"
+  },
+  "network": {
+   "controls": 2,
+   "failing": [
+    "one.b"
+   ],
+   "score": 6.2,
+   "status": "FAIL"
+  },
+  "people": {
+   "controls": 2,
+   "failing": [
+    "five.b"
+   ],
+   "score": 6.2,
+   "status": "FAIL"
+  },
+  "physical": {
+   "controls": 0,
+   "failing": [],
+   "score": 0.0,
+   "status": "FAIL"
+  },
+  "software": {
+   "controls": 3,
+   "failing": [
+    "three.b",
+    "three.c"
+   ],
+   "score": 83.3,
+   "status": "PASS"
+  }
+ },
+ "regressions_total": {
+  "five": 0,
+  "one": 0,
+  "three": 0,
+  "two": 0
+ },
+ "schema": "security-platform/scorecard/v1",
+ "scorecard_version": "0.5.0",
+ "status": "FAIL",
+ "threshold": 75.5,
+ "weakest": "one"
+}

@@ -14,6 +14,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/iam v1.65.0
 	github.com/aws/aws-sdk-go-v2/service/sts v1.52.0
 	github.com/aws/smithy-go v1.28.9
+	go.yaml.in/yaml/v3 v3.0.6
 	golang.org/x/oauth2 v0.38.0
 )
 

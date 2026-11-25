@@ -298,7 +298,6 @@ after every scan and failure scenario and compares the outputs, `compare_impls.p
 
 Differences an operator can notice:
 
-- **The instance config must be JSON** (YAML is not read yet; JSON is valid YAML, so a converted file serves both).
 - **Azure authority**: the SDK accepts only `https` and only the root of a host (`https://login.microsoftonline.com`,
   a sovereign cloud's authority, `https://<emulator>:<port>`); an emulator needs TLS and, with a private CA, `ca_file`.
 - **`ca_file`** (any provider, Go only): extra CA certificates trusted for the account's endpoints.

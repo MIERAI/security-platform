@@ -1,0 +1,29 @@
+schema: security-platform/scorecard-catalog/v1
+dimension: {id: att, order: 1, title: Attestations, pillars: [people]}
+controls:
+  - {id: att.valid, title: "Attestation valid", csf: GV.OV, check: attested, weight: 1, validity: 30d, question: "Does valid hold?"}
+  - {id: att.expiring, title: "Attestation expiring", csf: GV.OV, check: attested, weight: 1, validity: 30d, question: "Does expiring hold?"}
+  - {id: att.expired, title: "Attestation expired", csf: GV.OV, check: attested, weight: 1, validity: 30d, question: "Does expired hold?"}
+  - {id: att.missing, title: "Attestation missing", csf: GV.OV, check: attested, weight: 1, validity: 30d, question: "Does missing hold?"}
+  - {id: att.no-by, title: "Attestation no-by", csf: GV.OV, check: attested, weight: 1, validity: 30d, question: "Does no-by hold?"}
+  - {id: att.no-date, title: "Attestation no-date", csf: GV.OV, check: attested, weight: 1, validity: 30d, question: "Does no-date hold?"}
+  - {id: att.at-validity, title: "Attestation at-validity", csf: GV.OV, check: attested, weight: 1, validity: 30d, question: "Does at-validity hold?"}
+  - {id: att.false, title: "Attestation false", csf: GV.OV, check: attested, weight: 1, validity: 30d, question: "Does false hold?"}
+  - {id: att.na-expired, title: "Attestation na-expired", csf: GV.OV, check: attested, weight: 1, validity: 30d, question: "Does na-expired hold?"}
+  - {id: att.na-valid, title: "Attestation na-valid", csf: GV.OV, check: attested, weight: 1, validity: 30d, question: "Does na-valid hold?"}
+  - id: att.fallback-human
+    title: API cannot tell, a human can
+    csf: GV.OV
+    check: automated
+    weight: 1
+    validity: 30d
+    question: Holds?
+    source: {type: first_known, of: [{type: sli, sli: missing}, {type: attestation}]}
+  - id: att.fallback-api
+    title: The API decides
+    csf: GV.OV
+    check: automated
+    weight: 1
+    validity: 30d
+    question: Holds?
+    source: {type: first_known, of: [{type: sli, sli: crit}, {type: attestation}]}

@@ -1,20 +1,16 @@
 package cloud
 
 import (
-	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
+	"strconv"
 
 	"github.com/MIERAI/security-platform/internal/cloud/dyn"
+	"github.com/MIERAI/security-platform/internal/collectors/cloud/pyjson"
+	"github.com/MIERAI/security-platform/internal/scorecard/pyvalue"
 )
 
 const maxInstanceFile = 16 << 20
-
-// errNotJSON: the instance config is not JSON (YAML needs the Python implementation for now).
-var errNotJSON = errors.New("the instance config is not JSON: the Go cloud collector reads JSON instance configs " +
-	"(JSON is YAML too: convert it, or run the Python collector)")
 
 // instanceConfig is the instance's `cloud` section, with the order of its `engines` keys (the default engine list
 // is that order, as in the Python implementation).
@@ -23,82 +19,55 @@ type instanceConfig struct {
 	engineOrder []string
 }
 
+// parseInstance reads the instance config as the Python implementation does (PyYAML safe_load: YAML 1.1 typing;
+// a JSON file is YAML too), through pyvalue, the YAML reading every Go component shares.
 func parseInstance(data []byte) (instanceConfig, error) {
-	v, err := dyn.Decode(data)
+	v, err := pyvalue.DecodeYAML(data)
 	if err != nil {
-		return instanceConfig{}, errNotJSON
+		return instanceConfig{}, fmt.Errorf("the instance config is not YAML/JSON: %w", err)
 	}
-	root, ok := v.(map[string]any)
+	root, ok := v.(*pyvalue.Map)
 	if !ok {
-		return instanceConfig{}, fmt.Errorf("the instance config is not an object")
+		return instanceConfig{}, fmt.Errorf("the instance config is not a mapping")
 	}
-	order, err := objectKeys(data, "cloud", "engines")
-	if err != nil {
-		return instanceConfig{}, errNotJSON
+	cloudSection, _ := root.Value("cloud").(*pyvalue.Map) // absent or not a mapping: no cloud section
+	var order []string
+	if cloudSection != nil {
+		if engines, isMap := cloudSection.Value("engines").(*pyvalue.Map); isMap {
+			order = engines.Keys()
+		}
 	}
-	return instanceConfig{cloud: dyn.Map(root["cloud"]), engineOrder: order}, nil
+	return instanceConfig{cloud: dyn.Map(loose(cloudSection)), engineOrder: order}, nil
 }
 
-// objectKeys returns the keys of the object at path, in document order (nil when there is none).
-func objectKeys(data []byte, path ...string) ([]string, error) {
-	dec := json.NewDecoder(bytes.NewReader(data))
-	dec.UseNumber()
-	for _, key := range path {
-		found, err := descend(dec, key)
-		if err != nil || !found {
-			return nil, err
+// loose turns a pyvalue document into the loose JSON shape the collector reads (dyn): mappings become
+// map[string]any, numbers json.Number with Python's str() of the value, dates their text.
+func loose(v any) any {
+	switch x := v.(type) {
+	case *pyvalue.Map:
+		if x == nil {
+			return nil
 		}
-	}
-	return keysHere(dec)
-}
-
-// descend moves the decoder into the value of key in the object that starts at the next token.
-func descend(dec *json.Decoder, key string) (bool, error) {
-	tok, err := dec.Token()
-	if err != nil {
-		return false, fmt.Errorf("instance json: %w", err)
-	}
-	if d, ok := tok.(json.Delim); !ok || d != '{' {
-		return false, nil
-	}
-	for dec.More() {
-		k, err := dec.Token()
-		if err != nil {
-			return false, fmt.Errorf("instance json: %w", err)
+		m := make(map[string]any, x.Len())
+		for _, k := range x.Keys() {
+			m[k] = loose(x.Value(k))
 		}
-		if k == key {
-			return true, nil
+		return m
+	case []any:
+		out := make([]any, len(x))
+		for i, e := range x {
+			out[i] = loose(e)
 		}
-		var skip json.RawMessage
-		if err := dec.Decode(&skip); err != nil {
-			return false, fmt.Errorf("instance json: %w", err)
-		}
+		return out
+	case int64:
+		return json.Number(strconv.FormatInt(x, 10))
+	case float64:
+		return json.Number(pyjson.FloatRepr(x))
+	case pyvalue.Date:
+		return x.String()
+	case pyvalue.DateTime:
+		return x.String()
+	default:
+		return v
 	}
-	return false, nil
-}
-
-func keysHere(dec *json.Decoder) ([]string, error) {
-	tok, err := dec.Token()
-	if errors.Is(err, io.EOF) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("instance json: %w", err)
-	}
-	if d, ok := tok.(json.Delim); !ok || d != '{' {
-		return nil, nil
-	}
-	var keys []string
-	for dec.More() {
-		k, err := dec.Token()
-		if err != nil {
-			return nil, fmt.Errorf("instance json: %w", err)
-		}
-		keys = append(keys, dyn.Str(k))
-		var skip json.RawMessage
-		if err := dec.Decode(&skip); err != nil {
-			return nil, fmt.Errorf("instance json: %w", err)
-		}
-	}
-	return keys, nil
 }

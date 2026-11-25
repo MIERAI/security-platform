@@ -1,0 +1,55 @@
+{
+ "component": "scorecard",
+ "title": "A catalog file without the catalog schema is a configuration error: non-zero exit, no report",
+ "contract": "scorecard/1.1",
+ "origin": "tests/test_scorecard.py::test_catalog_schema_required",
+ "files": {
+  "catalog/01-x.yaml": {
+   "text": "schema: something/else\ndimension: {id: x, order: 1, title: X}\n"
+  },
+  "instance.json": {
+   "json": {
+    "name": "conformance",
+    "scorecard": {
+     "replace_catalog": true,
+     "catalog_dirs": [
+      "{sandbox}/catalog"
+     ]
+    }
+   }
+  },
+  "data/ledger.json": {
+   "json": {
+    "schema": "security-platform/ledger/v1",
+    "entries": {},
+    "runs": [],
+    "updated_at": "2026-11-01T09:00:00Z"
+   }
+  }
+ },
+ "steps": [
+  {
+   "name": "compute at 2030-01-10T00:00:00Z",
+   "exec": {
+    "impl": "scorecard",
+    "args": [
+     "compute",
+     "--data",
+     "{sandbox}/data",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--now",
+     "1894233600"
+    ]
+   },
+   "expect": [
+    {
+     "absent": "data/reports/scorecard.json"
+    }
+   ],
+   "exit": {
+    "not": 0
+   }
+  }
+ ]
+}

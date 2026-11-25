@@ -1,0 +1,390 @@
+{
+ "attestations": {
+  "expired": 0,
+  "expiring": 0,
+  "missing": 1,
+  "valid": 0
+ },
+ "computed_at": "2030-01-10T00:00:00Z",
+ "controls": [
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "PR.PS",
+   "detail": "not applicable: out of scope for the instance (scope.bracket[0-9]): a character class",
+   "dimension": "scope",
+   "expires": null,
+   "function": "PR",
+   "id": "scope.bracket1",
+   "needs_human": false,
+   "pillars": [
+    "device"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "na",
+   "title": "Character class",
+   "weight": 1
+  },
+  {
+   "attestable": true,
+   "check": "automated",
+   "cis": [],
+   "csf": "DE.CM",
+   "detail": "not attested: a human answers \"Does it hold?\" (scorecard.py attest)",
+   "dimension": "scope",
+   "expires": null,
+   "function": "DE",
+   "id": "scope.col-fallback",
+   "needs_human": false,
+   "pillars": [
+    "device"
+   ],
+   "question": "Does it hold?",
+   "remediation": "",
+   "status": "unattested",
+   "title": "Needs k8s, or a human",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "DE.CM",
+   "detail": "no recent coverage (vuln: never covered anything)",
+   "dimension": "scope",
+   "expires": null,
+   "function": "DE",
+   "id": "scope.col-job",
+   "needs_human": false,
+   "pillars": [
+    "device"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "unknown",
+   "title": "Collector of a runner job",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "DE.CM",
+   "detail": "0 matching finding(s) (max 0)",
+   "dimension": "scope",
+   "expires": null,
+   "function": "DE",
+   "id": "scope.col-ledger",
+   "needs_human": false,
+   "pillars": [
+    "device"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "pass",
+   "title": "Collector in the ledger",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "PR.PS",
+   "detail": "not applicable: disabled by the instance: replaced by a manual check",
+   "dimension": "scope",
+   "expires": null,
+   "function": "PR",
+   "id": "scope.disabled",
+   "needs_human": false,
+   "pillars": [
+    "device"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "na",
+   "title": "Disabled with a reason",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "PR.PS",
+   "detail": "not applicable: disabled by the instance",
+   "dimension": "scope",
+   "expires": null,
+   "function": "PR",
+   "id": "scope.disabled-flag",
+   "needs_human": false,
+   "pillars": [
+    "device"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "na",
+   "title": "Disabled",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "PR.PS",
+   "detail": "not applicable: out of scope for the instance (scope.exact): an exact id",
+   "dimension": "scope",
+   "expires": null,
+   "function": "PR",
+   "id": "scope.exact",
+   "needs_human": false,
+   "pillars": [
+    "device"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "na",
+   "title": "Exact id",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "PR.PS",
+   "detail": "not applicable: out of scope for the instance (scope.glob-?): one character",
+   "dimension": "scope",
+   "expires": null,
+   "function": "PR",
+   "id": "scope.glob-a",
+   "needs_human": false,
+   "pillars": [
+    "device"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "na",
+   "title": "Glob a",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "PR.PS",
+   "detail": "not applicable: out of scope for the instance (scope.glob-?): one character",
+   "dimension": "scope",
+   "expires": null,
+   "function": "PR",
+   "id": "scope.glob-b",
+   "needs_human": false,
+   "pillars": [
+    "device"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "na",
+   "title": "Glob b",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "DE.CM",
+   "detail": "not applicable: collector not configured: k8s",
+   "dimension": "scope",
+   "expires": null,
+   "function": "DE",
+   "id": "scope.needs-col",
+   "needs_human": false,
+   "pillars": [
+    "device"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "na",
+   "title": "Needs k8s",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "DE.CM",
+   "detail": "not applicable: collector not configured: cloud, identity",
+   "dimension": "scope",
+   "expires": null,
+   "function": "DE",
+   "id": "scope.nested-col",
+   "needs_human": false,
+   "pillars": [
+    "device"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "na",
+   "title": "Needs identity or cloud, nested",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "PR.PS",
+   "detail": "0 matching finding(s) (max 0)",
+   "dimension": "scope",
+   "expires": null,
+   "function": "PR",
+   "id": "scope.plain",
+   "needs_human": false,
+   "pillars": [
+    "device"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "pass",
+   "title": "Plain",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "DE.CM",
+   "detail": "0 matching finding(s) (max 0)",
+   "dimension": "scope",
+   "expires": null,
+   "function": "DE",
+   "id": "scope.star",
+   "needs_human": false,
+   "pillars": [
+    "device"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "pass",
+   "title": "Any collector",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "PR.PS",
+   "detail": "not applicable: out of scope for the instance (tag:ai-agent): no AI coding agents in use",
+   "dimension": "scope",
+   "expires": null,
+   "function": "PR",
+   "id": "scope.tagged",
+   "needs_human": false,
+   "pillars": [
+    "device"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "na",
+   "title": "Tagged",
+   "weight": 1
+  }
+ ],
+ "dimension_pillar": {
+  "scope|device": 60.0
+ },
+ "dimensions": {
+  "scope": {
+   "controls": 14,
+   "failing": [
+    "scope.col-fallback",
+    "scope.col-job"
+   ],
+   "functions": [
+    "DE",
+    "PR"
+   ],
+   "order": 1,
+   "owner": null,
+   "pillars": [
+    "device"
+   ],
+   "score": 60.0,
+   "status": "FAIL",
+   "threshold": 75.0,
+   "title": "Scope",
+   "weight_passed": 3,
+   "weight_total": 5
+  }
+ },
+ "functions": {
+  "DE": {
+   "controls": 6,
+   "score": 50.0,
+   "title": "Detect"
+  },
+  "GV": {
+   "controls": 0,
+   "score": 0.0,
+   "title": "Govern"
+  },
+  "ID": {
+   "controls": 0,
+   "score": 0.0,
+   "title": "Identify"
+  },
+  "PR": {
+   "controls": 8,
+   "score": 100.0,
+   "title": "Protect"
+  },
+  "RC": {
+   "controls": 0,
+   "score": 0.0,
+   "title": "Recover"
+  },
+  "RS": {
+   "controls": 0,
+   "score": 0.0,
+   "title": "Respond"
+  }
+ },
+ "mean": 60.0,
+ "not_applicable": {},
+ "overall": 60.0,
+ "pillars": {
+  "device": {
+   "controls": 14,
+   "failing": [
+    "scope.col-fallback",
+    "scope.col-job"
+   ],
+   "score": 60.0,
+   "status": "FAIL"
+  },
+  "network": {
+   "controls": 0,
+   "failing": [],
+   "score": 0.0,
+   "status": "FAIL"
+  },
+  "people": {
+   "controls": 0,
+   "failing": [],
+   "score": 0.0,
+   "status": "FAIL"
+  },
+  "software": {
+   "controls": 0,
+   "failing": [],
+   "score": 0.0,
+   "status": "FAIL"
+  }
+ },
+ "regressions_total": {
+  "scope": 0
+ },
+ "schema": "security-platform/scorecard/v1",
+ "scorecard_version": "0.5.0",
+ "status": "FAIL",
+ "threshold": 75.0,
+ "weakest": "scope"
+}

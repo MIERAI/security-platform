@@ -152,7 +152,7 @@ func TestVersionText(t *testing.T) {
 	}{
 		{"--version, installed tree", "version=v0.4.0\ncommit=abc\n", []string{"--version"},
 			[]string{"sp 0.3.0 (security-platform v0.4.0)", "binary: v0.4.0, go1.27.4, linux/amd64",
-				"go subcommands: cloud version", "go components: (none)", "python components: cli collectors/host core"}},
+				"go subcommands: " + strings.Join(GoSubcommands(), " "), "go components: (none)", "python components: cli collectors/host core"}},
 		{"version subcommand", "version=v0.4.0\n", []string{"version"}, []string{"sp 0.3.0 (security-platform v0.4.0)"}},
 		{"mismatch is flagged", "version=v0.3.0\n", []string{"--version"},
 			[]string{"warning: the sp binary is v0.4.0 but the Python tree is v0.3.0"}},

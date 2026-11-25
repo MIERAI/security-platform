@@ -1,0 +1,192 @@
+{
+ "attestations": {
+  "expired": 0,
+  "expiring": 0,
+  "missing": 0,
+  "valid": 0
+ },
+ "computed_at": "2030-01-10T00:00:00Z",
+ "controls": [
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "RS.MI",
+   "detail": "evaluator error: KeyError: 'sli'",
+   "dimension": "sli",
+   "expires": null,
+   "function": "RS",
+   "id": "sli.broken",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "unknown",
+   "title": "No SLI named",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "DE.CM",
+   "detail": "SLI crit = 0 (objective <= 0)",
+   "dimension": "sli",
+   "expires": null,
+   "function": "DE",
+   "id": "sli.crit",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "pass",
+   "title": "No open critical",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "RS.MI",
+   "detail": "SLI gone not computed yet",
+   "dimension": "sli",
+   "expires": null,
+   "function": "RS",
+   "id": "sli.gone",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "unknown",
+   "title": "Not computed yet",
+   "weight": 1
+  },
+  {
+   "attestable": false,
+   "check": "automated",
+   "cis": [],
+   "csf": "RS.MI",
+   "detail": "SLI ttr = 3.5 (objective <= 1)",
+   "dimension": "sli",
+   "expires": null,
+   "function": "RS",
+   "id": "sli.ttr",
+   "needs_human": false,
+   "pillars": [
+    "software"
+   ],
+   "question": null,
+   "remediation": "",
+   "status": "fail",
+   "title": "Time to remediate",
+   "weight": 1
+  }
+ ],
+ "dimension_pillar": {
+  "sli|software": 25.0
+ },
+ "dimensions": {
+  "sli": {
+   "controls": 4,
+   "failing": [
+    "sli.broken",
+    "sli.gone",
+    "sli.ttr"
+   ],
+   "functions": [
+    "DE",
+    "RS"
+   ],
+   "order": 1,
+   "owner": null,
+   "pillars": [
+    "software"
+   ],
+   "score": 25.0,
+   "status": "FAIL",
+   "threshold": 75.0,
+   "title": "SLIs",
+   "weight_passed": 1,
+   "weight_total": 4
+  }
+ },
+ "functions": {
+  "DE": {
+   "controls": 1,
+   "score": 100.0,
+   "title": "Detect"
+  },
+  "GV": {
+   "controls": 0,
+   "score": 0.0,
+   "title": "Govern"
+  },
+  "ID": {
+   "controls": 0,
+   "score": 0.0,
+   "title": "Identify"
+  },
+  "PR": {
+   "controls": 0,
+   "score": 0.0,
+   "title": "Protect"
+  },
+  "RC": {
+   "controls": 0,
+   "score": 0.0,
+   "title": "Recover"
+  },
+  "RS": {
+   "controls": 3,
+   "score": 0.0,
+   "title": "Respond"
+  }
+ },
+ "mean": 25.0,
+ "not_applicable": {},
+ "overall": 25.0,
+ "pillars": {
+  "device": {
+   "controls": 0,
+   "failing": [],
+   "score": 0.0,
+   "status": "FAIL"
+  },
+  "network": {
+   "controls": 0,
+   "failing": [],
+   "score": 0.0,
+   "status": "FAIL"
+  },
+  "people": {
+   "controls": 0,
+   "failing": [],
+   "score": 0.0,
+   "status": "FAIL"
+  },
+  "software": {
+   "controls": 4,
+   "failing": [
+    "sli.broken",
+    "sli.gone",
+    "sli.ttr"
+   ],
+   "score": 25.0,
+   "status": "FAIL"
+  }
+ },
+ "regressions_total": {
+  "sli": 0
+ },
+ "schema": "security-platform/scorecard/v1",
+ "scorecard_version": "0.5.0",
+ "status": "FAIL",
+ "threshold": 75.0,
+ "weakest": "sli"
+}

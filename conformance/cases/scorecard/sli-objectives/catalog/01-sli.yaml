@@ -1,0 +1,7 @@
+schema: security-platform/scorecard-catalog/v1
+dimension: {id: sli, order: 1, title: SLIs, pillars: [software]}
+controls:
+  - {id: sli.crit, title: No open critical, csf: DE.CM, check: automated, weight: 1, source: {type: sli, sli: crit}}
+  - {id: sli.ttr, title: Time to remediate, csf: RS.MI, check: automated, weight: 1, source: {type: sli, sli: ttr}}
+  - {id: sli.gone, title: Not computed yet, csf: RS.MI, check: automated, weight: 1, source: {type: sli, sli: gone}}
+  - {id: sli.broken, title: No SLI named, csf: RS.MI, check: automated, weight: 1, source: {type: sli}}

@@ -129,24 +129,23 @@ func FuzzSteampipeRows(f *testing.F) {
 	})
 }
 
-func FuzzObjectKeys(f *testing.F) {
+func FuzzParseInstance(f *testing.F) {
 	f.Add([]byte(`{"cloud":{"engines":{"b":1,"a":{"x":[1,2]}}}}`))
+	f.Add([]byte("cloud:\n  engines: {b: 1, a: 2}\n  accounts: [{x: 2030-01-31, y: 1.5, z: 0o17}]\n"))
 	f.Add([]byte(`{"cloud":[1]}`))
-	f.Add([]byte(`{"cloud":{"engines":`))
 	f.Fuzz(func(t *testing.T, data []byte) {
-		keys, err := objectKeys(data, "cloud", "engines")
+		cfg, err := parseInstance(data)
 		if err != nil {
 			return
 		}
-		v, derr := dyn.Decode(data)
-		if derr != nil {
-			return
-		}
-		engines := dyn.Map(dyn.Map(dyn.Map(v)["cloud"])["engines"])
-		for _, k := range keys {
+		engines := dyn.Map(cfg.cloud["engines"])
+		for _, k := range cfg.engineOrder {
 			if _, ok := engines[k]; !ok {
-				t.Fatalf("key %q not in the decoded object", k)
+				t.Fatalf("engine %q not in the section", k)
 			}
+		}
+		if len(cfg.engineOrder) != len(engines) {
+			t.Fatalf("order %v for %v", cfg.engineOrder, engines)
 		}
 	})
 }

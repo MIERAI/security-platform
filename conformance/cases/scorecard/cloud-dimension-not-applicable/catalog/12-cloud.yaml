@@ -1,0 +1,9 @@
+schema: security-platform/scorecard-catalog/v1
+dimension:
+  id: cloud
+  order: 12
+  title: Cloud
+  pillars: [software]
+  applies_when: {any: [{instance: cloud.accounts}, {coverage_prefix: "cloud:"}]}
+controls:
+  - {id: cloud.logging, title: Audit logging, csf: DE.CM, check: automated, weight: 1, source: {type: findings}}

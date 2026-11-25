@@ -1,0 +1,24 @@
+{
+ "collector": {
+  "name": "host",
+  "version": "1.0.0"
+ },
+ "coverage": [
+  {
+   "asset": "host:h1",
+   "status": "ok"
+  },
+  {
+   "asset": "host:h9",
+   "reason": "unreachable",
+   "status": "gap"
+  }
+ ],
+ "findings": [],
+ "run": {
+  "finished_at": "2030-01-09T00:00:00Z",
+  "instance": "conformance",
+  "started_at": "2030-01-09T00:00:00Z"
+ },
+ "schema_version": "1.2"
+}
