@@ -79,7 +79,8 @@ default install root `~/.local/opt/security-platform/current` that `bin/sp-insta
 
 The binaries are reproducible: the same tag and Go toolchain give byte-identical files on any machine (no cgo,
 `-trimpath`, no build id; the release workflow checks this by building on Linux and macOS and comparing).
-With the Go version named by the `toolchain` line of `go.mod`:
+With the Go version named by the `toolchain` line of `go.mod`, in a full clone (not `--depth 1`: Go stamps the
+module version from the repository's tags, and the build script refuses a shallow clone):
 
 ```sh
 git clone https://github.com/MIERAI/security-platform.git && cd security-platform && git checkout "$V"
