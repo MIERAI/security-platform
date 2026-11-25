@@ -117,9 +117,16 @@ None recorded yet.
 
 ### Collector `identity`
 
-Target behaviour of `collectors/identity` (Go: `sp identity collect`).
+Target behaviour of `collectors/identity` (Go: `sp identity collect`). The code host's API is read over HTTPS with a
+per-provider `api_url` (default `https://api.github.com`; plain http only to a loopback host).
 
-None recorded yet.
+| id | what | target |
+|---|---|---|
+| IDENTITY-D1 | Every code-host listing (organisation members, outside collaborators, repositories, collaborators) is read as one page of `per_page=100`; anything after it is silently missing (an unexpected collaborator on page 2 is never reported). | Listings follow the `Link: rel="next"` header to the end (bounded page count; a listing cut by the bound is a gap). Case `collector-identity/pagination-is-followed`. |
+| IDENTITY-D2 | Errors of the organisation listings (`/user/orgs`, members, outside collaborators), deploy keys and the fork-PR approval policy are dropped: an empty list, no gap. | Each is a gap of that part — `orgs:github/<user>`, `org:github/<org>/members`, `org:github/<org>/outside_collaborators`, `repo:github/<r>/deploy-key`, `repo:github/<r>/actions` (`checks: [identity.fork_pr_approval_weak]`) — and the reason names the OAuth scope the API asks for (`X-Accepted-OAuth-Scopes`). Case `collector-identity/unreadable-listings-are-gaps`. |
+| IDENTITY-D3 | A rate-limited answer (403/429 with `X-RateLimit-Remaining: 0` or `Retry-After`) is an ordinary error or, for most listings, silence; every later call is still made. | `rate limited until <reset time>` gaps; no further call for that account in this run. Case `collector-identity/rate-limit-is-a-gap-until-reset`. |
+| IDENTITY-D4 | Two-factor status is read only for the token's own account (`/user`). | Organisation members without 2FA (`/orgs/<org>/members?filter=2fa_disabled`, an owner's token) are accounts with `mfa: false` (`identity.mfa_disabled`); without the right, the gap `org:github/<org>/members-2fa`. Case `collector-identity/org-members-without-2fa`. |
+| IDENTITY-D5 | The overlay network's API base is fixed to the vendor's host (no mirror, proxy or test endpoint). | `api_url` per provider (default `https://api.tailscale.com/api/v2`; plain http only to a loopback host). Case `collector-identity/overlay-network-api`. |
 
 ## History
 
