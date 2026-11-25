@@ -2,6 +2,15 @@
 
 Components are versioned independently (docs/design.md §5). Entries name the component and its new version.
 
+## 2026-11-25 — scale benchmark
+
+- **core 0.6.3**: the ledger indexes each document's coverage once (`ledger.Coverage`) instead of scanning every
+  coverage entry for every finding that appeared or disappeared: a repeat run at 100k findings / 10k assets went from
+  ~30 s to ~5 s. Same rules (tested against the linear rule on random inputs); no contract change.
+- **bench/scale.py** (new): synthetic findings at chosen sizes, repeated runs with churn, gaps and exceptions; wall
+  time and peak RSS of ledger, scorecard, digest and remediation. Smoke size runs in the unit tests; results and
+  limits in docs/scale.md.
+
 ## 2026-11-25 — cloud security posture (AWS, GCP, Azure)
 
 - **collector cloud 0.1.0** (new): cloud accounts as assets; engine-agnostic (`collectors/cloud/engines.py`): Prowler
