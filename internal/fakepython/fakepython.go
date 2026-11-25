@@ -50,6 +50,14 @@ func Main(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	return 0
 }
 
+// Environ is the environment for running a test binary as the fake interpreter: the caller's, with EnvVar set and
+// GOCOVERDIR pointed at coverDir. Under `go test -cover` every run of the (instrumented) test binary writes coverage
+// files on exit; with the shared GOCOVERDIR of the parent, parallel runs race on renaming the same meta-data file,
+// which Windows refuses, and the error lands on the fake interpreter's stderr. A directory per run avoids that.
+func Environ(coverDir string) []string {
+	return append(os.Environ(), EnvVar+"=1", "GOCOVERDIR="+coverDir)
+}
+
 // Run is TestMain's hook: when EnvVar is set it runs Main and exits, otherwise it returns.
 func Run() {
 	if os.Getenv(EnvVar) == "" {

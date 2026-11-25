@@ -62,7 +62,7 @@ func run(t *testing.T, vars map[string]string, stdin string, args ...string) res
 	}
 	var out, errOut bytes.Buffer
 	env := Env{Args: args, Stdin: strings.NewReader(stdin), Stdout: &out, Stderr: &errOut,
-		Getenv: func(k string) string { return all[k] }, Environ: append(os.Environ(), fakepython.EnvVar+"=1"),
+		Getenv: func(k string) string { return all[k] }, Environ: fakepython.Environ(t.TempDir()),
 		Build: buildinfo.Info{Release: "v0.4.0", GoVersion: "go1.27.4", Platform: "linux/amd64"},
 		Exec:  delegate.Child}
 	code := Main(t.Context(), env)
