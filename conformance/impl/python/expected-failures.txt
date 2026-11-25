@@ -7,5 +7,8 @@ ledger/gap-matches-asset-not-substring   LEDGER-D3  gap matched as a substring o
 ledger/time-arithmetic-is-utc            LEDGER-D4  local-time parsing, DST hour
 runner/retry-waits-for-retry-delay       RUNNER-D1  retry delay measured on the wall clock under --now
 runner/missed-slot-is-visible            RUNNER-D2  skipped / given-up slots not counted anywhere
-cli/status-shows-missed-slot             CLI-D1     status shows "ok" for a job whose slot was missed
+runner/dst-spring-forward-gap-runs-once  RUNNER-D4  a slot in the spring-forward gap never fires
+runner/dst-fall-back-runs-once           RUNNER-D5  a repeated wall-clock time fires twice
+runner/dst-catch-up-across-spring-forward RUNNER-D6 day jump assumes 24-hour days: previous week's slot
+runner/job-environment-allow-list        RUNNER-D7  jobs inherit the runner's whole environment
 ledger/removed-exception-reopens         LEDGER-D5  an exception deleted by a human leaves the finding accepted

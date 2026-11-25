@@ -1,0 +1,98 @@
+{
+ "component": "runner",
+ "title": "DST, spring forward (Europe/Berlin): a daily slot whose wall-clock time does not exist (02:30 on 2030-03-31) fires once, at the end of the gap (03:00 CEST), not skipped for the day",
+ "contract": "runner/1.0",
+ "deviation": "RUNNER-D4",
+ "origin": "contract §3.1 (DST); the reference's cron matches local times per epoch second and never sees 02:30",
+ "files": {
+  "instance.json": "instance.json"
+ },
+ "steps": [
+  {
+   "name": "Saturday 02:40 CET: the normal slot",
+   "exec": {
+    "impl": "runner",
+    "args": [
+     "tick",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1901065200"
+    ],
+    "env": {
+     "TZ": "Europe/Berlin"
+    }
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/state/runner/daily.json",
+     "schema": "runner-state",
+     "subset": {
+      "runs_total": 1,
+      "done_slot": 1901064600
+     }
+    }
+   ]
+  },
+  {
+   "name": "Sunday 03:10 CEST: the 02:30 slot fired at the gap's end, 03:00 CEST",
+   "exec": {
+    "impl": "runner",
+    "args": [
+     "tick",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1901149800"
+    ],
+    "env": {
+     "TZ": "Europe/Berlin"
+    }
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/state/runner/daily.json",
+     "schema": "runner-state",
+     "subset": {
+      "runs_total": 2,
+      "done_slot": 1901149200
+     }
+    }
+   ]
+  },
+  {
+   "name": "once only",
+   "exec": {
+    "impl": "runner",
+    "args": [
+     "tick",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1901151600"
+    ],
+    "env": {
+     "TZ": "Europe/Berlin"
+    }
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/state/runner/daily.json",
+     "schema": "runner-state",
+     "subset": {
+      "runs_total": 2
+     }
+    }
+   ]
+  }
+ ]
+}

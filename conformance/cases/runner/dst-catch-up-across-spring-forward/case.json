@@ -1,0 +1,41 @@
+{
+ "component": "runner",
+ "title": "DST, spring forward (Europe/Berlin): a weekly slot just before midnight (Saturday 23:30) that was missed is caught up on the Sunday of the change as that slot, not as the previous week's",
+ "contract": "runner/1.0",
+ "deviation": "RUNNER-D6",
+ "origin": "contract §3.1 (DST); the reference's day jump assumes 24-hour days and lands an hour early",
+ "files": {
+  "instance.json": "instance.json"
+ },
+ "steps": [
+  {
+   "name": "Sunday 05:00 CEST, machine was off at Saturday 23:30 CET",
+   "exec": {
+    "impl": "runner",
+    "args": [
+     "tick",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1901156400"
+    ],
+    "env": {
+     "TZ": "Europe/Berlin"
+    }
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/state/runner/weekly.json",
+     "schema": "runner-state",
+     "subset": {
+      "runs_total": 1,
+      "done_slot": 1901140200
+     }
+    }
+   ]
+  }
+ ]
+}

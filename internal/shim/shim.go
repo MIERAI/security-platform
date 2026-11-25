@@ -43,6 +43,7 @@ type command func(ctx context.Context, env Env, args []string) int
 func goCommands() map[string]command {
 	return map[string]command{
 		"version": runVersion,
+		"runner":  runRunner,
 	}
 }
 

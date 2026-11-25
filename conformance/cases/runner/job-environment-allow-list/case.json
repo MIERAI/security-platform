@@ -1,0 +1,56 @@
+{
+ "component": "runner",
+ "title": "A job gets an allow-listed environment: PATH and the like, SP_*, its `env`, and what runner.env_passthrough names; other variables of the runner (ambient credentials) never reach it",
+ "contract": "runner/1.0",
+ "deviation": "RUNNER-D7",
+ "origin": "contract §4 (Environment); the reference passes its whole environment to every job",
+ "files": {
+  "instance.json": "instance.json"
+ },
+ "steps": [
+  {
+   "name": "tick at 2030-01-07T12:30:00Z",
+   "exec": {
+    "impl": "runner",
+    "args": [
+     "tick",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1894019400"
+    ],
+    "env": {
+     "AWS_SECRET_ACCESS_KEY": "canary-ambient-credential-0123456789",
+     "MY_PASSED": "granted"
+    }
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/state/runner/renamed.json",
+     "schema": "runner-state",
+     "subset": {
+      "last_rc": 0
+     }
+    },
+    {
+     "file": "env-all.txt",
+     "regex": [
+      "^PATH=",
+      "^MY_PASSED=granted$",
+      "^MY_SETTING=x$",
+      "^SP_RUN_DIR="
+     ]
+    },
+    {
+     "no_secret": [
+      "canary-ambient-credential-0123456789"
+     ],
+     "in": "."
+    }
+   ]
+  }
+ ]
+}

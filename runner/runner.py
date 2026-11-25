@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """runner: run an instance's jobs continuously (component `runner`, see runner/VERSION). Stdlib only.
 
-    runner.py tick   --instance F --data DIR [--now EPOCH] [--only JOB ...]   run whatever is due, then exit
-    runner.py run    --instance F --data DIR JOB                              run one job now (ignores the schedule)
+    runner.py tick   --instance F --data DIR [--now EPOCH] [JOB ...]   run whatever is due (only these jobs), then exit
+    runner.py run    --instance F --data DIR [JOB ...]                  run these jobs (all when none) now, ignoring the schedule
     runner.py status --instance F --data DIR                                  print the job states (JSON)
     runner.py metrics --instance F --data DIR                                 (re)publish the metrics to the sinks
     runner.py serve-metrics --dir D [--port 9851]                             HTTP /metrics from text files (exporter)

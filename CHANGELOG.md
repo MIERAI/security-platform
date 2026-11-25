@@ -4,6 +4,26 @@ Components are versioned independently (docs/design.md §5). Entries name the co
 
 ## Unreleased
 
+- **runner 0.10.0 — the runner in Go** (`sp runner tick|run|status|metrics|serve-metrics|version`, `internal/runner`):
+  passes every runner conformance case with no expected failure, writes the same state files, tick log lines and
+  metrics as the Python runner (one data directory works with both, in both directions: `tests/test_runner_go.py`),
+  and runs every job as before (the same programs; ingest, push, snapshot, pull-snapshot, spools, non-file sinks and
+  findings validation through `runner/bridge.py`, the Python runner's own code). Targets of the contract's known
+  deviations: one clock for everything under `--now` (RUNNER-D1), missed and pending slots in the metrics
+  (`security_runner_job_missed_slots_total`, `…_pending_slot_timestamp_seconds`; RUNNER-D2), daylight saving time
+  (§3.1, RUNNER-D4…D6), an allow-listed job environment plus `runner.env_passthrough` (RUNNER-D7), a fresh run
+  directory per run (RUNNER-D8), orphaned runs not started twice, the job's process group ended when the runner is
+  stopped, files private to the user (umask 077), `runner.implementations` to choose each component's program.
+  The Python runner is unchanged and stays the default trigger; switching and switching back is one line
+  (docs/runner.md "The Go runner"). Soak: `bench/runner_soak.py` (three simulated days, a two-hour downtime, both
+  runners on the same inputs, every difference classified). Dependency: `go.yaml.in/yaml/v3` (docs/go.md).
+- **runner**: the usage text says what the program does: jobs are positional, `run` without jobs runs all (RUNNER-D3
+  fixed).
+- **cli 0.3.1**: `sp status` marks a job `LATE` when a scheduled slot passed without a run (CLI-D1 fixed: after
+  downtime it said `ok`).
+- **contracts**: runner 1.1 (§3.1 daylight saving time, missed/pending slots, the job environment, `env_passthrough`,
+  `implementations`; RUNNER-D4…D8 recorded, with conformance cases `runner/dst-*` in Europe/Berlin and
+  `runner/job-environment-allow-list`); CLI-D1 closed.
 - **contracts 1.x** (new, documentation of existing behaviour; no component changed): `contracts/` defines every
   component boundary language-neutrally — findings 1.2 (incl. OCSF mapping), collector-protocol 1.0, ledger 1.0
   (merge + remediation tracking), scorecard 1.0, runner 1.0, metrics 1.0 (`registry.json`), cli 1.0 — each with JSON

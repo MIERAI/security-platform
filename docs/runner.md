@@ -61,7 +61,7 @@ Semantics, all deterministic and unit-tested (`tests/test_runner.py`):
 | success | exit 0 **and** a findings document that passes the schema; anything else is a failure |
 | ledger | every successful job merges into the ledger at once: `fixed` (only for covered assets), `reopened`, exception expiry |
 
-`runner.py status --instance F --data D` prints each job's state and whether it is due.
+`runner.py status --instance F --data D` (or `sp runner status ...`) prints each job's state and whether it is due.
 
 ## Triggers (deployment adapters)
 
@@ -103,6 +103,72 @@ fails the tick; `SecurityMetricsSinkFailing` after 4 in a row.
 | `systemd` | Linux | `.service` + `.timer`, `Persistent=true` |
 | `termux-job` | Android (Termux) | JobScheduler, 15 min minimum, survives reboots (`--persisted`); no cron daemon needed |
 | Kubernetes | a cluster | `deploy/kubernetes/`: the metrics exporter; `deploy/kubernetes/hub/`: the hub itself (below); `deploy/kubernetes/cronjob/`: an in-cluster site (CronJob → Secret outbox → hub `ingest` with `source: {type: kubernetes-secret, namespace, kubeconfig}`) |
+
+## The Go runner (`sp runner`, runner 0.10.0)
+
+`sp runner tick|run|status|metrics|serve-metrics|version` is a Go implementation of the same runner
+(`internal/runner`, contract [runner 1.1](../contracts/runner/SPEC.md)). It passes every runner conformance case with
+no expected failure and writes the same files: `state/runner/<job>.json`, `sinks.json`, the tick log lines, the
+published metrics, `runs/<date>/<time>-<job>/`. One data directory works with either runner, in both directions
+(`tests/test_runner_go.py` switches back and forth on the same directory). It still runs every job exactly as the
+Python runner does: collectors, ledger merge, remediation, digest, notify, export and events are started as the same
+programs; ingest, push, snapshot, pull-snapshot, spools, non-file sinks and findings validation run the Python
+runner's own code through `runner/bridge.py`. So the Go runner can replace the Python one first, while jobs are
+still Python. It needs a Unix-like system (process groups, `flock`), as the Python runner does; on Windows use WSL.
+
+What changes when the Go runner ticks (the targets of the contract's known deviations; the Python runner keeps its
+behaviour):
+
+| | Python runner | Go runner |
+|---|---|---|
+| clock (`--now`) | due decisions only | every recorded or compared time (RUNNER-D1) |
+| missed slots | not visible | `security_runner_job_missed_slots_total`, `…_pending_slot_timestamp_seconds`; log line `slot … missed` (RUNNER-D2) |
+| daylight saving time | gap slot skipped, repeated hour runs twice | one slot per wall-clock time (§3.1; RUNNER-D4…D6) |
+| job environment | the runner's whole environment | an allow-list plus `runner.env_passthrough` (RUNNER-D7) |
+| a tick that cannot read its instance or has a malformed schedule/duration | crashes later (exit 1) or 78 | exit 78 at start, the reason in the log |
+| orphaned job (its runner was killed) | may start a second copy | not started again while the orphan is within its timeout; killed after it |
+| runner stopped (SIGTERM/SIGINT) | its job keeps running | the job's process group gets SIGTERM, then SIGKILL; recorded as 124 |
+
+**Before switching**, list the variables your jobs read from the runner's environment that are not on the allow-list
+(contract §4: paths, locale, time zone, proxies, CA bundles, the in-cluster API address, `SSH_AUTH_SOCK`, `SP_*`).
+Typical: a token a collector reads from the environment (`GH_TOKEN`, an events source's `token_env`):
+
+```yaml
+runner:
+  env_passthrough: [GH_TOKEN]     # names only; values stay in the trigger's environment, never in the instance
+```
+
+Each tick the Go runner logs the *names* of credential-like variables it withholds (`environment: not passed to jobs
+…`): an empty line there means nothing is missing; values are never logged.
+
+**Switch** (any trigger: the one line the wrapper or the CronJob runs):
+
+```sh
+# tick.sh (deploy/render.py wrapper): replace the runner line
+nice -n 10 <install>/env/bin/python3 runner/runner.py tick --instance … --data … >> "$LOG" 2>&1   # Python
+nice -n 10 <install>/current/bin/sp runner tick --instance … --data … >> "$LOG" 2>&1             # Go
+```
+
+`sp` finds the Python tree it sits in (`<tree>/bin/sp`, else `$SP_PY_HOME`) and its interpreter (`$SP_PYTHON`, else
+`python3` on `PATH`): set `SP_PYTHON=<install>/env/bin/python3` in the wrapper so jobs use the pinned environment, as
+before. In Kubernetes (`deploy/kubernetes/hub/cronjob.yaml`) the image already carries `/usr/local/bin/sp` and
+`SP_PY_HOME`; add `command: ["/usr/local/bin/sp", "runner"]` (the `args` stay) and `SP_PYTHON: python3` to `env`.
+
+**Switch back**: restore the previous line (or remove `command:`). The Go runner's extra state fields
+(`missed_slots_total`, `missed_slot`) are ignored by the Python runner, `locks/<job>.owner.json` too; nothing needs
+cleaning. Check after either switch: `sp runner status --instance … --data …` (or `runner.py status`) shows the same
+`done_slot`/`runs_total` as before, and `tail $SP_DATA/state/runner/tick.log`.
+
+**Shadow first** (docs/contracts.md): run the Go runner as a second trigger on a copy of the data directory, or replay
+days with `bench/runner_soak.py`, which ticks both runners at the same fake instants (three days, a two-hour
+downtime, a non-UTC zone) and classifies every difference in state, status, metrics, logs, ledger and `latest/`.
+
+**Choosing the programs** (`runner.implementations`, both runners from the release that ships the switch; the Go
+runner already): `<component>: python | go | [argv …]` for `ledger`, `remediation`, `scorecard`, `export`, `digest`,
+`notify`, `events`, `collectors/<name>`. `python` (the default) is the program in this tree; `go` is a subcommand of
+the `sp` binary that runs the runner (`ledger` → `sp ledger merge`, `remediation` → `sp ledger track`, `scorecard` →
+`sp scorecard`); a list is an argument vector, `~` expanded, no shell. Unknown names or kinds are refused (64 for the
+job, logged for the scorecard).
 
 ## In-cluster hub (deploy 0.3.0)
 

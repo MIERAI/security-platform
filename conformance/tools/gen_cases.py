@@ -674,6 +674,7 @@ set -e
 [ -n "$EMIT_SLEEP" ] && sleep "$EMIT_SLEEP"
 [ -n "$EMIT_MARK" ] && echo "$SP_RUN_DIR" >> "$EMIT_MARK"
 [ -n "$EMIT_ENV" ] && env | grep -E '^(SP_|MY_)' | sort > "$EMIT_ENV"
+[ -n "$EMIT_ENV_ALL" ] && env | sort > "$EMIT_ENV_ALL"
 [ -n "$EMIT_FAIL" ] && exit "$EMIT_FAIL"
 cp "$EMIT_DOC" "$SP_RUN_DIR/${EMIT_AS:-host}.findings.json"
 """
@@ -693,11 +694,13 @@ def rinst(jobs, role="site", **cfg):
     return {"name": "conformance", "runner": r}
 
 
-def tick(now, name=None, expect=None, jobs=None, background=False, cmd="tick", exit_=0, files=None):
+def tick(now, name=None, expect=None, jobs=None, background=False, cmd="tick", exit_=0, files=None, env=None):
     st = {"name": name or f"{cmd} at {now}", "exec": {"impl": "runner", "args": [cmd, "--instance", "{sandbox}/instance.json",
                                                                               "--data", "{sandbox}/data"]
                                                      + (["--now", str(epoch(now))] if now else []) + (jobs or [])},
           "exit": exit_, "expect": expect or []}
+    if env:
+        st["exec"]["env"] = env
     if background:
         st["exec"]["background"] = True
         st.pop("exit")
@@ -877,6 +880,66 @@ def runner_cases():
             {"name": "security_runner_job_missed_slots_total", "labels": {"site": "hub", "job": "nightly"}, "value": 1}]}])]},
         dict(base, **{"instance.json": rinst({"nightly": rjob("30 3 * * *", max_delay="3h")}, role="hub")}))
 
+    berlin = {"TZ": "Europe/Berlin"}
+    write_case("runner", "dst-spring-forward-gap-runs-once", {
+        "title": "DST, spring forward (Europe/Berlin): a daily slot whose wall-clock time does not exist (02:30 on "
+                 "2030-03-31) fires once, at the end of the gap (03:00 CEST), not skipped for the day",
+        "contract": C, "deviation": "RUNNER-D4",
+        "origin": "contract §3.1 (DST); the reference's cron matches local times per epoch second and never sees 02:30",
+        "files": {"instance.json": "instance.json"},
+        "steps": [tick("2030-03-30T01:40:00Z", env=berlin, expect=[S("daily", {"runs_total": 1,
+                                                                              "done_slot": epoch("2030-03-30T01:30:00Z")})],
+                       name="Saturday 02:40 CET: the normal slot"),
+                  tick("2030-03-31T01:10:00Z", env=berlin, expect=[S("daily", {"runs_total": 2,
+                                                                              "done_slot": epoch("2030-03-31T01:00:00Z")})],
+                       name="Sunday 03:10 CEST: the 02:30 slot fired at the gap's end, 03:00 CEST"),
+                  tick("2030-03-31T01:40:00Z", env=berlin, expect=[S("daily", {"runs_total": 2})], name="once only")]},
+        dict(base, **{"instance.json": rinst({"daily": rjob("30 2 * * *")})}))
+
+    write_case("runner", "dst-fall-back-runs-once", {
+        "title": "DST, fall back (Europe/Berlin): a wall-clock time that occurs twice (02:30 on 2030-10-27) is one "
+                 "slot, its first occurrence; an hourly job does not run again in the repeated hour",
+        "contract": C, "deviation": "RUNNER-D5",
+        "origin": "contract §3.1 (DST); the reference runs both occurrences",
+        "files": {"instance.json": "instance.json"},
+        "steps": [tick("2030-10-27T00:40:00Z", env=berlin, expect=[
+                      S("daily", {"runs_total": 1, "done_slot": epoch("2030-10-27T00:30:00Z")}),
+                      S("hourly", {"runs_total": 1, "done_slot": epoch("2030-10-27T00:00:00Z")})],
+                       name="02:40 CEST, first occurrence"),
+                  tick("2030-10-27T01:40:00Z", env=berlin, expect=[S("daily", {"runs_total": 1}), S("hourly", {"runs_total": 1})],
+                       name="02:40 CET, the repeated hour: nothing new"),
+                  tick("2030-10-27T02:05:00Z", env=berlin, expect=[S("hourly", {"runs_total": 2,
+                                                                               "done_slot": epoch("2030-10-27T02:00:00Z")})],
+                       name="03:05 CET: the next hour")]},
+        dict(base, **{"instance.json": rinst({"daily": rjob("30 2 * * *"), "hourly": rjob("0 * * * *")})}))
+
+    write_case("runner", "dst-catch-up-across-spring-forward", {
+        "title": "DST, spring forward (Europe/Berlin): a weekly slot just before midnight (Saturday 23:30) that was missed "
+                 "is caught up on the Sunday of the change as that slot, not as the previous week's",
+        "contract": C, "deviation": "RUNNER-D6",
+        "origin": "contract §3.1 (DST); the reference's day jump assumes 24-hour days and lands an hour early",
+        "files": {"instance.json": "instance.json"},
+        "steps": [tick("2030-03-31T03:00:00Z", env=berlin, expect=[S("weekly", {"runs_total": 1,
+                                                                               "done_slot": epoch("2030-03-30T22:30:00Z")})],
+                       name="Sunday 05:00 CEST, machine was off at Saturday 23:30 CET")]},
+        dict(base, **{"instance.json": rinst({"weekly": rjob("30 23 * * 6")})}))
+
+    write_case("runner", "job-environment-allow-list", {
+        "title": "A job gets an allow-listed environment: PATH and the like, SP_*, its `env`, and what "
+                 "runner.env_passthrough names; other variables of the runner (ambient credentials) never reach it",
+        "contract": C, "deviation": "RUNNER-D7",
+        "origin": "contract §4 (Environment); the reference passes its whole environment to every job",
+        "files": {"instance.json": "instance.json"},
+        "steps": [tick("2030-01-07T12:30:00Z", env={"AWS_SECRET_ACCESS_KEY": "canary-ambient-credential-0123456789",
+                                                    "MY_PASSED": "granted"},
+                       expect=[S("renamed", {"last_rc": 0}),
+                               {"file": "env-all.txt", "regex": [r"^PATH=", r"^MY_PASSED=granted$", r"^MY_SETTING=x$",
+                                                                 r"^SP_RUN_DIR="]},
+                               {"no_secret": ["canary-ambient-credential-0123456789"], "in": "."}])]},
+        dict(base, **{"instance.json": rinst({"renamed": rjob("0 * * * *", env={"EMIT_ENV_ALL": "{sandbox}/env-all.txt",
+                                                                                 "MY_SETTING": "x"})},
+                                             env_passthrough=["MY_PASSED"])}))
+
     write_case("runner", "status-json", {
         "title": "`status` prints one JSON object: per job its state, `due` (why it would or would not run now) and schedule",
         "contract": C, "origin": "runner.py status; docs/runner.md",
@@ -987,10 +1050,11 @@ def cli_cases():
     st_late = {"schema": "security-platform/runner-state/v1", "job": "remediation", "runs_total": 5, "failures_total": 0,
                "last_rc": 0, "last_success": "{epoch:-2820}", "last_attempt": "{epoch:-2820}", "done_slot": "{epoch:-2880}"}
     write_case("cli", "status-shows-missed-slot", {
-        "title": "TARGET: `sp status` marks a job whose newest scheduled slot has passed without a run (machine was off) "
+        "title": "`sp status` marks a job whose newest scheduled slot has passed without a run (machine was off) "
                  "as late/missed, not just `ok, last good run 47m ago`",
-        "contract": C, "deviation": "CLI-D1",
-        "origin": "continuity test: remediation due 07:50, machine off 07:46-08:06; status before the catch-up tick said ok",
+        "contract": C,
+        "origin": "continuity test: remediation due 07:50, machine off 07:46-08:06; status before the catch-up tick said ok "
+                  "(was CLI-D1, fixed in cli 0.3.1)",
         "files": dict(data, **{"data/instance.json": "instance-every-10m.json", "data/state/runner/remediation.json": "state.json"}),
         "steps": [sp(["status"] + D, [{"stdout": {"regex": [r"^\s*\S+\s+remediation\b.*(missed|late|overdue|pending)"],
                                                   "ignore_case": True}}])]},

@@ -47,6 +47,7 @@ linters:
           allow:
             - $gostd
             - github.com/MIERAI/security-platform
+            - go.yaml.in/yaml/v3   # YAML catalogs, instances, attestations (docs/go.md, "Dependencies")
     errcheck:
       check-type-assertions: true
     forbidigo:

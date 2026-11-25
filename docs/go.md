@@ -30,7 +30,7 @@ pull request that makes its conformance suite run against the Go implementation.
 ## Layout
 
 ```
-go.mod                 module github.com/MIERAI/security-platform (no third-party dependencies)
+go.mod                 module github.com/MIERAI/security-platform (one dependency: go.yaml.in/yaml/v3, below)
 cmd/sp/                the sp binary: wiring only (environment, streams, exit); end-to-end tests build it
 internal/shim/         dispatch: Go subcommands, delegation to Python, `sp version`
 internal/delegate/     running cli/sp.py: argument vector, execve on Unix, child process elsewhere
@@ -40,6 +40,9 @@ internal/components/   the product's components (<dir>/VERSION) and their implem
 internal/buildinfo/    the binary's release (link time), commit and toolchain
 internal/textsafe/     printing text read from files without terminal control characters
 internal/fakepython/   a stand-in interpreter for tests
+internal/runner/       `sp runner` (docs/runner.md): scheduling, locks, jobs, state, metrics; subpackages cron (schedules,
+                       DST), config (instance files, YAML as PyYAML reads it), pyfmt (files byte-identical to Python's),
+                       promtext (metrics text)
 internal/<component>/  added per component as it moves (core, runner, collectors/<name>, ...)
 ```
 
@@ -77,6 +80,12 @@ Enforced by CI (`.github/workflows/go.yml`, `.golangci.yml`) where a tool can ch
   replaces, its maintenance, its own dependencies); depguard enforces the allow-list. Tools are pinned by
   version and checksum; GitHub Actions by commit SHA. New tool and action versions wait about two weeks after
   their release before they are adopted.
+- **YAML**: `go.yaml.in/yaml/v3` v3.0.6, the one dependency; every Go component that reads YAML uses it (the
+  runner for instance files, the scorecard for catalogs and attestations). It is the YAML organisation's maintained
+  continuation of `gopkg.in/yaml.v3` (archived), has no dependencies of its own, and only its `Node` API is used: the
+  scalar style and tags it keeps let the reader apply PyYAML's YAML 1.1 typing (`yes`/`on` booleans, `0755` octal,
+  `1:30` = 90, `1e3` stays text), so a file means the same to the Go and the Python implementation; mapping order is
+  kept (jobs run in the order written); nesting and alias expansion are bounded.
 - **Toolchain**: the `toolchain` line of `go.mod` (currently go1.27.4) is the version CI and releases build with;
   `go` is the minimum language version.
 

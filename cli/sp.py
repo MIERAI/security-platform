@@ -354,6 +354,11 @@ def cmd_status(a):
             continue
         good = s.get("last_rc") == 0
         last = s.get("last_success")
+        late = late_slot(n, jobs[n] or {}, s, now)
+        if late:
+            print(f"  {c('33', 'LATE')}    {n:<20} slot {time.strftime('%Y-%m-%d %H:%M', time.localtime(late))} not run "
+                  f"yet ({ago(late, now).replace(' ago', '')} late); last good run {ago(last, now) if last else 'never'}")
+            continue
         print(f"  {c('32', 'ok') if good else c('31', 'FAILING')}  {n:<20} last good run "
               f"{ago(last, now) if last else 'never'}" + ("" if good else f"  ({(s.get('last_note') or '')[:80]})"))
     gaps = []
@@ -373,6 +378,31 @@ def cmd_status(a):
         for e in top:
             print(f"  {e['id']}  {sev_c(e['severity']):<8} {explanations.headline(e['check'], e['title'])[:90]}")
     return 0
+
+
+LATE_AFTER = 15 * 60   # a trigger ticks every 5-15 minutes: a slot not started by then was missed (machine off, broken trigger)
+
+
+def late_slot(name, job, st, now):
+    """CLI-D1: the oldest scheduled slot after the last finished one (done_slot) whose jittered start is more than
+    LATE_AFTER ago, i.e. a run the runner should have started and did not; None when nothing is late. The same
+    schedule semantics as the runner (contract runner §3: cron in local time, jitter sha1("<job>|<slot>"))."""
+    if st.get("done_slot") is None or not job.get("schedule"):
+        return None
+    sys.path.insert(0, os.path.join(ROOT, "runner"))
+    try:
+        import cron
+        import hashlib
+        slot = cron.Cron(job["schedule"]).next(st["done_slot"])
+        jitter = cron.parse_duration(job.get("jitter"))
+    except (ValueError, TypeError):
+        return None
+    finally:
+        sys.path.remove(os.path.join(ROOT, "runner"))
+    if slot is None:
+        return None
+    start = slot + (int(hashlib.sha1(f"{name}|{slot}".encode()).hexdigest()[:8], 16) % jitter if jitter > 0 else 0)
+    return slot if now - start > LATE_AFTER else None
 
 
 def scorecard_line(sc):
