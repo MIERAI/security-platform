@@ -67,7 +67,8 @@ Semantics, all deterministic and unit-tested (`tests/test_runner.py`):
 
 `deploy/render.py <target>` renders them; every target calls the same `tick.sh` wrapper (`render.py wrapper`), which
 sets PATH/TZ, `nice`, rotates its log, and runs `runner.py tick`. Install the product with `bin/sp-install` (a
-versioned release directory per commit, `current` symlink; rollback = point `current` back).
+release directory per product tag, `releases/vX.Y.Z`, `current` symlink; rollback = point `current` back;
+docs/upgrade.md).
 
 **Offline by design (deploy 0.2.0).** A security monitor must not stop because the network blips, so a tick never
 resolves or downloads anything:

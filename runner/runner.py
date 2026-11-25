@@ -82,6 +82,12 @@ from adapters import sinks, spool  # noqa: E402
 from spsdk import load_config, render  # noqa: E402
 
 VERSION = open(os.path.join(HERE, "VERSION")).read().strip()
+# the product release this tree was installed as (RELEASE, written by bin/sp-install); "" in a checkout or an image
+try:
+    with open(os.path.join(ROOT, "RELEASE")) as _f:
+        RELEASE = dict(ln.strip().split("=", 1) for ln in _f if "=" in ln).get("version", "")
+except OSError:
+    RELEASE = ""
 STATE_SCHEMA = "security-platform/runner-state/v1"
 CONTROL_SCHEMA = "security-platform/control/v1"
 
@@ -597,7 +603,8 @@ class Runner:
             for col, sched in (j.get("site_collectors") or {}).items():
                 s.append(("security_collector_expected_interval_seconds", {"collector": col}, cron.Cron(sched).interval(now),
                           "Seconds between scheduled runs of the collector"))
-        s.append(("security_runner_info", {"site": self.site, "version": VERSION}, 1, "Runner version"))
+        s.append(("security_runner_info", {"site": self.site, "version": VERSION, "release": RELEASE}, 1,
+                  "Runner version and the product release it was installed as"))
         return s
 
     def metrics_text(self, now):
