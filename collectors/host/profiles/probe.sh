@@ -8,6 +8,7 @@
 # `probe.timeout=KEY` instead of a value; the rest of the output is unaffected. The collector turns that into a
 # coverage gap for the checks that read KEY only ("could not check", never a pass).
 # SP_PROBE_TIMEOUT / SP_PROBE_SLOW_TIMEOUT are set by the collector from the instance config.
+# shellcheck shell=sh
 : "${SP_PROBE_TIMEOUT:=20}" "${SP_PROBE_SLOW_TIMEOUT:=90}"
 _sp_dir=$(mktemp -d "${TMPDIR:-/tmp}/sp-probe.XXXXXX" 2>/dev/null) || { _sp_dir="${TMPDIR:-/tmp}/sp-probe.$$"; mkdir -p "$_sp_dir"; }
 trap 'rm -rf "$_sp_dir"' EXIT
@@ -18,6 +19,7 @@ _sp_tree() {  # $1 and every descendant (process table walk: ps -A on macOS/proc
     END { for (p in par) { q = p; n = 0; while (q != root && (q in par) && n++ < 64) q = par[q]; if (q == root) print p } }'
 }
 
+# shellcheck disable=SC2086  # $_sp_t is a list of process ids: split on purpose
 _sp_stop() {  # TERM the tree, then KILL whatever is left
   _sp_t=$(_sp_tree "$1"); [ -n "$_sp_t" ] || _sp_t=$1
   kill -TERM $_sp_t 2>/dev/null; sleep 1; kill -KILL $_sp_t 2>/dev/null

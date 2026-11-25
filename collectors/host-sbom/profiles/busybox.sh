@@ -1,4 +1,6 @@
 # host-sbom profile: OpenWrt-like embedded devices (routers). READ-ONLY. Firmware identity + opkg packages.
+# shellcheck shell=sh
+# shellcheck disable=SC1091  # the device's own file, read at run time
 . /etc/openwrt_release 2>/dev/null
 echo "os.family=openwrt"; echo "os.version=$DISTRIB_RELEASE"; echo "os.name=$DISTRIB_DESCRIPTION"; echo "arch=$DISTRIB_ARCH"
 echo "kernel.running=$(uname -r)"

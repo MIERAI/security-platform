@@ -1,4 +1,5 @@
 # host-sbom profile: Android + Termux (no root). READ-ONLY. Platform facts from getprop; Termux packages from dpkg.
+# shellcheck shell=sh
 echo "os.family=android"; echo "os.version=$(getprop ro.build.version.release)"
 echo "os.name=Android $(getprop ro.build.version.release)"
 echo "platform.patch_level=$(getprop ro.build.version.security_patch)"

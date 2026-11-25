@@ -3,12 +3,13 @@
 # Runs the selected collectors (default: all), then the core ledger. Read-only toward every target.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-INSTANCE= DATA=
+INSTANCE='' DATA=''
 while [[ $# -gt 0 ]]; do case $1 in
   --instance) INSTANCE=$2; shift 2;; --data) DATA=$2; shift 2;; *) break;; esac; done
 [[ -n $INSTANCE && -n $DATA ]] || { echo "usage: $0 --instance F --data DIR [collector...]" >&2; exit 2; }
 COLLECTORS=("$@"); [[ ${#COLLECTORS[@]} -gt 0 ]] || COLLECTORS=(exposure host k8s vuln-intel codehost-github codehost-gitea secrets-files agent-claude-code identity)
-export SP_INSTANCE=$INSTANCE SP_DATA=$DATA SP_INSTANCE_NAME=$(awk '/^name:/{print $2; exit}' "$INSTANCE")
+SP_INSTANCE_NAME=$(awk '/^name:/{print $2; exit}' "$INSTANCE") || true   # as before: a failed lookup leaves it empty
+export SP_INSTANCE=$INSTANCE SP_DATA=$DATA SP_INSTANCE_NAME
 export SP_RUN_DIR=${SP_RUN_DIR:-$DATA/runs/$(date -u +%Y-%m-%d)}
 mkdir -p "$SP_RUN_DIR"
 for c in "${COLLECTORS[@]}"; do
