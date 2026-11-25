@@ -12,18 +12,6 @@
   "reason": "AGENT-D1: the memory-scan evidence lists the pattern classes per file"
  },
  {
-  "case": "collector-detection/*",
-  "file": "^instance\\.json$",
-  "path": "\\.url$",
-  "reason": "input, not output: the instance names the fake service, whose port is chosen when the case starts"
- },
- {
-  "case": "collector-codehost-*/*",
-  "file": "^instance\\.json$",
-  "path": "^\\$\\.codehost\\[\\d+\\]\\.(api|url)$",
-  "reason": "input, not output: the fake API's port is chosen per run ({svc_codehost})"
- },
- {
   "case": "collector-codehost-github/*",
   "file": "codehost-github\\.findings\\.json$",
   "path": "^\\$\\.coverage\\[\\d+\\]\\.reason$",

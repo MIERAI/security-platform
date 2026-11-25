@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -197,6 +198,7 @@ func writeFile(t *testing.T, p, text string, mode os.FileMode) {
 }
 
 func TestCursorKeptOnFailedPush(t *testing.T) {
+	skipOnWindows(t)
 	t.Parallel()
 	p := &pushed{fail: true}
 	srv := httptest.NewServer(p)
@@ -226,6 +228,7 @@ func TestCursorKeptOnFailedPush(t *testing.T) {
 // TestTokenNeverLeaves: a private token goes only into the push's Authorization header; a token readable by others
 // is refused before any push; neither ever reaches the state, the summary or the output.
 func TestTokenNeverLeaves(t *testing.T) {
+	skipOnWindows(t)
 	t.Parallel()
 	canary := "push-canary-" + "71c0de"
 	for _, mode := range []os.FileMode{0o600, 0o644} {
@@ -289,5 +292,14 @@ func TestVersionMatchesTree(t *testing.T) {
 	}
 	if got := strings.TrimSpace(string(data)); got != Version {
 		t.Fatalf("events/VERSION %s, Go %s", got, Version)
+	}
+}
+
+// skipOnWindows: the test needs a token file with POSIX permissions (refused on Windows, where the mode bits Go
+// reports are not permissions) or POSIX programs; the Linux and macOS runs cover it.
+func skipOnWindows(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX file permissions / programs")
 	}
 }

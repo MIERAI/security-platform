@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -151,6 +152,7 @@ func run(t *testing.T, a *api, entry map[string]any, getenv map[string]string) r
 
 // TestReadOnlyAndNoSecretValues: every request is a GET, the token and an alert's secret never reach any output.
 func TestReadOnlyAndNoSecretValues(t *testing.T) {
+	skipOnWindows(t)
 	t.Parallel()
 	token, secret := canaries()
 	a := &api{t: t, token: token, routes: map[string]any{
@@ -191,6 +193,7 @@ func TestReadOnlyAndNoSecretValues(t *testing.T) {
 }
 
 func TestTokenSources(t *testing.T) {
+	skipOnWindows(t)
 	t.Parallel()
 	token, _ := canaries()
 	dir := t.TempDir()
@@ -298,4 +301,13 @@ func onlyTypeNames(t *testing.T, ss map[string]any, l []any) {
 func firstAccountOK(a *Account) bool {
 	return a.Account == "bot" && a.Host == "github.com" && a.Storage == "keyring" && !a.Active && a.HasActive &&
 		slices.Equal(a.Scopes, []string{"gist", "repo", "admin:org"})
+}
+
+// skipOnWindows: the test needs a token file with POSIX permissions (refused on Windows, where the mode bits Go
+// reports are not permissions) or POSIX programs; the Linux and macOS runs cover it.
+func skipOnWindows(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX file permissions / programs")
+	}
 }

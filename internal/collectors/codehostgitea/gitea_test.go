@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -87,6 +88,7 @@ func noCanary(t *testing.T, files map[string][]byte) {
 }
 
 func TestPostureReadOnly(t *testing.T) {
+	skipOnWindows(t)
 	t.Parallel()
 	rec := &recorder{}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -120,6 +122,7 @@ func TestPostureReadOnly(t *testing.T) {
 
 // TestTokenStaysOnItsServer: a redirect to another server is not followed; that server never sees the token.
 func TestTokenStaysOnItsServer(t *testing.T) {
+	skipOnWindows(t)
 	t.Parallel()
 	other := &recorder{}
 	elsewhere := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -139,6 +142,7 @@ func TestTokenStaysOnItsServer(t *testing.T) {
 }
 
 func TestLooseTokenFileSendsNothing(t *testing.T) {
+	skipOnWindows(t)
 	t.Parallel()
 	rec := &recorder{}
 	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) { rec.note(r) }))
@@ -211,4 +215,13 @@ func containsMap(l []any, m *pyvalue.Map) bool {
 		}
 	}
 	return false
+}
+
+// skipOnWindows: the test needs a token file with POSIX permissions (refused on Windows, where the mode bits Go
+// reports are not permissions) or POSIX programs; the Linux and macOS runs cover it.
+func skipOnWindows(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX file permissions / programs")
+	}
 }

@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -142,6 +143,7 @@ func noKube(context.Context, string, []string) execad.Result {
 // TestTokenSentOnlyFromPrivateFile: a 0600 token file is used and never written anywhere; a group-readable one is
 // refused before any request carries it (DETECTION-D1).
 func TestTokenSentOnlyFromPrivateFile(t *testing.T) {
+	skipOnWindows(t)
 	t.Parallel()
 	tok := canaryToken()
 	tests := []struct {
@@ -207,5 +209,14 @@ func TestSensorsThroughKubectl(t *testing.T) {
 	}
 	if calls.Load() != 4 {
 		t.Errorf("%d kubectl calls", calls.Load())
+	}
+}
+
+// skipOnWindows: the test needs a token file with POSIX permissions (refused on Windows, where the mode bits Go
+// reports are not permissions) or POSIX programs; the Linux and macOS runs cover it.
+func skipOnWindows(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX file permissions / programs")
 	}
 }
