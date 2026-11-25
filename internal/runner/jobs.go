@@ -17,8 +17,7 @@ func (r *Runner) runJob(ctx context.Context, j *config.Job, runDir string) (int,
 	case config.TypeCollector, config.TypeCommand:
 		return r.jobCollector(ctx, j, runDir)
 	case config.TypeRemediation:
-		return r.jobScript(ctx, j, runDir, script{component: "remediation", log: "remediation.log",
-			args: []string{"--data", r.data, "--instance", r.inst.Path}, ok: "tracker synced"})
+		return r.jobRemediation(ctx, j, runDir)
 	case config.TypeExport:
 		args := []string{"--data", r.data, "--instance", r.inst.Path}
 		if config.Truthy(j.Raw.Get("dry_run")) {
@@ -48,6 +47,7 @@ func (r *Runner) runJob(ctx context.Context, j *config.Job, runDir string) (int,
 
 // script is a job that runs one product program and succeeds with its exit code 0.
 type script struct {
+	argv      []string // the program; default: the component's Python program
 	component string
 	log       string
 	args      []string
@@ -55,9 +55,12 @@ type script struct {
 }
 
 func (r *Runner) jobScript(ctx context.Context, j *config.Job, runDir string, s script) (int, string) {
-	argv, err := r.program(s.component)
-	if err != nil {
-		return 64, err.Error()
+	argv := s.argv
+	if argv == nil {
+		var err error
+		if argv, err = r.program(s.component); err != nil {
+			return 64, err.Error()
+		}
 	}
 	rc, err := r.spawn(ctx, spawnSpec{argv: append(argv, s.args...), env: r.jobEnv(j, runDir), timeout: j.Timeout,
 		logPath: filepath.Join(runDir, s.log), job: j.Name})

@@ -495,7 +495,13 @@ def check(sb, exp, res):
 
 def impl_cmd(component, impls):
     cmd = impls.get(component) or os.environ.get("SP_IMPL_" + component.upper().replace("-", "_"))
-    return shlex.split(cmd) if cmd else None
+    if not cmd:
+        return None
+    argv = shlex.split(cmd)
+    # cases run in a temporary directory: a relative program path means relative to where run.py was started
+    if os.sep in argv[0] and not os.path.isabs(argv[0]):
+        argv[0] = os.path.abspath(argv[0])
+    return argv
 
 
 def run_case(case_dir, case, impls, keep, verbose):

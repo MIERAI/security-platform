@@ -178,7 +178,7 @@ runner:
 	}{
 		{"name", in.Name, "lab"}, {"site", in.Site, "s1"}, {"role", in.Role, "site"}, {"scorecard", in.Scorecard, false},
 		{"stale", in.TickStaleAfter, int64(7200)}, {"passthrough", in.EnvPassthrough, []string{"GH_TOKEN"}},
-		{"impl", in.Impl["ledger"], "go"}, {"jobs", len(in.Jobs), 3}, {"collector", host.Collector, "host"},
+		{"jobs", len(in.Jobs), 3}, {"collector", host.Collector, "host"},
 		{"jitter", host.Jitter, int64(1800)}, {"retries", host.Retries, int64(2)}, {"retry_delay", host.RetryDelay, int64(900)},
 		{"timeout", host.Timeout, int64(3600)}, {"env yes", host.Env["A"], "True"}, {"env float", host.Env["B"], "1.5"},
 		{"report", host.Report(), "host"}, {"as", cmd.Report(), "cmd-b"}, {"argv", cmd.Argv, []string{"/bin/true"}},

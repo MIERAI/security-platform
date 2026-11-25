@@ -5,7 +5,9 @@ The Go runner (`sp runner`, docs/runner.md) schedules, locks, runs and records j
 Python it calls here, one operation per process, so both runners do exactly the same thing with the same code:
 
     bridge.py collector-finish --instance F --data D --job J --run-dir R --stamp S   validate, promote, outbox
-    bridge.py job              --instance F --data D --job J --run-dir R            ingest, push, snapshot, pull-snapshot
+    bridge.py job              --instance F --data D --job J --run-dir R            ingest, push, snapshot, pull-snapshot,
+                                                                                    remediation (shadow)
+    bridge.py ledger           --instance F --data D --run-dir R                    ledger merge (shadow)
     bridge.py send-state       --instance F --data D --job J                        public state -> state_outbox
     bridge.py forward          --instance F --data D --index I                      store and forward, one entry
     bridge.py sink             --instance F --data D --index I --text FILE          one metrics sink
@@ -24,7 +26,7 @@ sys.path.insert(0, HERE)
 import runner  # noqa: E402  - the Python runner: the same methods, so behaviour cannot drift
 from adapters import sinks, spool  # noqa: E402  (runner put the product root on sys.path)
 
-IN_PROCESS = ("ingest", "push", "snapshot", "pull-snapshot")
+IN_PROCESS = ("ingest", "push", "snapshot", "pull-snapshot", "remediation")   # remediation: its shadow runs
 
 
 def failure(e):
@@ -68,6 +70,12 @@ def job(r, a):
     return {"rc": rc, "note": note}
 
 
+def ledger(r, a):
+    """runner.ledger: the merge with runner.implementations.ledger (here: its shadow run, contract runner §7)."""
+    rc, note = r.ledger(a.run_dir)
+    return {"rc": rc, "note": note}
+
+
 def send_state(r, a):
     r.send_state(a.job, r.load_state(a.job))
     return {}
@@ -96,7 +104,7 @@ def sink(r, a):
         return {"error": failure(e)}
 
 
-OPS = {"collector-finish": collector_finish, "job": job, "send-state": send_state, "forward": forward, "sink": sink}
+OPS = {"collector-finish": collector_finish, "job": job, "ledger": ledger, "send-state": send_state, "forward": forward, "sink": sink}
 
 
 def main(argv=None):
@@ -110,8 +118,17 @@ def main(argv=None):
     ap.add_argument("--index", type=int)
     ap.add_argument("--text")
     a = ap.parse_args(argv)
+    log, runner.log = runner.log, lambda msg: None   # the calling runner logged the configuration warnings already
     try:
-        out = OPS[a.op](runner.Runner(a.instance, a.data), a)
+        r = runner.Runner(a.instance, a.data)
+    except Exception as e:  # noqa: BLE001
+        r = e
+    finally:
+        runner.log = log
+    try:
+        if isinstance(r, Exception):
+            raise r
+        out = OPS[a.op](r, a)
     except Exception as e:  # noqa: BLE001 - reported like the runner's internal error (70)
         out = {"rc": 70, "note": failure(e), "error": failure(e)}
     print(json.dumps(out))

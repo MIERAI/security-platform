@@ -3,7 +3,7 @@ package scorecard
 import (
 	"sort"
 
-	pv "github.com/MIERAI/security-platform/internal/scorecard/pyvalue"
+	pv "github.com/MIERAI/security-platform/internal/pyvalue"
 )
 
 func dimensionScore(d *Dimension, items []*Control, threshold float64) (*DimensionScore, error) {

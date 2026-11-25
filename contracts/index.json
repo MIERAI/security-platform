@@ -47,7 +47,7 @@
    ]
   },
   "runner": {
-   "version": "1.1",
+   "version": "1.2",
    "spec": "runner/SPEC.md",
    "schemas": [
     "runner/runner-config-v1.schema.json",

@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	pv "github.com/MIERAI/security-platform/internal/scorecard/pyvalue"
+	pv "github.com/MIERAI/security-platform/internal/pyvalue"
 )
 
 // applicable decides a dimension's or control's applies_when (SPEC §3): true with no condition; else the

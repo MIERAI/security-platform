@@ -130,21 +130,19 @@ func TestEnvFilter(t *testing.T) {
 	}
 }
 
-func TestProgramChoice(t *testing.T) {
+func TestPrograms(t *testing.T) {
 	t.Parallel()
-	f := newFixture(t, map[string]any{"implementations": map[string]any{"ledger": "go", "scorecard": []string{"/opt/sc", "--x"},
-		"digest": "rust", "export": "go"}})
+	f := newFixture(t, map[string]any{})
 	r := f.runner(t, 0)
-	r.exe, r.python, r.tree = "/usr/local/bin/sp", "/usr/bin/python3", "/tree"
+	r.python, r.tree = "/usr/bin/python3", "/tree"
 	tests := []struct {
 		component, want string
 		ok              bool
 	}{
-		{"ledger", "/usr/local/bin/sp ledger merge", true}, {"scorecard", "/opt/sc --x", true},
 		{"remediation", "/usr/bin/python3 /tree/core/remediation.py", true},
 		{"notify", "/usr/bin/python3 /tree/cli/sp.py notify", true},
 		{"collectors/host", "/usr/bin/python3 /tree/collectors/host/collector.py", true},
-		{"digest", "", false}, {"export", "", false}, {"nothing", "", false},
+		{"nothing", "", false},
 	}
 	for _, tt := range tests {
 		argv, err := r.program(tt.component)
@@ -158,6 +156,83 @@ func TestProgramChoice(t *testing.T) {
 	}
 	if _, err := r.bridge(context.Background(), "job"); !errors.Is(err, errNoPython) {
 		t.Errorf("bridge without a tree: %v", err)
+	}
+}
+
+// TestImplementationSwitch: runner.implementations as the Python runner reads it (contract §7): invalid entries
+// logged once and ignored, a Go binary must prove itself (`version --json`), go without one falls back to python
+// (logged once), shadow without one records that nothing was compared.
+func TestImplementationSwitch(t *testing.T) {
+	t.Parallel()
+	f := newFixture(t, nil)
+	goSp := f.script(t, "go-sp", `echo '{"schema": "security-platform/version/v1", "go_subcommands": ["ledger", "version"]}'`+"\n")
+	notSp := f.script(t, "py-sp", "echo 'sp 0.3.0'\n")
+	inst := func(bin string, impls any) {
+		writeTestJSON(t, f.instance, map[string]any{"runner": map[string]any{"go_binary": bin, "implementations": impls}})
+	}
+	inst(goSp, map[string]any{"ledger": "go", "remediation": "shadow", "scorecard": "go", "export": "rust"})
+	r := f.runner(t, epoch(t, "2030-01-07T12:00:00Z"))
+	ctx := context.Background()
+	if mode, bin := r.implementation(ctx, "ledger", f.data); mode != implGo || bin != goSp {
+		t.Errorf("ledger: %s %s", mode, bin)
+	}
+	if mode, _ := r.implementation(ctx, "remediation", f.data); mode != implShadow {
+		t.Errorf("remediation: %s", mode)
+	}
+	for _, want := range []string{"runner.implementations.scorecard: 'go' ignored (components ['ledger', 'remediation'], " +
+		"values ['python', 'go', 'shadow']): python", "runner.implementations.export: 'rust' ignored"} {
+		if !strings.Contains(f.log.String(), want) {
+			t.Errorf("log lacks %q:\n%s", want, f.log)
+		}
+	}
+	checkFallback(t, f, notSp, inst)
+	inst(goSp, []any{"ledger"})
+	f.runner(t, 0)
+	if !strings.Contains(f.log.String(), "runner.implementations is not a mapping (list): python everywhere") {
+		t.Errorf("log:\n%s", f.log)
+	}
+}
+
+// checkFallback: a binary that is not the Go sp is never used; the fallback is logged once per process.
+func checkFallback(t *testing.T, f *fixture, notSp string, inst func(string, any)) {
+	t.Helper()
+	ctx := context.Background()
+	inst(notSp, map[string]any{"ledger": "go", "remediation": "shadow"})
+	r := f.runner(t, epoch(t, "2030-01-07T12:00:00Z"))
+	for range 2 {
+		if mode, _ := r.implementation(ctx, "ledger", f.data); mode != implPython {
+			t.Errorf("a binary that is not the Go sp was accepted")
+		}
+		r.implementation(ctx, "remediation", f.data)
+	}
+	if n := strings.Count(f.log.String(), "requested for ledger but no Go sp binary with `ledger` was found; using python"); n != 1 {
+		t.Errorf("fallback logged %d times", n)
+	}
+	st := r.LoadState("shadow/remediation")
+	if st["go_available"] != false || st["component"] != "remediation" {
+		t.Errorf("shadow state %v", st)
+	}
+	if strings.Contains(r.MetricsText(), "security_impl_shadow") {
+		t.Error("shadow series for a comparison that did not run")
+	}
+}
+
+func TestShadowSeries(t *testing.T) {
+	t.Parallel()
+	f := newFixture(t, map[string]any{})
+	r := f.runner(t, 0)
+	if err := os.MkdirAll(filepath.Join(r.stateDir, "shadow"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	writeTestJSON(t, filepath.Join(r.stateDir, "shadow", "ledger.json"), map[string]any{"component": "ledger",
+		"go_available": true, "unexplained": 2, "explained": 5, "at": 1894017600})
+	text := r.MetricsText()
+	for _, want := range []string{`security_impl_shadow_diffs{component="ledger",site="hub"} 2`,
+		`security_impl_shadow_explained_diffs{component="ledger",site="hub"} 5`,
+		`security_impl_shadow_last_run_timestamp_seconds{component="ledger",site="hub"} 1894017600`} {
+		if !strings.Contains(text, want) {
+			t.Errorf("metrics lack %s", want)
+		}
 	}
 }
 

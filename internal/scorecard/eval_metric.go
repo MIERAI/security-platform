@@ -3,7 +3,7 @@ package scorecard
 import (
 	"regexp"
 
-	pv "github.com/MIERAI/security-platform/internal/scorecard/pyvalue"
+	pv "github.com/MIERAI/security-platform/internal/pyvalue"
 )
 
 type compareOp func(a, b float64) bool

@@ -134,5 +134,34 @@ class GoRunner(unittest.TestCase):
         self.assertGreater(st["runs_total"], st["failures_total"])
 
 
+    def test_implementation_switch_like_the_python_runner(self):
+        """runner.implementations (contract runner §7): the Go runner selects, falls back and shadows exactly as the
+        Python runner: the same job results, shadow reports, shadow state and shadow metrics."""
+        out = {}
+        for which in ("python", "go"):
+            d = os.path.join(self.tmp, f"impl-{which}")
+            self.setup_instance(d)
+            with open(os.path.join(d, "instance.json")) as f:
+                inst = json.load(f)
+            inst["runner"].update(go_binary=self.sp, implementations={"ledger": "shadow", "remediation": "go",
+                                                                      "scorecard": "go"})
+            inst["runner"]["jobs"] = {"quarter": inst["runner"]["jobs"]["quarter"],
+                                      "remediation": {"type": "remediation", "schedule": "*/15 * * * *"}}
+            with open(os.path.join(d, "instance.json"), "w") as f:
+                json.dump(inst, f)
+            log = self.tick(which, d, 1894060800)
+            self.assertEqual(log.count("runner.implementations.scorecard: 'go' ignored"), 1, log)
+            data = os.path.join(d, "data")
+            with open(os.path.join(data, "state", "runner", "shadow", "ledger.json")) as f:
+                sh = json.load(f)
+            reports = [p for p, _, fs in os.walk(os.path.join(data, "runs")) for x in fs if x == "shadow-ledger.json"]
+            with open(os.path.join(data, "metrics", "security-platform.prom")) as f:
+                prom = [x.split(" ")[0] for x in f if x.startswith("security_impl_shadow")]
+            out[which] = {"state": {k: sh.get(k) for k in ("component", "go_available", "unexplained", "python_rc", "go_rc")},
+                          "reports": len(reports), "prom": prom, "states": self.states(d)}
+        self.assertEqual(out["python"]["state"]["go_available"], True)
+        self.assertEqual(out["python"], out["go"])
+
+
 if __name__ == "__main__":
     unittest.main()

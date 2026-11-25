@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/MIERAI/security-platform/internal/scorecard/pyvalue"
+	"github.com/MIERAI/security-platform/internal/pyvalue"
 )
 
 // StateSchema is the schema of state/runner/<job>.json.

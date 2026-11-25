@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/MIERAI/security-platform/internal/scorecard/pyvalue"
+	"github.com/MIERAI/security-platform/internal/pyvalue"
 )
 
 // Value is a sample value: an integer is written as is, a float with six significant digits (Python's {v:g}).

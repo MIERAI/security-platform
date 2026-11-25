@@ -310,6 +310,10 @@ runner:
   role: hub                          # hub: keeps the ledger, publishes metrics; site: only fills an outbox
   tick_stale_after: 1h               # heartbeat threshold for SecurityRunnerStale (a laptop hub: 12h)
   retention: 30d                     # delete runs/<date>/ older than this (default: keep)
+  implementations:                   # which implementation runs a component (default python for all)
+    ledger: shadow                   # python | go | shadow
+    remediation: python
+  go_binary: /usr/local/bin/sp       # optional; default /usr/local/bin/sp, then `sp` on PATH
   sinks:
     - {type: textfile, path: /var/lib/node_exporter/textfile/security-platform.prom}
     - {type: kubernetes-configmap, kubeconfig: ~/.kube/config, namespace: security-platform, name: security-platform-metrics}
@@ -333,3 +337,21 @@ runner:
 Sinks: `textfile` (`path`, `exec?`), `kubernetes-configmap` (`kubeconfig?`, `context?`, `namespace`, `name`,
 `key` default `security-platform.prom`), `remote_write` (`url`, `bearer_token_file?`, `labels?`, `timeout` default 30).
 Multi-host topologies (sites, inbox, forward, ingest, snapshots): [runner.md](runner.md).
+
+**Implementation switch** (`implementations`, `go_binary`; runner contract §7). Components: `ledger` (the merge after
+every collector run and ingest) and `remediation` (the `remediation` job). Values:
+
+| value | runs | outputs used |
+|---|---|---|
+| `python` (default) | the Python reference (`core/ledger.py`, `core/remediation.py`) | Python's |
+| `go` | the Go `sp` binary (`sp ledger merge`, `sp ledger track`); if no Go binary is found, Python runs (logged once) | Go's |
+| `shadow` | Python as usual, then Go on a temporary copy of the inputs; the outputs are diffed | Python's only |
+
+The Go binary is `go_binary`, else `/usr/local/bin/sp` (the runner image), else `sp` on `PATH`; it is used only when
+`sp version --json` lists the component's subcommand, so the Python `bin/sp` is never mistaken for it. A shadow run
+writes `<run>/shadow-<component>.json` (every difference, those explained by a known deviation's target marked
+`explained`, e.g. LEDGER-D2 due dates) and `<run>/shadow-<component>.log`, and exports
+`security_impl_shadow_diffs{component}` (unexplained, alert-worthy when > 0), `security_impl_shadow_explained_diffs`
+and `security_impl_shadow_last_run_timestamp_seconds`. A shadow `remediation` never calls an external tracker (the Go
+side runs with `--no-external-sync`) and both sides get the same `--now`. How to move a component step by step:
+[contracts.md](contracts.md).

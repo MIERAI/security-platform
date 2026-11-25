@@ -96,7 +96,6 @@ type Instance struct {
 	Runner         *Map // the whole runner block, for adapters configured there
 	Scorecard      bool // scorecard.enabled is not false
 	EnvPassthrough []string
-	Impl           map[string]any // runner.implementations
 }
 
 // Job returns the job of that name.
@@ -183,9 +182,6 @@ func (in *Instance) readRunner(r *Map) error {
 	}
 	if in.EnvPassthrough, err = stringList(r.Get("env_passthrough")); err != nil {
 		return fmt.Errorf("%w: env_passthrough: %w", ErrConfig, err)
-	}
-	if impl, ok := r.Get("implementations").(*Map); ok {
-		in.Impl = impl.Plain()
 	}
 	jobs, ok := orEmpty(r.Get("jobs"))
 	if !ok {

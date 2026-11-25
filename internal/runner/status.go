@@ -5,7 +5,7 @@ package runner
 import (
 	"fmt"
 
-	"github.com/MIERAI/security-platform/internal/scorecard/pyvalue"
+	"github.com/MIERAI/security-platform/internal/pyvalue"
 )
 
 // Status is contract §5: job name -> its state plus `due` (the reason of §3) and `schedule`, as Python's

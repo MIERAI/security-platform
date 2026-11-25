@@ -41,12 +41,19 @@ internal/buildinfo/    the binary's release (link time), commit and toolchain
 internal/textsafe/     printing text read from files without terminal control characters
 internal/fakepython/   a stand-in interpreter for tests
 internal/scorecard/    the scorecard (`sp scorecard compute|lint|list|version`; `attest` stays in Python)
-internal/scorecard/pyvalue/  documents as the contract reads them: YAML 1.1 typing, ordered JSON, the reference's
-                       number printing, rounding and sums (contracts/scorecard/SPEC.md §6)
+internal/pyvalue/       documents as the reference reads them: YAML 1.1 typing, ordered JSON, number printing,
+                       rounding (contracts/scorecard/SPEC.md §6); shared by every Go component
+internal/ledger/       the ledger merge (`sp ledger merge`, contracts/ledger); VERSION (component internal/ledger)
+  cli/                 `sp ledger merge|track|version`
+  pyjson/              ledger.json / items.json as the reference writes them: key order, int vs float, integers
+                       of any size, json.dumps with every option the ledger uses (also compact, ensure_ascii lines)
+  yamlcfg/             exceptions.yaml, catalog-review.yaml, instance config, SLI catalog: pyvalue.DecodeYAML
+  findings/            findings document validation (embedded copy of schema/findings-v1.schema.json)
+  instant/ prom/ fileio/  UTC timestamps, Prometheus text, bounded reads and atomic writes
 internal/runner/       `sp runner` (docs/runner.md): scheduling, locks, jobs, state, metrics; subpackages cron (schedules,
-                       DST), config (the runner block of the instance), promtext (metrics text); YAML, JSON files
-                       and number printing through internal/scorecard/pyvalue
-internal/<component>/  added per component as it moves (core, runner, collectors/<name>, ...)
+                       DST), config (the runner block of the instance), promtext (metrics text); files through pyvalue
+internal/remediation/  track (`sp ledger track`): items, owners, SLO due dates, files and github-issues trackers
+internal/<component>/  added per component as it moves (collectors/<name>, ...)
 ```
 
 Everything is under `internal/`: the Go packages are not a public library API, the contracts (`schema/`,
@@ -99,6 +106,7 @@ Enforced by CI (`.github/workflows/go.yml`, `.golangci.yml`) where a tool can ch
 gofmt -l . && go vet ./... && go test -race -cover ./...
 golangci-lint run ./...                         # the version in .github/workflows/go.yml
 go test -run='^$' -fuzz='^FuzzParseFile$' -fuzztime=30s ./internal/release
+conformance/impl/go/run.sh                      # the conformance suite against `sp ledger` (no expected failures)
 go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
 scripts/build-release.sh v0.0.0-local dist-go   # the release build, see docs/install.md
 ```

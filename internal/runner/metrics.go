@@ -10,7 +10,7 @@ import (
 )
 
 // Version is the runner component's version (runner/VERSION; a test keeps them equal).
-const Version = "0.10.0"
+const Version = "0.11.0"
 
 // row is one job's state as the metrics see it: a local job (with its configuration), a forward-<i> entry, or
 // a job a site reported.
@@ -29,6 +29,7 @@ type seriesInput struct {
 	sinks         map[string]any
 	rows          []row
 	jobs          []*config.Job
+	shadows       []State // state/runner/shadow/*.json, sorted by file name
 	loc           *time.Location
 }
 
@@ -46,6 +47,7 @@ func runnerSeries(in seriesInput) []promtext.Series {
 		s = append(s, jobSeries(rw, in)...)
 	}
 	s = append(s, collectorIntervals(in)...)
+	s = append(s, shadowSeries(in.site, in.shadows)...)
 	return append(s, promtext.Series{Name: "security_runner_info",
 		Labels: map[string]string{"site": in.site, "version": Version, "release": in.release}, Value: promtext.Int(1),
 		Help: "Runner version and the product release it was installed as"})
@@ -149,4 +151,25 @@ func valueOr(v any) promtext.Value {
 func truthyNumber(v any) bool {
 	f, ok := num(v)
 	return ok && f != 0
+}
+
+// shadowSeries are the last shadow comparison of each component (contract §7); none for a component whose last
+// shadow run had no Go binary (the comparison heartbeat goes stale, which is what should show).
+func shadowSeries(site string, shadows []State) []promtext.Series {
+	var s []promtext.Series
+	for _, st := range shadows {
+		comp, ok := st["component"].(string)
+		if b, isBool := st["go_available"].(bool); !isBool || !b || !ok {
+			continue
+		}
+		lab := map[string]string{"site": site, "component": comp}
+		s = append(s,
+			promtext.Series{Name: "security_impl_shadow_diffs", Labels: lab, Value: valueOr(st["unexplained"]),
+				Help: "Unexplained differences between the Python and the Go implementation (last shadow comparison)"},
+			promtext.Series{Name: "security_impl_shadow_explained_diffs", Labels: lab, Value: valueOr(st["explained"]),
+				Help: "Differences explained by a known deviation's target behaviour (last shadow comparison)"},
+			promtext.Series{Name: "security_impl_shadow_last_run_timestamp_seconds", Labels: lab, Value: valueOr(st["at"]),
+				Help: "When the last shadow comparison ran"})
+	}
+	return s
 }

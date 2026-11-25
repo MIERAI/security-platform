@@ -177,6 +177,11 @@ func (r *Runner) seriesInput(now float64) seriesInput {
 		name := fmt.Sprintf("forward-%d", i)
 		in.rows = append(in.rows, row{site: r.inst.Site, name: name, st: r.LoadState(name)})
 	}
+	for _, f := range glob(filepath.Join(r.stateDir, "shadow", "*.json")) {
+		if m, ok := readJSONObject(f); ok {
+			in.shadows = append(in.shadows, State(m))
+		}
+	}
 	return r.siteRows(in)
 }
 

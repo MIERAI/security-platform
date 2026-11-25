@@ -1,7 +1,7 @@
 // Package config reads the instance configuration (YAML or JSON) and the runner block of it
 // (contracts/runner/runner-config-v1.schema.json).
 //
-// YAML is read with the scorecard's reader (internal/scorecard/pyvalue): typed as the reference implementation's
+// YAML is read with the scorecard's reader (internal/pyvalue): typed as the reference implementation's
 // PyYAML (YAML 1.1, safe_load) types it, so the same file means the same thing to the Go and the Python runner:
 // unquoted yes/no/on/off are booleans, 0755 is octal, 1:30 is 90, ~ is null, timestamps are text here. Mappings keep
 // their key order (jobs run in the order they are written); nesting and alias expansion are bounded.
@@ -11,7 +11,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/MIERAI/security-platform/internal/scorecard/pyvalue"
+	"github.com/MIERAI/security-platform/internal/pyvalue"
 )
 
 // Map is a mapping that remembers its key order.

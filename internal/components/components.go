@@ -37,7 +37,8 @@ type Component struct {
 // conformance suite first). A fresh map on every call: nothing can change the answer at run time.
 func GoImplemented() map[string]bool {
 	return map[string]bool{
-		"runner": true, // sp runner (internal/runner); the trigger chooses which runner ticks (docs/runner.md)
+		"internal/ledger": true,
+		"runner":          true, // sp runner (internal/runner); the trigger chooses which runner ticks (docs/runner.md)
 	}
 }
 

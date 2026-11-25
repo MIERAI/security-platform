@@ -104,7 +104,7 @@ fails the tick; `SecurityMetricsSinkFailing` after 4 in a row.
 | `termux-job` | Android (Termux) | JobScheduler, 15 min minimum, survives reboots (`--persisted`); no cron daemon needed |
 | Kubernetes | a cluster | `deploy/kubernetes/`: the metrics exporter; `deploy/kubernetes/hub/`: the hub itself (below); `deploy/kubernetes/cronjob/`: an in-cluster site (CronJob → Secret outbox → hub `ingest` with `source: {type: kubernetes-secret, namespace, kubeconfig}`) |
 
-## The Go runner (`sp runner`, runner 0.10.0)
+## The Go runner (`sp runner`, runner 0.11.0)
 
 `sp runner tick|run|status|metrics|serve-metrics|version` is a Go implementation of the same runner
 (`internal/runner`, contract [runner 1.1](../contracts/runner/SPEC.md)). It passes every runner conformance case with
@@ -163,12 +163,11 @@ cleaning. Check after either switch: `sp runner status --instance … --data …
 days with `bench/runner_soak.py`, which ticks both runners at the same fake instants (three days, a two-hour
 downtime, a non-UTC zone) and classifies every difference in state, status, metrics, logs, ledger and `latest/`.
 
-**Choosing the programs** (`runner.implementations`, both runners from the release that ships the switch; the Go
-runner already): `<component>: python | go | [argv …]` for `ledger`, `remediation`, `scorecard`, `export`, `digest`,
-`notify`, `events`, `collectors/<name>`. `python` (the default) is the program in this tree; `go` is a subcommand of
-the `sp` binary that runs the runner (`ledger` → `sp ledger merge`, `remediation` → `sp ledger track`, `scorecard` →
-`sp scorecard`); a list is an argument vector, `~` expanded, no shell. Unknown names or kinds are refused (64 for the
-job, logged for the scorecard).
+**Choosing the implementation of the ledger and remediation** (`runner.implementations`, `runner.go_binary`,
+contract runner §7) works the same in both runners: `python | go | shadow` per component, the Go binary found and
+proven the same way, the same once-per-process fallback message, and in `shadow` mode the Python runner's own
+comparison (through `runner/bridge.py`), so the reports (`<run>/shadow-<component>.json`,
+`state/runner/shadow/<component>.json`) and the `security_impl_shadow_*` series are the same whichever runner ticks.
 
 ## In-cluster hub (deploy 0.3.0)
 

@@ -30,6 +30,7 @@ type Runner struct {
 	loc      *time.Location
 	wall     func() time.Time
 	release  string
+	impl     implSwitch
 }
 
 // Options is everything a Runner takes from its process.
@@ -70,6 +71,7 @@ func New(o Options) (*Runner, error) {
 		}
 	}
 	r.release = readRelease(filepath.Join(o.Tree, "RELEASE"))
+	r.initImpls()
 	return r, nil
 }
 

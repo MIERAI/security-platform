@@ -4,7 +4,7 @@ Components are versioned independently (docs/design.md §5). Entries name the co
 
 ## Unreleased
 
-- **runner 0.10.0 — the runner in Go** (`sp runner tick|run|status|metrics|serve-metrics|version`, `internal/runner`):
+- **runner 0.11.0 — the runner in Go** (`sp runner tick|run|status|metrics|serve-metrics|version`, `internal/runner`):
   passes every runner conformance case with no expected failure, writes the same state files, tick log lines and
   metrics as the Python runner (one data directory works with both, in both directions: `tests/test_runner_go.py`),
   and runs every job as before (the same programs; ingest, push, snapshot, pull-snapshot, spools, non-file sinks and
@@ -13,7 +13,8 @@ Components are versioned independently (docs/design.md §5). Entries name the co
   (`security_runner_job_missed_slots_total`, `…_pending_slot_timestamp_seconds`; RUNNER-D2), daylight saving time
   (§3.1, RUNNER-D4…D6), an allow-listed job environment plus `runner.env_passthrough` (RUNNER-D7), a fresh run
   directory per run (RUNNER-D8), orphaned runs not started twice, the job's process group ended when the runner is
-  stopped, files private to the user (umask 077), `runner.implementations` to choose each component's program.
+  stopped, files private to the user (umask 077); `runner.implementations` (python | go | shadow) exactly as the
+  Python runner applies it (shadow runs through the Python runner's comparison: same reports and metrics).
   The Python runner is unchanged and stays the default trigger; switching and switching back is one line
   (docs/runner.md "The Go runner"). Soak: `bench/runner_soak.py` (three simulated days, a two-hour downtime, both
   runners on the same inputs, every difference classified). YAML through the scorecard's `pyvalue` (the same module and typing).
@@ -21,8 +22,8 @@ Components are versioned independently (docs/design.md §5). Entries name the co
   fixed).
 - **cli 0.3.1**: `sp status` marks a job `LATE` when a scheduled slot passed without a run (CLI-D1 fixed: after
   downtime it said `ok`).
-- **contracts**: runner 1.1 (§3.1 daylight saving time, missed/pending slots, the job environment, `env_passthrough`,
-  `implementations`; RUNNER-D4…D8 recorded, with conformance cases `runner/dst-*` in Europe/Berlin and
+- **contracts**: runner 1.2 (§3.1 daylight saving time, missed/pending slots, the job environment, `env_passthrough`;
+  RUNNER-D4…D8 recorded, with conformance cases `runner/dst-*` in Europe/Berlin and
   `runner/job-environment-allow-list`); CLI-D1 closed.
 - **scorecard 0.5.0 — Go implementation** (`sp scorecard compute|lint|list|version`, `internal/scorecard`): the
   first component with a Go implementation next to the Python one. It reads the same catalog, instance, ledger,
@@ -38,6 +39,27 @@ Components are versioned independently (docs/design.md §5). Entries name the co
   (site job states in directory order). 9 more conformance cases (13): not applicable by id, glob, tag and
   unconfigured collector, weights and rounding, weakest link, pillars and CSF functions, attestation states, SLI
   objectives, regression counters over several computes, the cloud dimension, every evaluator type, catalog errors.
+- **internal/ledger 0.1.0** (new, Go): the ledger merge and remediation tracking in Go — `sp ledger merge` and
+  `sp ledger track` (contracts/ledger 1.0). Passes the whole ledger and remediation conformance suite with no expected
+  failures, i.e. with the TARGET behaviour of the known deviations: a finding without `kind` is merged as
+  `compliance` instead of failing the merge (LEDGER-D1); an entry gets its remediation `due_at` when first recorded
+  or reopened (LEDGER-D2); a coverage gap protects only the assets it would cover, not every asset whose name contains
+  it (LEDGER-D3); all time arithmetic on UTC instants (LEDGER-D4); an accepted finding whose exception was removed from
+  `exceptions.yaml` is open again (LEDGER-D5). It reads and writes the same files as the reference, byte for byte
+  (checked on the conformance fixtures and on 10k findings over six runs with `--reference-behaviour`). YAML
+  is read through `internal/pyvalue` (moved from the scorecard, shared). Not used unless selected below.
+- **runner 0.10.0**: `runner.implementations.<component>: python | go | shadow` (default `python`) and
+  `runner.go_binary` select the implementation of `ledger` and `remediation`. `go` falls back to Python (logged once)
+  when no Go `sp` binary is found; `shadow` keeps Python as the source of truth, runs Go on a temporary copy of the
+  same inputs, writes `<run>/shadow-<component>.json` with every difference attributed to a known deviation or marked
+  unexplained, and exports `security_impl_shadow_diffs{component}`, `security_impl_shadow_explained_diffs` and
+  `security_impl_shadow_last_run_timestamp_seconds`. `bench/shadow.py` runs it end to end on a realistic estate.
+- **core 0.10.0**: ships the Go implementation of merge and track next to the Python one (the Python files are
+  unchanged; which one runs is the runner's `implementations` setting).
+- **contracts**: runner 1.1 (§7 implementation switch, shadow report `security-platform/shadow-diff/v1`); ledger §8
+  (implementations); metrics registry: the three shadow series, label key `component`. `conformance/impl/go/run.sh`
+  runs the suite against the Go implementation (`tests/test_conformance_go.py` when a Go toolchain is present).
+- **sp**: `sp ledger ...` runs in Go; `sp version` lists `internal/ledger` as a Go component.
 - **contracts 1.x** (new, documentation of existing behaviour; no component changed): `contracts/` defines every
   component boundary language-neutrally — findings 1.2 (incl. OCSF mapping), collector-protocol 1.0, ledger 1.0
   (merge + remediation tracking), scorecard 1.0, runner 1.0, metrics 1.0 (`registry.json`), cli 1.0 — each with JSON

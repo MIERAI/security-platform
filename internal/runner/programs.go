@@ -32,15 +32,6 @@ func pythonPrograms() map[string][]string {
 	}
 }
 
-// goPrograms are the sp subcommands that implement a component in Go. A fresh map on every call.
-func goPrograms() map[string][]string {
-	return map[string][]string{
-		"ledger":      {"ledger", "merge"},
-		"remediation": {"ledger", "track"},
-		"scorecard":   {"scorecard"},
-	}
-}
-
 // fixedArgs are the arguments a component's program always gets first (the notify job is `sp.py notify`).
 func fixedArgs(component string) []string {
 	if component == "notify" {
@@ -49,53 +40,26 @@ func fixedArgs(component string) []string {
 	return nil
 }
 
-// ErrImplementation is the error class of an unusable runner.implementations entry.
-var ErrImplementation = errors.New("runner.implementations")
+// errNoProgram is the error class of a product program that cannot be started.
+var errNoProgram = errors.New("cannot start")
 
-// program returns the argument vector that starts a component, honouring runner.implementations.<component>
-// (docs/runner.md): absent or "python" = the Python program of this tree; "go" = this binary's subcommand; a list
-// = that argument vector (a program, then its leading arguments). Collectors are "collectors/<name>".
+// program returns the argument vector of a product program of the Python tree (what the reference runs);
+// collectors are "collectors/<name>". Which implementation runs the ledger and remediation is the
+// implementation switch's business (impl.go).
 func (r *Runner) program(component string) ([]string, error) {
-	switch v := r.inst.Impl[component].(type) {
-	case nil:
-		return r.pythonProgram(component)
-	case string:
-		switch v {
-		case "python":
-			return r.pythonProgram(component)
-		case "go":
-			sub, ok := goPrograms()[component]
-			if !ok || r.exe == "" {
-				return nil, fmt.Errorf("%w.%s: no Go implementation", ErrImplementation, component)
-			}
-			return append(append([]string{r.exe}, sub...), fixedArgs(component)...), nil
-		}
-	case []any:
-		var argv []string
-		for _, a := range v {
-			s, ok := a.(string)
-			if !ok {
-				return nil, fmt.Errorf("%w.%s: a list of strings", ErrImplementation, component)
-			}
-			argv = append(argv, expandUser(s, r.environ))
-		}
-		if len(argv) > 0 {
-			return append(argv, fixedArgs(component)...), nil
-		}
-	}
-	return nil, fmt.Errorf("%w.%s: python, go or an argument vector", ErrImplementation, component)
+	return r.pythonProgram(component)
 }
 
 func (r *Runner) pythonProgram(component string) ([]string, error) {
 	if err := r.needPython(); err != nil {
-		return nil, fmt.Errorf("%w.%s: %w", ErrImplementation, component, err)
+		return nil, fmt.Errorf("%w %s: %w", errNoProgram, component, err)
 	}
 	if name, ok := strings.CutPrefix(component, "collectors/"); ok {
 		return []string{r.python, filepath.Join(r.tree, "collectors", name, "collector.py")}, nil
 	}
 	rel, ok := pythonPrograms()[component]
 	if !ok {
-		return nil, fmt.Errorf("%w.%s: unknown component", ErrImplementation, component)
+		return nil, fmt.Errorf("%w %s: unknown component", errNoProgram, component)
 	}
 	return append([]string{r.python, filepath.Join(append([]string{r.tree}, rel...)...)}, fixedArgs(component)...), nil
 }
@@ -196,18 +160,32 @@ func (b *boundedBuffer) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-// ledger merges a run directory into the ledger under the ledger lock (blocking: merges are serialized).
+// ledger merges a run directory into the ledger under the ledger lock (blocking: merges are serialized), with
+// the implementation runner.implementations.ledger selects (contract §7).
 func (r *Runner) ledger(ctx context.Context, runDir string) (int, string) {
+	mode, bin := r.implementation(ctx, "ledger", runDir)
+	if mode == implShadow {
+		// the Python runner's own shadow run: it takes the ledger lock itself
+		out, err := r.bridge(ctx, "ledger", "--run-dir", runDir)
+		if err != nil {
+			return rcInternal, failureNote(err)
+		}
+		return out.RC, out.Note
+	}
 	lk, err := acquire(filepath.Join(r.stateDir, "locks"), "ledger", true)
 	if err != nil {
 		return rcInternal, failureNote(err)
 	}
 	defer r.unlock(lk)
-	argv, err := r.program("ledger")
-	if err != nil {
-		return 64, err.Error()
+	var argv []string
+	if mode == implGo {
+		argv = []string{bin, "ledger", "merge", "--run", runDir, "--data", r.data, "--latest", r.latest, "--instance", r.inst.Path}
+	} else {
+		if argv, err = r.program("ledger"); err != nil {
+			return 64, err.Error()
+		}
+		argv = append(argv, "--run", runDir, "--data", r.data, "--latest", r.latest)
 	}
-	argv = append(argv, "--run", runDir, "--data", r.data, "--latest", r.latest)
 	c, err := r.capture(ctx, argv, r.productEnv(), 600*time.Second, false)
 	if werr := os.WriteFile(filepath.Join(runDir, "ledger.log"), []byte(c.stdout+c.stderr), 0o600); werr != nil && err == nil {
 		err = werr
