@@ -1,0 +1,10 @@
+{
+ "/epss.csv.gz": {
+  "etag": "\"epss-7\"",
+  "file": "mirror-epss.csv.gz"
+ },
+ "/kev.json": {
+  "etag": "\"kev-1\"",
+  "file": "mirror-kev.json"
+ }
+}

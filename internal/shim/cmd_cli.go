@@ -16,7 +16,8 @@ import (
 )
 
 // EnvCLI selects the implementation of the day-to-day commands: "python" hands them (and unknown commands) to
-// cli/sp.py as before the move, for one release, so that switching back is one variable (docs/go.md).
+// cli/sp.py as before the move, so that switching back is one variable (docs/go.md). Deprecated: kept through
+// v0.4.x.
 const EnvCLI = "SP_CLI"
 
 // pythonCLI reports whether the day-to-day commands go to the Python implementation.

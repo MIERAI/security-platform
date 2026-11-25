@@ -4,12 +4,15 @@ script only keeps the shared fixture builders in one place. Re-run after editing
 (it rewrites every case directory it owns and leaves others alone). Stdlib only; imports nothing from the product."""
 import calendar
 import hashlib
+import importlib
 import json
 import os
 import shutil
+import sys
 import time
 
 CASES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "cases")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))     # collector_<name>.py next to this file
 OWNED = []
 
 
@@ -60,6 +63,10 @@ def write_case(component, name, case, files=None):
     for rel, content in (files or {}).items():
         p = os.path.join(d, rel)
         os.makedirs(os.path.dirname(p), exist_ok=True)
+        if isinstance(content, bytes):     # binary fixtures (archives): staged with {"raw": ...}
+            with open(p, "wb") as f:
+                f.write(content)
+            continue
         with open(p, "w") as f:
             if isinstance(content, str):
                 f.write(content)
@@ -2188,6 +2195,9 @@ def collector_cases():
                        "findings": [{"check": "example.world_writable_file", "asset": {"$regex": "open.conf$"}}]}}]}]})
 
 
+COLLECTOR_CASE_MODULES = ("collector_k8s", "collector_vuln_intel", "collector_identity")
+
+
 def main(argv=None):
     import argparse
     global CASES
@@ -2200,6 +2210,10 @@ def main(argv=None):
     runner_cases()
     cli_cases()
     collector_cases()
+    import types
+    helpers = types.SimpleNamespace(write_case=write_case, collector_env=collector_env, protocol_checks=protocol_checks)
+    for module in COLLECTOR_CASE_MODULES:          # one module per collector: conformance/tools/collector_<name>.py
+        importlib.import_module(module).cases(helpers)
     print(f"{len(OWNED)} cases written")
 
 

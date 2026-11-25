@@ -1,0 +1,23 @@
+{
+ "identity": {
+  "providers": [
+   {
+    "accounts": [
+     {
+      "gh_user": "octo"
+     }
+    ],
+    "api_url": "{svc_api}",
+    "expected_collaborators": [
+     "octo"
+    ],
+    "orgs": [
+     "acme"
+    ],
+    "repos_owner": "octo",
+    "type": "github"
+   }
+  ]
+ },
+ "name": "conformance"
+}

@@ -1,0 +1,195 @@
+{
+ "component": "collector-vuln-intel",
+ "title": "A feed can be read from a configured mirror (`url`): a cached copy is revalidated with If-None-Match and a 304 keeps it (KEV enrichment applies), a new feed is downloaded and cached with its ETag, and a fresh copy is not asked for again. Only GET requests",
+ "contract": "collector-protocol/1.0 / findings/1.2",
+ "deviation": "VULN-D1",
+ "origin": "adapters/feeds.py fetch(): fixed source URLs, cache replaced before the payload is read",
+ "services": [
+  {
+   "name": "feeds",
+   "argv": [
+    "{python}",
+    "{case}/mock_feeds.py",
+    "--routes",
+    "{case}/routes.json",
+    "--log",
+    "{sandbox}/.svc-feeds.calls"
+   ]
+  }
+ ],
+ "files": {
+  "instance.json": "instance.json",
+  "data/.keep": {
+   "text": ""
+  },
+  "fake_trivy.json": "trivy.json",
+  "bin/trivy": {
+   "text": "#!/bin/sh\nexec \"{python}\" \"{case}/fake_trivy.py\" \"$@\"\n",
+   "mode": "0755"
+  },
+  "data/latest/inventory.k8s-images.json": "inventory.json",
+  "data/cache/feeds/known_exploited_vulnerabilities.json": "stale-known_exploited_vulnerabilities.json",
+  "data/cache/feeds/known_exploited_vulnerabilities.json.meta.json": {
+   "json": {
+    "etag": "\"kev-1\"",
+    "last_modified": null,
+    "url": "x",
+    "checked_at": 1000
+   }
+  }
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-vuln-intel",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance",
+     "PATH": "{sandbox}/bin:{path}",
+     "FAKE_TRIVY_DATA": "{sandbox}/fake_trivy.json",
+     "FAKE_TRIVY_LOG": "{sandbox}/.svc-trivy.calls",
+     "https_proxy": "http://127.0.0.1:9",
+     "HTTPS_PROXY": "http://127.0.0.1:9",
+     "http_proxy": "http://127.0.0.1:9",
+     "HTTP_PROXY": "http://127.0.0.1:9",
+     "no_proxy": "",
+     "NO_PROXY": ""
+    },
+    "writes_only_under": [
+     "run",
+     "data/cache",
+     "data/sbom"
+    ]
+   },
+   "expect": [
+    {
+     "json": "run/vuln-intel.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "vuln-intel"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "json": "run/vuln-intel.findings.json",
+     "subset": {
+      "coverage": {
+       "$contains": [
+        {
+         "asset": "feed:cisa-kev",
+         "status": "ok"
+        },
+        {
+         "asset": "feed:epss",
+         "status": "ok"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/vuln-intel.findings.json",
+     "subset": {
+      "findings": {
+       "$contains": [
+        {
+         "check": "vuln.cve-2099-0002",
+         "asset": "image:registry.example/web:1.4",
+         "severity": "critical",
+         "title": {
+          "$regex": "\\[KEV\\]$"
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "file": "data/cache/feeds/epss_scores-current.csv.gz.meta.json",
+     "regex": [
+      "\"\\\\\"epss-7\\\\\"\""
+     ]
+    },
+    {
+     "file": ".svc-feeds.calls",
+     "regex": [
+      "^GET /kev.json inm=\"kev-1\"$",
+      "^GET /epss.csv.gz inm=-$"
+     ],
+     "lines": 2
+    },
+    {
+     "file": ".svc-feeds.calls",
+     "not_regex": [
+      "^(?!GET ).+"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "again: KEV revalidated (max_age_hours 0), EPSS still fresh",
+   "remove": [
+    "run"
+   ],
+   "exec": {
+    "impl": "collector-vuln-intel",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance",
+     "PATH": "{sandbox}/bin:{path}",
+     "FAKE_TRIVY_DATA": "{sandbox}/fake_trivy.json",
+     "FAKE_TRIVY_LOG": "{sandbox}/.svc-trivy.calls",
+     "https_proxy": "http://127.0.0.1:9",
+     "HTTPS_PROXY": "http://127.0.0.1:9",
+     "http_proxy": "http://127.0.0.1:9",
+     "HTTP_PROXY": "http://127.0.0.1:9",
+     "no_proxy": "",
+     "NO_PROXY": ""
+    },
+    "writes_only_under": [
+     "run",
+     "data/cache",
+     "data/sbom"
+    ]
+   },
+   "expect": [
+    {
+     "json": "run/vuln-intel.findings.json",
+     "subset": {
+      "findings": {
+       "$contains": [
+        {
+         "check": "vuln.cve-2099-0002",
+         "asset": "image:registry.example/web:1.4",
+         "severity": "critical",
+         "title": {
+          "$regex": "\\[KEV\\]$"
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "file": ".svc-feeds.calls",
+     "lines": 3,
+     "regex": [
+      "inm=-\\nGET /kev.json inm=\"kev-1\"$"
+     ]
+    }
+   ]
+  }
+ ]
+}

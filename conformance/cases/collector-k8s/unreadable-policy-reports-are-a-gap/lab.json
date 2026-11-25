@@ -1,0 +1,53 @@
+{
+ "resources": {
+  "namespaces": [
+   {
+    "metadata": {
+     "name": "default",
+     "uid": "uid-None-default"
+    }
+   }
+  ],
+  "networkpolicies": [],
+  "pods": [
+   {
+    "metadata": {
+     "labels": {},
+     "name": "builder-5c9d8b7f6-k2j4h",
+     "namespace": "tools",
+     "ownerReferences": [
+      {
+       "kind": "ReplicaSet",
+       "name": "builder-5c9d8b7f6"
+      }
+     ],
+     "uid": "uid-tools-builder-5c9d8b7f6-k2j4h"
+    },
+    "spec": {
+     "containers": [
+      {
+       "image": "registry.example/dind:27",
+       "name": "dind",
+       "securityContext": {
+        "privileged": true
+       }
+      }
+     ]
+    },
+    "status": {
+     "containerStatuses": [
+      {
+       "imageID": "",
+       "name": "dind"
+      }
+     ],
+     "phase": "Running"
+    }
+   }
+  ],
+  "policyreports.wgpolicyk8s.io": {
+   "error": "Error from server (Forbidden): policyreports.wgpolicyk8s.io is forbidden: User \"reader\" cannot list resource \"policyreports\""
+  },
+  "services": []
+ }
+}

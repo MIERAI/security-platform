@@ -14,7 +14,8 @@ Components are versioned independently (docs/design.md §5). Entries name the co
   matches instead of picking the first (CLI-D4); every file `sp init` creates is 0600 whatever the umask (CLI-D5).
   `sp init` never follows a symbolic link in place of `instance.yaml`; text read from files is made terminal-safe.
   `sp run` still runs the jobs through the reference runner (`runner/runner.py run`, the default trigger).
-  **Switching back**: `SP_CLI=python` hands the day-to-day commands to `cli/sp.py` exactly as before (one release).
+  **Switching back**: `SP_CLI=python` hands the day-to-day commands to `cli/sp.py` exactly as before. It is
+  **deprecated**: kept through v0.4.x, removed after that.
 - **notifier**: a Go implementation (`internal/notifier`) for `sp notify`: stdout, file, webhook (slack/json/text),
   telegram, exec (local or ssh); same configuration and payloads; secrets from 0600 files, errors name an HTTP status or
   a connection failure class, never a URL; only http(s) webhook URLs. The runner's `notify` job still runs `cli/sp.py
@@ -26,6 +27,38 @@ Components are versioned independently (docs/design.md §5). Entries name the co
   the quickstart flow, doctor, run, notify adapters (a mock webhook/bot receiver), status overview, digest content, init
   file modes, locating data, argument errors. The harness gained exact-text (`"text"`), file-mode (`{"mode": ..}`) and
   `{date:+N}` assertions and a per-step `umask`.
+- **collectors/k8s 0.4.0 — a Go implementation** (`sp k8s collect`, `internal/collectors/k8s`): Kubernetes posture
+  through the operator's kubectl with read verbs only (`get`, `auth whoami`; every other verb is refused in one place
+  and the conformance cases assert it on a fake kubectl's call log), and the image inventory with `complete` /
+  `sources`. Byte-identical findings document, evidence, inventory and metrics with the Python collector on every
+  conformance case without a deviation id. Target behaviour of four recorded deviations: a part that cannot be read is
+  a gap of that part only, never of the whole cluster, and an unreadable Secret listing is never "zero Secrets"
+  (K8S-D1); unreadable PolicyReports are a gap, not "no policy engine" (K8S-D2); a failed kube-bench keeps the CIS
+  findings unknown (narrow gap `k8s-cluster:<name>/cis`, K8S-D3); RoleBindings to namespaced Roles are evaluated
+  (K8S-D4). kubectl rather than client-go: docs/go.md (a typed-clientset program alone is 38 MB and 77 modules). The
+  Python collector is unchanged and stays the default; a `command` job selects the Go one.
+- **collectors/vuln-intel 0.5.0 — a Go implementation** (`sp vuln-intel collect`, `internal/collectors/vulnintel`):
+  inventory/v1 images (with `complete_scope: "image:"` for retired images), trivy as an external engine, KEV / EPSS /
+  OSV / Android / Apple / MSRC feeds, image, repository and host matching (distro packages, running kernel, fs SBOMs,
+  platform advisories, firmware KEV), the OSV second matcher; byte-identical with the Python collector on every
+  conformance case without a deviation id. Target behaviour: per-feed `url` mirrors over conditional GET, https only
+  (VULN-D1); a download is size-limited and parsed before it replaces the cached copy (VULN-D2); a failed refresh keeps
+  using the cached copy and says so (VULN-D3). Feed `vendor-advisories` and `code_repos` stay Python-only (exit 2).
+- **collectors/identity 0.2.0 — a Go implementation** (`sp identity collect`, `internal/collectors/identity`):
+  code-host and overlay-network accounts, grants, credentials and 2FA through their APIs (GET only, tokens from
+  `gh_user`, `token_file` or `token_env`, never logged), local credential stores; byte-identical on the conformance
+  fixtures. Target behaviour: pagination followed (IDENTITY-D1), unreadable listings are gaps naming the missing scope
+  (IDENTITY-D2), rate limits are gaps until the reset time (IDENTITY-D3), organisation members without 2FA
+  (IDENTITY-D4), `api_url` for the overlay network (IDENTITY-D5).
+- **internal/collectors/rundoc**: the Go collectors' SDK — the findings document, evidence and metrics byte for byte
+  as sdk/spsdk writes them (golden test generated with the Python SDK), outputs private to the user (0600), child
+  processes in their own process group with time and output limits.
+- **conformance**: collector cases per collector module (`conformance/tools/collector_<name>.py`, fakes under
+  `conformance/tools/fakes/`); harness: `{path}` template (fake tools in front of the suite's `PATH`), `not_regex` on
+  `file` assertions, binary fixtures. `tests/test_collectors_go.py`: the Go collectors' conformance runs with no
+  expected failures and the byte comparison with the Python collectors.
+- **contracts/collector-protocol**: known deviations per collector (K8S-D1..D4, VULN-D1..D3, IDENTITY-D1..D5), each
+  with the conformance case that specifies the target; 19 new collector cases (k8s 6, vuln-intel 7, identity 6).
 
 - **runner 0.11.0 — the runner in Go** (`sp runner tick|run|status|metrics|serve-metrics|version`, `internal/runner`):
   passes every runner conformance case with no expected failure, writes the same state files, tick log lines and

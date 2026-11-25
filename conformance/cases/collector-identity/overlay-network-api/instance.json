@@ -1,0 +1,18 @@
+{
+ "identity": {
+  "providers": [
+   {
+    "api_key_file": "{sandbox}/home/.config/ts/api.key",
+    "api_url": "{svc_api}/api/v2",
+    "type": "tailscale"
+   },
+   {
+    "api_url": "{svc_api}/api/v2",
+    "oauth_client_id": "cid",
+    "oauth_client_secret_file": "{sandbox}/home/.config/ts/oauth.secret",
+    "type": "tailscale"
+   }
+  ]
+ },
+ "name": "conformance"
+}

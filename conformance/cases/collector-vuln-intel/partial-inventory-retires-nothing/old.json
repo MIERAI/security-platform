@@ -1,0 +1,19 @@
+{
+ "items": [
+  {
+   "cluster": "old",
+   "exposed": true,
+   "image": "registry.example/a:1",
+   "image_id": "",
+   "namespaces": [
+    "apps"
+   ],
+   "prod": false,
+   "workloads": [
+    "k8s-workload:old/apps/Deployment/a"
+   ]
+  }
+ ],
+ "kind": "container-image",
+ "schema": "security-platform/inventory/v1"
+}

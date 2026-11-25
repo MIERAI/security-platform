@@ -1,0 +1,51 @@
+{
+ "routes": {
+  "/api/v2/tailnet/-/acl": {
+   "body": {
+    "acls": [
+     {
+      "action": "accept",
+      "dst": [
+       "*:*"
+      ],
+      "src": [
+       "*"
+      ]
+     }
+    ]
+   }
+  },
+  "/api/v2/tailnet/-/devices": {
+   "body": {
+    "devices": [
+     {
+      "created": "2020-01-01T00:00:00Z",
+      "expires": "2021-01-01T00:00:00Z",
+      "hostname": "build",
+      "keyExpiryDisabled": false,
+      "lastSeen": "2020-02-01T00:00:00Z"
+     },
+     {
+      "created": "2024-01-01T00:00:00Z",
+      "hostname": "nas",
+      "keyExpiryDisabled": true,
+      "lastSeen": "2099-01-01T00:00:00Z"
+     }
+    ]
+   }
+  },
+  "/api/v2/tailnet/-/users": {
+   "body": {
+    "users": [
+     {
+      "created": "2020-01-01T00:00:00Z",
+      "loginName": "octo@example.com",
+      "role": "owner"
+     }
+    ]
+   }
+  }
+ },
+ "tailscale_key": "ts-conformance-api-key-canary-4b2e",
+ "tailscale_oauth_secret": "ts-conformance-oauth-secret-canary-9a3c"
+}

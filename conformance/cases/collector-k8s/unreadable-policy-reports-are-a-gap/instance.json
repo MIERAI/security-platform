@@ -1,0 +1,13 @@
+{
+ "kubernetes": [
+  {
+   "kubeconfig": "{sandbox}/kube/lab.yaml",
+   "name": "lab",
+   "parts": [
+    "workloads",
+    "policy"
+   ]
+  }
+ ],
+ "name": "conformance"
+}

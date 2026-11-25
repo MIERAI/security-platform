@@ -1,0 +1,25 @@
+{
+ "intel": {
+  "feeds": [
+   {
+    "type": "cisa-kev"
+   },
+   {
+    "ecosystems": [
+     "Go"
+    ],
+    "type": "osv"
+   },
+   {
+    "type": "android-bulletins"
+   },
+   {
+    "type": "apple-security-releases"
+   },
+   {
+    "type": "msrc-cvrf"
+   }
+  ]
+ },
+ "name": "conformance"
+}
