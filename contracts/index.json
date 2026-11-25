@@ -107,6 +107,8 @@
   "GITHUB-D2": "collector-codehost-github/repositories-on-several-pages",
   "GITHUB-D3": null,
   "GITEA-D1": "collector-codehost-gitea/server-page-size-below-50",
-  "GITEA-D2": "collector-codehost-gitea/token-not-sent-to-another-host"
+  "GITEA-D2": "collector-codehost-gitea/token-not-sent-to-another-host",
+  "EXPOSURE-D1": "collector-exposure/target-is-never-an-nmap-option",
+  "EXPOSURE-D2": "collector-exposure/timed-out-host-is-a-gap"
  }
 }

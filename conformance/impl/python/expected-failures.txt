@@ -21,3 +21,5 @@ collector-codehost-github/protection-unreadable-is-a-gap   GITHUB-D1  a failed p
 collector-codehost-github/repositories-on-several-pages    GITHUB-D2  only the first page of repositories is read
 collector-codehost-gitea/server-page-size-below-50         GITEA-D1   a page shorter than 50 ends the listing
 collector-codehost-gitea/token-not-sent-to-another-host    GITEA-D2   the token follows a redirect to another host
+collector-exposure/target-is-never-an-nmap-option  EXPOSURE-D1  a discovered address is passed to nmap unchecked
+collector-exposure/timed-out-host-is-a-gap         EXPOSURE-D2  a partial (timed-out) nmap result covers the address

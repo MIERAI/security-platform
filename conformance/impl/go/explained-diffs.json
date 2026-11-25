@@ -34,5 +34,17 @@
   "file": "repos\\.json$",
   "path": "\\.(secret_scanning_alerts|dependabot_alerts)\\.error$",
   "reason": "API error text: gh's \"gh: <message> (HTTP <code>)\" (Python) vs \"HTTP <code>: <message>\" (Go); the decisions on it (\"disabled\") are the same"
+ },
+ {
+  "case": "collector-exposure/*",
+  "file": "^nmaplog/argv\\.log$",
+  "path": "^\\$<text>$",
+  "reason": "EXPOSURE-D2: the probe gives nmap --host-timeout 30m (the fake nmap's argument log shows it)"
+ },
+ {
+  "case": "collector-exposure/nmap-failure-is-a-vantage-gap",
+  "file": "exposure\\.findings\\.json$",
+  "path": "^\\$\\.coverage\\[\\d+\\]\\.reason$",
+  "reason": "the vantage gap quotes the probe's failure: the tail of a Python traceback (reference) or nmap's exit status, parse error and stderr (Go); both start 'probe failed rc=1: '"
  }
 ]

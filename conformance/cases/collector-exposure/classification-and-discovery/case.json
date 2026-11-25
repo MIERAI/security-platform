@@ -1,0 +1,587 @@
+{
+ "component": "collector-exposure",
+ "title": "Re-classification of a recorded probe result (SP_EXPOSURE_RAW) after discovery from an overlay network (fake tailscale), static targets and an asset file: every fingerprint class, verified hosts with nothing open are covered, offline and out-of-scope assets, discovery failures are gaps",
+ "contract": "collector-protocol/1.0",
+ "origin": "collectors/exposure classify(); adapters/discovery.py",
+ "files": {
+  "instance.json": {
+   "json": {
+    "name": "conformance",
+    "scope": [
+     {
+      "names": [
+       "laptop"
+      ],
+      "scope": [
+       "host"
+      ]
+     },
+     {
+      "names": [
+       "phone"
+      ],
+      "scope": [
+       "exposure"
+      ],
+      "offline": "expected"
+     }
+    ],
+    "exposure": {
+     "discovery": [
+      {
+       "type": "tailscale"
+      },
+      {
+       "type": "static",
+       "targets": [
+        {
+         "name": "edge",
+         "address": "198.51.100.7"
+        }
+       ]
+      },
+      {
+       "type": "static",
+       "cidrs": [
+        "10.0.0.0/16"
+       ]
+      },
+      {
+       "type": "file",
+       "path": "{sandbox}/assets.json",
+       "max_age": 3600
+      },
+      {
+       "type": "aws-vpc"
+      }
+     ]
+    }
+   }
+  },
+  "assets.json": {
+   "json": [
+    {
+     "name": "filehost",
+     "address": "198.51.100.8"
+    }
+   ]
+  },
+  "tailscale.json": {
+   "json": {
+    "Self": {
+     "HostName": "scanner",
+     "TailscaleIPs": [
+      "100.64.0.10",
+      "fd7a:115c:a1e0::a"
+     ],
+     "Online": false,
+     "OS": "linux"
+    },
+    "Peer": {
+     "n1": {
+      "HostName": "nas",
+      "TailscaleIPs": [
+       "fd7a:115c:a1e0::1",
+       "100.64.0.1"
+      ],
+      "Online": true,
+      "OS": "linux"
+     },
+     "n2": {
+      "HostName": "printer",
+      "TailscaleIPs": [
+       "100.64.0.2"
+      ],
+      "Online": true,
+      "KeyExpiry": "2027-01-01T00:00:00Z"
+     },
+     "n3": {
+      "HostName": "old",
+      "TailscaleIPs": [
+       "100.64.0.3"
+      ],
+      "Online": false,
+      "KeyExpiry": "2027-01-01T00:00:00Z"
+     },
+     "n4": {
+      "HostName": "laptop",
+      "TailscaleIPs": [
+       "100.64.0.4"
+      ],
+      "Online": true,
+      "KeyExpiry": "2027-01-01T00:00:00Z"
+     },
+     "n5": {
+      "HostName": "phone",
+      "TailscaleIPs": [
+       "100.64.0.5"
+      ],
+      "Online": false,
+      "KeyExpiry": "2027-01-01T00:00:00Z"
+     }
+    }
+   }
+  },
+  "bin/tailscale": {
+   "text": "#!/bin/sh\ncat \"{sandbox}/tailscale.json\"\n",
+   "mode": "0755"
+  },
+  "probe.json": {
+   "json": {
+    "targets": [
+     "100.64.0.1",
+     "100.64.0.2",
+     "198.51.100.7",
+     "198.51.100.8",
+     "100.64.0.10"
+    ],
+    "tools": {
+     "nmap": "Nmap version 7.95 ( https://nmap.org )"
+    },
+    "hosts": {
+     "100.64.0.1": {
+      "3000": {
+       "nmap_service": "ppp",
+       "scheme": "http",
+       "paths": {
+        "/": {
+         "status": 200,
+         "auth": false,
+         "server": "",
+         "ctype": "text/html",
+         "snippet": "<html><head><title>app</title></head></html>"
+        },
+        "/metrics": {
+         "status": 200,
+         "auth": false,
+         "server": "",
+         "ctype": "text/html",
+         "snippet": "<html><head><title>app</title></head></html>"
+        },
+        "/api/tags": {
+         "status": 200,
+         "auth": false,
+         "server": "",
+         "ctype": "text/html",
+         "snippet": "<html><head><title>app</title></head></html>"
+        },
+        "/api/search": {
+         "status": 200,
+         "auth": false,
+         "server": "",
+         "ctype": "text/html",
+         "snippet": "<html><head><title>app</title></head></html>"
+        },
+        "/status": {
+         "status": 200,
+         "auth": false,
+         "server": "",
+         "ctype": "text/html",
+         "snippet": "<html><head><title>app</title></head></html>"
+        },
+        "/api/health": {
+         "status": 200,
+         "auth": false,
+         "server": "",
+         "ctype": "text/html",
+         "snippet": "<html><head><title>app</title></head></html>"
+        },
+        "/api/v1/applications": {
+         "status": 200,
+         "auth": false,
+         "server": "",
+         "ctype": "text/html",
+         "snippet": "<html><head><title>app</title></head></html>"
+        }
+       }
+      },
+      "9090": {
+       "nmap_service": "zeus-admin",
+       "scheme": "http",
+       "paths": {
+        "/": {
+         "status": 302,
+         "auth": false,
+         "server": "",
+         "location": ""
+        },
+        "/api/v1/status/buildinfo": {
+         "status": 200,
+         "auth": false,
+         "server": "",
+         "ctype": "application/json",
+         "snippet": "{\"status\":\"success\",\"data\":{\"version\":\"2.53.0\"}}"
+        },
+        "/api/v1/status/flags": {
+         "status": 200,
+         "auth": false,
+         "fields": {
+          "web.enable-remote-write-receiver": "true",
+          "web.enable-admin-api": "true",
+          "web.enable-lifecycle": null
+         }
+        }
+       }
+      },
+      "9093": {
+       "nmap_service": "copycat",
+       "scheme": "http",
+       "paths": {
+        "/api/v2/status": {
+         "status": 200,
+         "auth": false,
+         "server": "",
+         "ctype": "application/json",
+         "snippet": "{\"cluster\":{\"status\":\"ready\"},\"config\":{\"original\":\"x\"}}"
+        }
+       }
+      },
+      "11434": {
+       "nmap_service": "unknown",
+       "scheme": "http",
+       "paths": {
+        "/api/tags": {
+         "status": 200,
+         "auth": false,
+         "server": "",
+         "ctype": "application/json",
+         "snippet": "{\"models\":[]}"
+        }
+       }
+      }
+     },
+     "100.64.0.2": {},
+     "198.51.100.7": {
+      "23": {
+       "nmap_service": "telnet"
+      },
+      "445": {
+       "nmap_service": "microsoft-ds"
+      },
+      "4318": {
+       "nmap_service": "unknown",
+       "scheme": "http",
+       "paths": {
+        "/": {
+         "status": 404,
+         "auth": false,
+         "server": "",
+         "location": ""
+        },
+        "/v1/traces": {
+         "status": 405,
+         "auth": false,
+         "server": "",
+         "location": ""
+        }
+       }
+      },
+      "6379": {
+       "nmap_service": null
+      },
+      "8080": {
+       "nmap_service": "http-proxy",
+       "scheme": "http",
+       "paths": {
+        "/": {
+         "status": 401,
+         "auth": true,
+         "server": "",
+         "location": ""
+        },
+        "/metrics": {
+         "status": 200,
+         "auth": false,
+         "server": "",
+         "ctype": "text/html",
+         "snippet": "# HELP x\n"
+        }
+       }
+      },
+      "8081": {
+       "nmap_service": "blackice-icecap",
+       "scheme": "http",
+       "paths": {
+        "/": {
+         "status": 200,
+         "auth": false,
+         "server": "",
+         "ctype": "text/html",
+         "snippet": "<html>ok</html>"
+        },
+        "/metrics": {
+         "status": 404,
+         "auth": false,
+         "server": "",
+         "location": ""
+        }
+       }
+      },
+      "8443": {
+       "nmap_service": "https-alt",
+       "scheme": "https",
+       "paths": {
+        "/": {
+         "status": 401,
+         "auth": true,
+         "server": "",
+         "location": ""
+        },
+        "/api/v1/write": {
+         "status": 405,
+         "auth": true,
+         "server": "",
+         "location": ""
+        }
+       }
+      },
+      "9115": {
+       "nmap_service": "unknown",
+       "scheme": "http",
+       "paths": {
+        "/": {
+         "status": 200,
+         "auth": false,
+         "server": "",
+         "ctype": "text/html",
+         "snippet": "<html><head><title>Blackbox Exporter</title>"
+        },
+        "/probe": {
+         "status": 400,
+         "auth": false,
+         "server": "",
+         "location": ""
+        }
+       }
+      }
+     },
+     "198.51.100.8": {},
+     "203.0.113.9": {
+      "3200": {
+       "nmap_service": "unknown",
+       "scheme": "http",
+       "paths": {
+        "/api/search": {
+         "status": 200,
+         "auth": false,
+         "server": "",
+         "ctype": "application/json",
+         "snippet": "{\"traces\":[]}"
+        },
+        "/": {
+         "status": 404,
+         "auth": false,
+         "server": "",
+         "location": ""
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "data/.keep": {
+   "text": ""
+  }
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-exposure",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance",
+     "SP_EXPOSURE_RAW": "{sandbox}/probe.json"
+    },
+    "writes_only_under": [
+     "run"
+    ],
+    "path_prepend": [
+     "{sandbox}/bin"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "run/exposure.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "exposure"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "json": "run/exposure.findings.json",
+     "subset": {
+      "findings": {
+       "$contains": [
+        {
+         "check": "overlay.node_key_expiry_disabled",
+         "asset": "host:nas",
+         "layer": "identity",
+         "needs_human": true
+        },
+        {
+         "check": "http.catch_all_unverified",
+         "asset": "net-endpoint:nas@100.64.0.1:3000"
+        },
+        {
+         "check": "alertmanager.unauth",
+         "asset": "net-endpoint:nas@100.64.0.1:9093"
+        },
+        {
+         "check": "ollama.unauth",
+         "asset": "net-endpoint:nas@100.64.0.1:11434"
+        },
+        {
+         "check": "prometheus.unauth_read",
+         "asset": "net-endpoint:nas@100.64.0.1:9090"
+        },
+        {
+         "check": "prometheus.unauth_remote_write",
+         "asset": "net-endpoint:nas@100.64.0.1:9090"
+        },
+        {
+         "check": "prometheus.admin_api_unauth",
+         "asset": "net-endpoint:nas@100.64.0.1:9090"
+        },
+        {
+         "check": "blackbox.open_probe",
+         "asset": "net-endpoint:edge@198.51.100.7:9115"
+        },
+        {
+         "check": "otlp.unauth_ingest",
+         "asset": "net-endpoint:edge@198.51.100.7:4318"
+        },
+        {
+         "check": "metrics.unauth",
+         "asset": "net-endpoint:edge@198.51.100.7:8080"
+        },
+        {
+         "check": "http.unauth_root",
+         "asset": "net-endpoint:edge@198.51.100.7:8081"
+        },
+        {
+         "check": "telnet.open",
+         "asset": "net-endpoint:edge@198.51.100.7:23"
+        },
+        {
+         "check": "smb.reachable",
+         "asset": "net-endpoint:edge@198.51.100.7:445",
+         "title": "SMB (microsoft-ds) is reachable from the vantage point (198.51.100.7:445)"
+        },
+        {
+         "check": "db.reachable",
+         "asset": "net-endpoint:edge@198.51.100.7:6379",
+         "title": "database port reachable from the vantage point (6379) (198.51.100.7:6379)"
+        },
+        {
+         "check": "tempo.unauth_read",
+         "asset": "net-endpoint:203.0.113.9@203.0.113.9:3200"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/exposure.findings.json",
+     "subset": {
+      "findings": {
+       "$not_contains": [
+        {
+         "asset": "net-endpoint:edge@198.51.100.7:8443"
+        },
+        {
+         "asset": "host:printer"
+        },
+        {
+         "check": "overlay.node_key_expiry_disabled",
+         "asset": "host:scanner"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/exposure.findings.json",
+     "subset": {
+      "coverage": {
+       "$contains": [
+        {
+         "asset": "discovery:static",
+         "status": "gap",
+         "reason": "ValueError: CIDR 10.0.0.0/16 has 65536 addresses (max_hosts 1024)"
+        },
+        {
+         "asset": "discovery:aws-vpc",
+         "status": "gap",
+         "reason": "NotImplementedError: discovery adapter 'aws-vpc' is a documented future adapter"
+        },
+        {
+         "asset": "host:old",
+         "status": "gap",
+         "reason": "offline at scan time"
+        },
+        {
+         "asset": "net-endpoint:printer@100.64.0.2",
+         "status": "ok"
+        },
+        {
+         "asset": "host:filehost",
+         "status": "gap",
+         "reason": "no open port seen from the vantage point (down or filtered)"
+        },
+        {
+         "asset": "host:scanner",
+         "status": "ok"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/exposure.findings.json",
+     "subset": {
+      "coverage": {
+       "$not_contains": [
+        {
+         "asset": "host:laptop"
+        },
+        {
+         "asset": "host:phone"
+        }
+       ]
+      },
+      "collector": {
+       "tools": {
+        "nmap": "Nmap version 7.95 ( https://nmap.org )"
+       }
+      }
+     }
+    },
+    {
+     "prom": "run/exposure.prom",
+     "has": [
+      {
+       "name": "security_exposure_open_ports",
+       "value": 13
+      },
+      {
+       "name": "security_exposure_unauth_services",
+       "value": 11
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}
