@@ -36,7 +36,7 @@ SEV = ["critical", "high", "medium", "low", "info"]
 COLLECTOR_TOOLS = {"exposure": ["nmap"], "host": [], "k8s": ["kubectl"], "codehost-github": ["gh"],
                    "vuln-intel": ["trivy"], "secrets-files": [], "agent-claude-code": [], "codehost-gitea": [],
                    "identity": [], "host-sbom": [], "cloud": []}     # cloud: engine paths are in the instance (cloud.engines)
-NON_COLLECTOR = ("remediation", "digest", "snapshot", "push", "pull-snapshot", "notify")
+NON_COLLECTOR = ("remediation", "export", "digest", "snapshot", "push", "pull-snapshot", "notify")
 TTY = sys.stdout.isatty() and not os.environ.get("NO_COLOR")
 
 

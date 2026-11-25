@@ -26,9 +26,11 @@ trigger stays dumb and the same everywhere:
                                     # hub that sleeps at night (a laptop) sets e.g. 12h
     jobs:
       <name>:
-        type: collector | command | ingest | digest | remediation | snapshot | push | pull-snapshot | events | notify
-                                               (default collector; collector = job name unless `collector:`)
+        type: collector | command | ingest | digest | remediation | export | snapshot | push | pull-snapshot | events
+              | notify                         (default collector; collector = job name unless `collector:`)
                                                remediation: core/remediation.py (owners, SLO due dates, tracker)
+                                               export: core/export.py, the instance's `export:` ticket and SIEM
+                                               sinks (`dry_run: true` plans only)
                                                notify: the short summary (`sp digest`, aggregates only) to the
                                                instance's `notify:` adapters (notifier/); `days:` default 1
                                                snapshot: commit the private data directory if it is a git
@@ -452,6 +454,14 @@ class Runner:
                         os.path.join(run_dir, "remediation.log"))
         return rc, "tracker synced" if rc == 0 else f"remediation rc={rc} (see remediation.log)"
 
+    def job_export(self, name, j, run_dir):
+        """Ledger -> the team's issue tracker and SIEM (core/export.py, instance `export:`)."""
+        rc = self.spawn([sys.executable, os.path.join(ROOT, "core", "export.py"), "--data", self.data,
+                         "--instance", self.instance_path] + (["--dry-run"] if j.get("dry_run") else []),
+                        self.env(j, run_dir), cron.parse_duration(j.get("timeout", "15m")),
+                        os.path.join(run_dir, "export.log"))
+        return rc, "exported" if rc == 0 else f"export rc={rc} (see export.log)"
+
     SNAPSHOT_PATHS = ["ledger.json", "reports", "exceptions.yaml", "catalog-review.yaml", "tracker", "attestations.yaml"]
 
     def job_snapshot(self, name, j, run_dir):
@@ -594,7 +604,7 @@ class Runner:
         parts = []
         for p in sorted(glob.glob(os.path.join(self.latest, "*.prom"))):
             parts.append(open(p).read())
-        for lp in (os.path.join(self.data, "metrics", f) for f in ("ledger.prom", "remediation.prom", "scorecard.prom")):
+        for lp in (os.path.join(self.data, "metrics", f) for f in ("ledger.prom", "remediation.prom", "export.prom", "scorecard.prom")):
             if os.path.exists(lp):
                 parts.append(open(lp).read())
         parts.append(render(self.runner_series(now)))

@@ -262,6 +262,74 @@ class Fallback(Base):
         self.assertEqual(sc.lint(*sc.load_catalog([self.cat])), [])
 
 
+class InstanceScope(Base):
+    """An instance declares what is out of its scope (with a reason): not applicable, never a penalty. Without these
+    keys nothing changes: a control over a collector nobody runs stays `unknown` (no data != secure)."""
+
+    def catalog(self):
+        write_catalog(self.cat, "people", [
+            ctl("people.idp", source={"type": "findings", "check_in": ["identity.mfa_disabled"], "require_collector": "identity"}),
+            ctl("people.agent-a", tags=["ai-agent"], source={"type": "findings", "check_in": ["x"],
+                                                             "require_collector": "agent-claude-code"}),
+            ctl("people.agent-b", tags=["ai-agent"], check="attested"),
+            ctl("people.mdm", source={"type": "all", "of": [{"type": "findings", "check_in": ["x"],
+                                                             "require_collector": ["mdm-import"]}]}),
+            ctl("people.mdm-or-human", validity="90d", question="q?", source={"type": "first_known", "of": [
+                {"type": "findings", "check_in": ["x"], "require_collector": "mdm-import"}, {"type": "attestation"}]}),
+            ctl("people.ok", source={"type": "sli", "sli": "gaps"})])
+        write_catalog(self.cat, "agents", [ctl("agents.only", tags=["ai-agent"], source={"type": "sli", "sli": "gaps"})], order=2)
+
+    def test_default_unchanged(self):
+        self.catalog()
+        r = sc.compute(self.data, self.inst(), NOW)
+        st = {c["id"]: c["status"] for c in r["controls"]}
+        self.assertEqual(st, {"people.idp": "fail", "people.agent-a": "unknown", "people.agent-b": "unattested",
+                              "people.mdm": "unknown", "people.mdm-or-human": "unattested", "people.ok": "pass",
+                              "agents.only": "pass"})
+        self.assertAlmostEqual(r["dimensions"]["people"]["score"], 16.7)
+
+    def test_opt_outs_are_not_applicable(self):
+        self.catalog()
+        r = sc.compute(self.data, self.inst(
+            not_applicable={"tag:ai-agent": "no AI coding agents on managed devices"},
+            unconfigured_collectors="not_applicable", overrides={"people.idp": {"disabled": "IdP evidence imported elsewhere"}}),
+            NOW)
+        c = self.by_id(r)
+        self.assertEqual({k: v["status"] for k, v in c.items()},
+                         {"people.idp": "na", "people.agent-a": "na", "people.agent-b": "na", "people.mdm": "na",
+                          "people.mdm-or-human": "unattested", "people.ok": "pass", "agents.only": "na"})
+        self.assertIn("no AI coding agents", c["people.agent-a"]["detail"])
+        self.assertIn("collector not configured: mdm-import", c["people.mdm"]["detail"])
+        self.assertIn("IdP evidence imported elsewhere", c["people.idp"]["detail"])
+        self.assertEqual(r["dimensions"]["people"]["score"], 50.0, "excluded from the denominator, never a penalty")
+        self.assertIn("agents", r["not_applicable"], "a dimension whose every control is out of scope is not applicable")
+        self.assertNotIn("agents", r["dimensions"])
+        # a configured collector (a job, or documents that reached the hub) keeps its controls in scope
+        inst = self.inst(unconfigured_collectors="not_applicable")
+        inst["runner"] = {"jobs": {"mdm": {"type": "command", "collector": "mdm-import", "argv": ["x"]},
+                                   "agents": {"collector": "agent-claude-code"}}}
+        st = {c["id"]: c["status"] for c in sc.compute(self.data, inst, NOW)["controls"]}
+        self.assertEqual((st["people.mdm"], st["people.agent-a"]), ("unknown", "unknown"))
+        # globs
+        st = {c["id"]: c["status"] for c in sc.compute(self.data, self.inst(not_applicable={"people.agent-*": "none"}), NOW)["controls"]}
+        self.assertEqual((st["people.agent-a"], st["people.agent-b"], st["agents.only"]), ("na", "na", "pass"))
+
+    def test_instance_keys_need_reasons(self):
+        self.catalog()
+        for bad in ({"not_applicable": {"tag:ai-agent": ""}}, {"unconfigured_collectors": "ignore"}):
+            with self.assertRaises(ValueError):
+                sc.compute(self.data, self.inst(**bad), NOW)
+        self.assertEqual(sc.lint_instance({"not_applicable": {"x": "why"}, "unconfigured_collectors": "not_applicable"}), [])
+        # the legacy `disabled: true` keeps working
+        st = {c["id"]: c["status"] for c in sc.compute(self.data, self.inst(overrides={"people.ok": {"disabled": True}}), NOW)["controls"]}
+        self.assertEqual(st["people.ok"], "na")
+
+    def test_product_catalog_tags(self):
+        dims, controls = sc.load_catalog([os.path.join(ROOT, "scorecard", "catalog")])
+        agent = {c["id"] for c in controls if "ai-agent" in c.get("tags", [])}
+        self.assertEqual(agent, {c["id"] for c in controls if c["id"].startswith("people.agent-")})
+
+
 class RunnerComputesOnPublish(unittest.TestCase):
     def test_publish_includes_scorecard(self):
         d = tempfile.mkdtemp()

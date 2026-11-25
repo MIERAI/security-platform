@@ -2,6 +2,37 @@
 
 Components are versioned independently (docs/design.md §5). Entries name the component and its new version.
 
+## 2026-11-25 — team integrations: tickets, SIEM, instance scope in the scorecard
+
+- **adapters/tickets.py 0.1.0** (new): one ticket per ledger finding in the team's issue tracker. Generic engine
+  (`sync`) + backend interface (`check`, `list`, `create`, `update`, `comment`) so Jira can follow; backend `github`
+  (REST, token from a 0600 file, GitHub Enterprise via `api_url`). Idempotent through a marker in the body (no local
+  mapping; duplicates are closed); closes when the ledger marks the finding fixed (only after a run covered the
+  asset), closes as not planned with `accepted-risk` for an approved exception, reopens with a comment on a
+  regression or an expired exception; labels added by people are kept. Body minimal by default (control, asset,
+  severity, first seen, evidence pointer; more with `fields`). Private repositories only. Rate-limit aware
+  (`write_interval`, X-RateLimit-Reset / Retry-After up to `max_wait`, `max_writes` per run), `dry_run`.
+- **adapters/siem.py 0.1.0** (new): ledger findings as OCSF 1.x Finding events (activity Create / Update / Close) to
+  an HTTP collector (ndjson or JSON array, bearer token from a file, batching, retry with backoff), a file (JSON lines,
+  0600, rotation) or stdout. Per-sink state advances only after a batch was accepted.
+- **core 0.7.0**: `core/export.py` drives the instance's `export.tickets` / `export.siem`; every sink runs even if one
+  fails; `metrics/export.prom` (`security_export_last_success_timestamp_seconds`, `_failures_total`,
+  `_consecutive_failures`, `_items{sink,result}`).
+- **runner 0.8.0**: job type `export` (`dry_run: true` plans only); `export.prom` is published with the other metrics.
+- **generators 0.7.0**: alert `SecurityExportFailing` (3 failed runs in a row), runbook `export-failing`.
+- **scorecard 0.4.0**: instance scope. `scorecard.not_applicable: {<control id | glob | tag:<tag>>: <reason>}` and
+  `overrides.<id>.disabled` make controls not applicable (listed with the reason, excluded from every score);
+  `unconfigured_collectors: not_applicable` (opt-in; default `unknown`) excludes controls over collectors the
+  instance never runs (no job, no document) unless a human can attest them; a dimension whose every control is not
+  applicable is itself not applicable. People catalog: tags `ai-agent` (the six AI agent controls) and
+  `overlay-network`. Existing configurations: scores unchanged (dimensions, pillars, functions compared on the same
+  data before and after); a control disabled by `overrides` is now listed as `na` with its reason instead of being
+  dropped from the report.
+- **cli 0.2.1**: `export` is a non-collector job in `sp` listings.
+- **docs**: integrations.md (division of responsibility: detection and alerting in the SIEM / posture services,
+  aggregation, de-duplication, ledger, scoring and remediation SLOs here; tickets; SIEM), instance-reference
+  `export` and `scorecard` keys, scorecard instance scope and IdP/MDM evidence, adapters.
+
 ## 2026-11-25 — GCP scans with the operator's login; GCP discovery
 
 - **adapters/cloud.py 0.2.0**: GCP `source: adc` (default stays `workload_identity`) for human-run / trial scans: the

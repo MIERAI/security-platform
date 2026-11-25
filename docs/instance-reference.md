@@ -31,6 +31,7 @@ network or GitHub): `e2e/kind/instance.yaml`.
 | `remediation` | owners `unassigned`, SLOs below | who fixes what, by when |
 | `advisor` | `{type: none}` | optional AI that drafts text; never changes a status |
 | `notify` | `[]` | where the daily summary goes |
+| `export` | — | tickets in your issue tracker and OCSF events to your SIEM ([integrations.md](integrations.md)) |
 | `scorecard` | enabled, threshold 75 | the programme scorecard ([scorecard.md](scorecard.md)) |
 | `runner` | — | jobs, schedules, metrics sinks, multi-host topology |
 
@@ -230,9 +231,69 @@ runner:
 Refused: any long-lived key in an account entry (`access_key_id`, `secret_access_key`, `client_secret`,
 `private_key`, ...). An import older than `max_age` (default 2d) is a coverage gap, not a pass.
 
+## export
+
+Into the team's own tools ([integrations.md](integrations.md)); run by a job of type `export`. Every sink runs even if
+another fails; a failing sink is retried on the next run (`SecurityExportFailing` after 3 in a row).
+
+```yaml
+export:
+  tickets:
+    - {type: github, repo: example-org/security-findings, token_file: ~/.config/security-platform/issues.token}
+  siem:
+    - {type: http, url: https://logs.example.internal/ingest, token_file: ~/.config/security-platform/siem.token}
+    - {type: file, path: /var/log/security-platform/findings.jsonl}
+runner:
+  jobs:
+    export: {type: export, schedule: "55 * * * *"}     # dry_run: true = log the plan, write nothing
+```
+
+Tickets (`export.tickets[]`):
+
+| key | default | meaning |
+|---|---|---|
+| `type` | — | `github` (`jira`: interface only, not implemented) |
+| `repo` | — | `owner/name`; must be private (internal counts) or the sink refuses to run |
+| `token_file` | — | 0600 file; fine-grained token with Issues read/write and Metadata read on that repository |
+| `api_url` | `https://api.github.com` | GitHub Enterprise Server: `https://<host>/api/v3` |
+| `min_severity` | `high` | new tickets only at or above; an existing ticket stays managed whatever the severity |
+| `fields` | `[control, asset, severity, first_seen, evidence]` | body rows; also `title`, `layer`, `status`, `last_seen`, `owner`, `due`, `remediation`, `exception` |
+| `title` | `check` | `check`: "[sev] check on asset"; `finding`: "[sev] <finding title>" |
+| `evidence_url` | none | template with `{evidence}` (the private evidence pointer) on a private host; else the pointer as text |
+| `labels` | `{base: security-platform, accepted: accepted-risk, severity_prefix: "severity:"}` | managed labels (other labels are left alone); `severity_prefix: ""` = none |
+| `create_accepted` | `false` | also open (and immediately close as accepted) tickets for findings that never had one |
+| `dry_run` | `false` | log what would change; read-only API calls only |
+| `max_writes` | `100` | writes per run; the rest follows on the next run |
+| `write_interval`, `max_wait`, `timeout` | `1s`, `60s`, `30` | pause between writes; longest wait for a rate-limit reset (longer = stop, continue next run); HTTP timeout |
+| `name` | `tickets-<type>-<index>` | the `sink` label in `security_export_*` |
+
+SIEM (`export.siem[]`):
+
+| key | default | meaning |
+|---|---|---|
+| `type` | — | `http`, `file`, `stdout` |
+| `mode` | `changes` | `changes`: new / status, severity or title changed (Create / Update / Close); `all`: every entry every run |
+| `min_severity` | `info` | send only at or above |
+| `url`, `token_file`, `auth_scheme` | —, none, `Bearer` | http: endpoint; `Authorization: <auth_scheme> <token>` |
+| `format`, `wrap`, `headers` | `ndjson`, none, `{}` | http: `ndjson` or `json` (array); `wrap: event` = `{"event": {...}}`; extra non-secret headers |
+| `batch_size`, `retries`, `timeout` | `500`, `3`, `30` | http: events per POST; retries on 429 / 5xx / connection errors (Retry-After honoured) |
+| `path`, `max_bytes` | —, 100 MB | file: JSON lines, mode 0600, rotated to `<path>.1` |
+| `name` | `siem-<type>-<index>` | the `sink` label and the state file `<data>/state/export/<name>.json` |
+
 ## scorecard
 
 See [scorecard.md](scorecard.md). Defaults: `enabled: true`, `threshold: 75`, the product catalog only.
+
+| key | default | meaning |
+|---|---|---|
+| `threshold` | `75` | a dimension below it fails the scorecard |
+| `catalog_dirs`, `replace_catalog` | `[]`, `false` | your own catalog files, added to (or replacing) the product's |
+| `overrides` | `{}` | per control: `weight`, `source`, `check`, ... ; `disabled: <reason>` = not applicable |
+| `not_applicable` | `{}` | map of control id, glob or `tag:<tag>` to a reason: out of scope for this instance, excluded from every score; a reason is required. Product tags: `ai-agent`, `overlay-network` |
+| `unconfigured_collectors` | `unknown` | `not_applicable`: a control that needs a collector this instance neither runs nor receives documents from is excluded (unless a human can attest it); default `unknown` counts it as failing |
+| `vars`, `pillars`, `enabled` | | see [scorecard.md](scorecard.md) |
+
+A dimension whose every control is not applicable is itself not applicable.
 
 ## runner
 
@@ -252,7 +313,7 @@ runner:
 
 | job key | default | meaning |
 |---|---|---|
-| `type` | `collector` | `collector`, `command`, `ingest`, `remediation`, `digest`, `notify`, `snapshot`, `push`, `pull-snapshot` |
+| `type` | `collector` | `collector`, `command`, `ingest`, `remediation`, `export`, `digest`, `notify`, `snapshot`, `push`, `pull-snapshot` |
 | `collector` | the job name | which collector (e.g. job `intel` with `collector: vuln-intel`) |
 | `schedule` | — (required) | cron, local time |
 | `jitter` | `0` | deterministic offset per job and slot, spreads load |

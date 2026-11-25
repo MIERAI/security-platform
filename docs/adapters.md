@@ -12,6 +12,8 @@ page is the recipe. The interfaces themselves are listed in `adapters/README.md`
 | run read-only commands on machines a new way (SSM, osquery, an agent) | an **exec** adapter (`adapters/exec.py`) | 20-40 lines | `local`, `ssh` |
 | deliver metrics somewhere new | a **sink** (`adapters/sinks.py`) | 20-60 lines | `textfile`, `kubernetes-configmap`, `remote_write` |
 | send the daily summary somewhere new | a **notifier** (`notifier/notifiers.py`) | 10-20 lines | `telegram`, `webhook`, `exec` |
+| open tickets in another issue tracker | a **ticket backend** (`adapters/tickets.py`: `check`, `list`, `create`, `update`, `comment`) | 60-120 lines | `github` (`jira` planned) |
+| send findings to another SIEM / log pipeline | a **SIEM sink** (`adapters/siem.py`: `deliver(cfg, events, done)`) | 20-60 lines | `http`, `file`, `stdout` |
 | check a new kind of system (a code host, an IdP) | a **collector** (`collectors/<name>/`) | 100-200 lines | `codehost-gitea` |
 | a new cloud provider / check engine / native posture service | a provider class in `adapters/cloud.py`, an entry in `ENGINES` / `IMPORTERS` of `collectors/cloud/engines.py` | 30-120 lines | `prowler`, `steampipe`, `securityhub` ([cloud.md](cloud.md)) |
 | wrap a third-party scanner you already run | a `command` job (no code in this repository) | — | `runner.jobs.x: {type: command, argv: [...]}` |
@@ -21,7 +23,8 @@ need new checks, it is a collector (which uses adapters).
 
 ## Rules every plugin follows
 
-1. **Read-only.** A plugin never changes the target. No POST/PUT/DELETE, no writes on hosts, no auto-fix.
+1. **Read-only.** A plugin never changes the target. No POST/PUT/DELETE, no writes on hosts, no auto-fix. (Output
+   adapters - sinks, notifiers, ticket backends - write only to the destination they deliver to.)
 2. **Non-interactive.** Never prompt. A missing permission or a password prompt is a failure that the collector
    records as a *coverage gap* (so the dashboard says "could not check", not "safe").
 3. **Secrets from 0600 files, never logged.** Read tokens with a helper that refuses group/world-readable files;

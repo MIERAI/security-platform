@@ -72,6 +72,9 @@ def rules(cat):
         alert("SecurityMetricsSinkFailing", "max by (namespace, site, sink) (security_runner_sink_consecutive_failures) >= 4",
               "ticket", "Metrics sink {{ $labels.sink }} of {{ $labels.site }} failed 4 ticks in a row (retried every tick)",
               "runner-stale"),
+        alert("SecurityExportFailing", "max by (namespace, sink) (security_export_consecutive_failures) >= 3",
+              "ticket", "Export sink {{ $labels.sink }} (issue tracker / SIEM) failed 3 runs in a row: the team's tools "
+              "fall behind the ledger", "export-failing"),
         alert("SecurityRemediationOverdue",
               'sum by (namespace) (security_remediation_overdue{severity=~"critical|high"}) > 0',
               "ticket", "{{ $value }} critical/high finding(s) past their remediation SLO (owner and due date in the private tracker)",
