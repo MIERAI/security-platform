@@ -15,8 +15,9 @@ and every finding live in a **private** data directory (docs/design.md §6). Fin
 ```
 schema/      findings contract (v1, OCSF mapping)           core/        ledger, digest, validation, OCSF export, advisor
 sdk/         collector helper (spsdk)                       runner/      scheduler: jobs, sites, locking, retries, metrics
-adapters/    discovery, exec, feeds, sinks, spool, cloud    collectors/  exposure, host, k8s, vuln-intel, codehost-github/-gitea,
-generators/  SLI catalog -> rules / dashboard / SLOs                     secrets-files, agent-claude-code, identity, cloud
+adapters/    discovery, exec, feeds, sinks, spool, cloud,   collectors/  exposure, host, k8s, vuln-intel, codehost-github/-gitea,
+             tickets, siem (export to a team's tools)                    secrets-files, agent-claude-code, identity, cloud
+generators/  SLI catalog -> rules / dashboard / SLOs
 deploy/      triggers (launchd, cron, systemd, termux,      docs/        design, runner (operations), runbooks
              Kubernetes manifests)                          tests/       contract, ledger, runner, outputs, intel tests
 dist/        generated rules / dashboard / SLO values (generic; instances regenerate with --instance)
@@ -47,6 +48,7 @@ sp findings --open --severity high && sp explain <id>         # what, why, how t
 |---|---|
 | [quickstart.md](docs/quickstart.md) | install, first scan, add your environment, keep it running, see it daily |
 | [instance-reference.md](docs/instance-reference.md) | every config key and its default |
+| [integrations.md](docs/integrations.md) | a team: tickets in your issue tracker, OCSF events to your SIEM; who owns what |
 | [adapters.md](docs/adapters.md) | supporting something new: discovery, exec, sink, notifier, collector |
 | [upgrade.md](docs/upgrade.md) | versions, upgrade and rollback, two-step breaking changes |
 | [faq.md](docs/faq.md) | common questions and problems |
@@ -55,6 +57,12 @@ sp findings --open --severity high && sp explain <id>         # what, why, how t
 | [cloud.md](docs/cloud.md) | cloud posture (AWS, GCP, Azure): short-lived read-only access, engines, imports, what is validated where |
 | [scale.md](docs/scale.md) | measured limits: time and memory per stage at 1k / 10k / 100k findings, `bench/scale.py` |
 | [design.md](docs/design.md) | why it works this way (Chinese); summaries in [日本語](docs/summary.ja.md) and [中文](docs/summary.zh.md) |
+
+**Division of responsibility**: detection and alerting on raw events belong to your SIEM, cloud checks to the
+provider's posture service, identity and device state to your IdP / MDM: import their results, do not duplicate
+their checks. This platform owns aggregation, de-duplication, the ledger (lifecycle, exceptions), scoring and
+remediation SLOs, and pushes into the tools a team already has instead of having its own UI
+([integrations.md](docs/integrations.md)).
 
 Proof of generality: `e2e/kind/run.sh` installs a tagged release from this repository into a fictional company's
 environment (static CIDR discovery, plain ssh servers, Gitea, kind + kube-prometheus-stack) and checks collectors →

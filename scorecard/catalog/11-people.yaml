@@ -1,6 +1,11 @@
 # Dimension 11: people and identity security (the people pillar). Accounts, MFA, access reviews, token lifecycle,
 # recovery, and AI agents treated as personnel. Automated controls read the `identity` and `agent-*` collectors;
 # what no API can tell (passkeys, password manager, offline recovery codes) is a human attestation that expires.
+# Tags let an instance declare a whole family out of scope with a reason (scorecard.not_applicable, docs/scorecard.md):
+#   ai-agent         AI coding agents' settings and memory on the operator's machines
+#   overlay-network  an overlay (mesh VPN) network's ACL and device keys
+# An organisation whose identity provider or device management (MDM) holds the evidence replaces an attested control
+# with an automated one over an imported findings document (`overrides`, or its own catalog with the same id).
 schema: security-platform/scorecard-catalog/v1
 dimension:
   id: people
@@ -114,6 +119,7 @@ controls:
     csf: PR.AA
     cis: ["6.1", "12.2"]
     pillars: [people, network]
+    tags: [overlay-network]
     check: automated
     weight: 2
     validity: 90d
@@ -127,6 +133,7 @@ controls:
     csf: PR.AA
     cis: ["6.2"]
     pillars: [people, network, device]
+    tags: [overlay-network]
     check: automated
     weight: 1
     source: {type: findings, check_in: [overlay.node_key_expiry_disabled, identity.overlay_key_expiry_disabled]}
@@ -178,6 +185,7 @@ controls:
     csf: PR.AA
     cis: ["5.4"]
     pillars: [people, software]
+    tags: [ai-agent]
     check: automated
     weight: 2
     source: {type: findings, check_in: [agent.bypass_permissions_default], require_collector: agent-claude-code}
@@ -186,6 +194,7 @@ controls:
     csf: PR.AA
     cis: ["5.4", "6.8"]
     pillars: [people, software]
+    tags: [ai-agent]
     check: automated
     weight: 1
     source: {type: findings, check_prefix: [agent.broad_allow.], require_collector: agent-claude-code}
@@ -194,6 +203,7 @@ controls:
     csf: GV.RR
     cis: []
     pillars: [people, software]
+    tags: [ai-agent]
     check: attested
     validity: 90d
     question: "Is every deliberate agent permission deviation (e.g. reads outside the working directory allowed) recorded with a reason, and still wanted?"
@@ -203,6 +213,7 @@ controls:
     csf: PR.DS
     cis: ["3.11"]
     pillars: [people, software]
+    tags: [ai-agent]
     check: automated
     weight: 2
     source: {type: findings, check_in: [agent.memory_secret_suspect, secret.credential_in_notes], require_collector: agent-claude-code}
@@ -211,6 +222,7 @@ controls:
     csf: DE.CM
     cis: ["8.2", "8.10"]
     pillars: [people, software]
+    tags: [ai-agent]
     check: automated
     weight: 1
     source: {type: findings, check_in: [agent.audit_trail_missing], require_collector: agent-claude-code,
@@ -220,6 +232,7 @@ controls:
     csf: PR.AA
     cis: ["3.3"]
     pillars: [people, software]
+    tags: [ai-agent]
     check: automated
     weight: 1
     source: {type: findings, check_in: [agent.no_credential_deny_rules], require_collector: agent-claude-code,

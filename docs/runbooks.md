@@ -45,6 +45,17 @@ did not fire, the runner could not start, the host is down, or the only sink to 
    missing, rebuild the environment (`render.py env --install DIR`) and re-render the wrapper.
 4. Sink: credentials, namespace existence, reachability; it recovers by itself on the next tick once fixed.
 
+## export-failing
+
+`SecurityExportFailing`: an `export` sink (issue tracker or SIEM, instance `export:`) failed 3 runs in a row. The
+ledger is unaffected; the team's tools fall behind it.
+1. The job's `export.log` in its run dir: `FAILED <error>` names the sink (`tickets-github-0`, `siem-http-0`, ...)
+   and a status code only (never a token or body).
+2. Tickets: token expired or lacking Issues read/write; the repository became public (refused on purpose);
+   `rate limited` means the budget ran out and the rest is deferred, not lost. SIEM: endpoint down or 4xx (token,
+   format); `<data>/state/export/<sink>.json` holds what was accepted, the rest is re-sent on the next run.
+3. Fix and run the job once (`sp run export` or `runner.py run export`); `--dry-run` shows the plan without writing.
+
 ## remediation-overdue
 
 `SecurityRemediationOverdue`: critical/high findings are open past their remediation SLO (`remediation.slo`;

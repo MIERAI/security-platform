@@ -18,6 +18,7 @@ Outputs: <data>/reports/scorecard.json (security-platform/scorecard/v1), <data>/
 <data>/metrics/scorecard.prom, <data>/state/scorecard.json (regression state).
 """
 import argparse
+import fnmatch
 import glob
 import json
 import os
@@ -98,6 +99,8 @@ def lint(dims, controls):
         if c.get("check") not in CHECKS:
             errs.append(f"{cid}: check must be one of {CHECKS}")
         lint_applies(cid, c.get("applies_when"), errs)
+        if not isinstance(c.get("tags", []), list) or not all(isinstance(t, str) for t in c.get("tags", [])):
+            errs.append(f"{cid}: tags must be a list of strings")
         if c.get("function") not in FUNCTIONS:
             errs.append(f"{cid}: csf {c.get('csf')!r} must start with one of {sorted(FUNCTIONS)}")
         if not c.get("pillars") or set(c["pillars"]) - set(PILLARS):
@@ -158,6 +161,65 @@ def applicable(spec, inst, ctx):
     if "coverage_prefix" in spec:
         hit = any(a.startswith(spec["coverage_prefix"]) for _, a, _ in ctx.coverage)
         return (True, "") if hit else (False, f"no {spec['coverage_prefix']}* asset in scope")
+    return True, ""
+
+
+def required_collectors(src):
+    """Every `require_collector` named anywhere in a source (nested all / any / first_known included)."""
+    out = set()
+    if isinstance(src, dict):
+        req = src.get("require_collector")
+        if req and req != "*":
+            out |= set(req if isinstance(req, list) else [req])
+        for v in src.values():
+            out |= required_collectors(v)
+    elif isinstance(src, list):
+        for v in src:
+            out |= required_collectors(v)
+    return out
+
+
+def configured_collectors(inst, ctx):
+    """Collectors this instance runs or has run: a collector/command job in runner.jobs (by `as`, `collector` or
+    job name), or any document / ledger record of it (a site's collector reaching a hub counts)."""
+    out = set((ctx.ledger.get("collectors") or {}).keys()) | {col for col, _, _ in ctx.coverage}
+    for name, j in (((inst or {}).get("runner") or {}).get("jobs") or {}).items():
+        j = j or {}
+        if j.get("type", "collector") in ("collector", "command"):
+            out |= {x for x in (name, j.get("collector"), j.get("as")) if x}
+    return out
+
+
+def lint_instance(sc):
+    errs = []
+    if sc.get("unconfigured_collectors", "unknown") not in ("unknown", "not_applicable"):
+        errs.append("unconfigured_collectors must be unknown or not_applicable")
+    na = sc.get("not_applicable") or {}
+    if not isinstance(na, dict):
+        errs.append("not_applicable must be a map {<control id | glob | tag:<tag>>: <reason>}")
+    else:
+        errs += [f"not_applicable {k!r}: a reason is required" for k, v in na.items() if not str(v or "").strip()]
+    return errs
+
+
+def instance_scope(c, sc, configured):
+    """The instance's own scope decisions (scorecard.md "Not applicable"): (True, "") or (False, reason).
+      overrides.<id>.disabled: <reason>              this control, by id
+      not_applicable: {<id | glob | tag:<tag>>: <reason>}   e.g. {"tag:ai-agent": "no AI coding agents in use"}
+      unconfigured_collectors: not_applicable        a control that needs a collector this instance never runs
+                                                     (default `unknown`: counted as failing, no data != secure);
+                                                     a control a human can attest instead is never excluded"""
+    if c.get("disabled"):
+        return False, "disabled by the instance" + (f": {c['disabled']}" if isinstance(c["disabled"], str) else "")
+    tags = set(c.get("tags") or [])
+    for sel, reason in (sc.get("not_applicable") or {}).items():
+        sel = str(sel)
+        if (sel[4:] in tags) if sel.startswith("tag:") else fnmatch.fnmatchcase(c["id"], sel):
+            return False, f"out of scope for the instance ({sel}): {reason}"
+    if sc.get("unconfigured_collectors", "unknown") == "not_applicable" and not attestable(c):
+        req = required_collectors(c.get("source"))
+        if req and not req & configured:
+            return False, f"collector not configured: {', '.join(sorted(req))}"
     return True, ""
 
 
@@ -260,7 +322,6 @@ def compute(data, inst=None, now=None, extra_dirs=None):
     sc = (inst or {}).get("scorecard") or {}
     threshold = float(sc.get("threshold", 75))
     dims, controls = load_catalog(catalog_dirs(inst, extra_dirs), inst)
-    controls = [c for c in controls if not c.get("disabled")]
     vars_ = dict(data=data, product=ROOT, **{k: v for k, v in (sc.get("vars") or {}).items()})
     att = load_attestations(data)
     ctx = Ctx(data, now, controls, sc.get("pillars", PILLARS), list(FUNCTIONS))
@@ -271,11 +332,16 @@ def compute(data, inst=None, now=None, extra_dirs=None):
         ok, why = applicable(d.get("applies_when"), inst, ctx)
         if not ok:
             dim_na[did] = why
+    for e in lint_instance(sc):
+        raise ValueError(f"instance scorecard: {e}")
+    configured = configured_collectors(inst, ctx)
     for c in controls:
         a = att.get(c["id"])
         na = not_applicable(a, now)
         c["_expires"] = None
         ok, why = applicable(c.get("applies_when"), inst, ctx)
+        if ok:
+            ok, why = instance_scope(c, sc, configured)
         if c["dimension"] in dim_na or not ok:
             c["_status"], c["_detail"] = "na", f"not applicable: {dim_na.get(c['dimension']) or why}"
             continue
@@ -305,6 +371,8 @@ def compute(data, inst=None, now=None, extra_dirs=None):
     out_dims, out_na = {}, {}
     for did, d in sorted(dims.items(), key=lambda kv: kv[1].get("order", 99)):
         items = group(lambda c, did=did: c["dimension"] == did)
+        if did not in dim_na and items and all(c["_status"] == "na" for c in items):
+            dim_na[did] = "every control is not applicable"
         if did in dim_na:        # e.g. no cloud accounts: excluded from the score, never a penalty
             out_na[did] = {"title": d["title"], "order": d.get("order"), "reason": dim_na[did], "controls": len(items)}
             continue
@@ -516,7 +584,7 @@ def main(argv=None):
     inst = load_config(a.instance) if a.instance else {}
     if a.cmd in ("lint", "list"):
         dims, controls = load_catalog(catalog_dirs(inst, a.catalog), inst)
-        errs = lint(dims, controls)
+        errs = lint(dims, controls) + [f"instance scorecard: {e}" for e in lint_instance((inst or {}).get("scorecard") or {})]
         if a.cmd == "lint":
             for e in errs:
                 print(e, file=sys.stderr)

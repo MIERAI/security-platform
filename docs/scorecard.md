@@ -106,6 +106,35 @@ controls:
 collector's newest document covered such an asset; `{any: [..]}`. An organisation that has cloud accounts but did not
 configure them is a coverage problem, not "not applicable": list them (an import counts).
 
+An **instance** may also declare controls out of its scope. Each needs a reason, is shown with it (status `na`,
+"NOT APPLICABLE" for a dimension whose every control is out of scope), and is a reviewed Re-plan decision:
+
+```yaml
+scorecard:
+  not_applicable:                                   # control id, glob, or tag:<tag>  ->  reason
+    "tag:ai-agent": "no AI coding agents on managed devices"
+    "tag:overlay-network": "no overlay network"
+    people.recovery-offline: "recovery handled by the IdP's admin recovery process"
+  unconfigured_collectors: not_applicable           # default: unknown
+  overrides:
+    usability.time-to-first-run: {disabled: "measured elsewhere"}
+```
+
+`unconfigured_collectors: not_applicable` excludes a control whose `require_collector` names only collectors this
+instance never runs (no collector/command job of that name, no document of it in the ledger or `latest/`). A
+collector that is configured but failing stays `unknown`, and a control a human can attest instead is never excluded.
+Without these keys nothing changes: missing data counts as failing.
+
+The `people` dimension's personal-environment controls carry tags (`ai-agent`: coding agents' settings and memory;
+`overlay-network`). An organisation whose IdP or MDM holds the evidence replaces a control rather than dropping it:
+export the IdP/MDM report into a findings document (a `command` job) and point the control at it, e.g.
+
+```yaml
+scorecard:
+  overrides:
+    people.idp-mfa: {check: automated, source: {type: findings, check_in: [idp.mfa_not_enforced], require_collector: idp-import}}
+```
+
 ### Instance variables
 
 Catalog strings may use `${var}`: `${data}` (the private data directory) and `${product}` are built in; others come
