@@ -1,0 +1,292 @@
+{
+ "component": "collector-codehost-github",
+ "title": "Repository posture read through the GitHub API, read-only: unprotected default branches (none, or a ruleset without PR/force-push/deletion rules), Actions defaults, secret scanning / push protection / Dependabot off, open secret-scanning alerts (types only: an alert's secret value never reaches the output), open Dependabot alerts, write deploy keys, Actions secrets not rotated, broad local gh token scopes; archived and foreign repositories skipped; an owner that cannot be listed is a gap",
+ "contract": "collector-protocol/1.0",
+ "origin": "collectors/codehost-github",
+ "services": [
+  {
+   "name": "codehost",
+   "argv": [
+    "{python}",
+    "{case}/mock_codehost.py",
+    "--fixture",
+    "{sandbox}/codehost-api.json"
+   ]
+  }
+ ],
+ "files": {
+  "instance.json": "instance.json",
+  "codehost-api.json": "api.json",
+  "gh-status.txt": "gh-status.txt",
+  "gh.token": {
+   "text": "{canary_token}\n",
+   "mode": "0600"
+  },
+  "bin/gh": {
+   "text": "#!/bin/sh\nexec \"{python}\" \"{case}/fake_gh.py\" \"$@\"\n",
+   "mode": "0755"
+  },
+  "data/.keep": {
+   "text": ""
+  }
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-codehost-github",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance",
+     "FAKE_GH_API": "{svc_codehost}",
+     "FAKE_GH_TOKEN_FILE": "{sandbox}/gh.token",
+     "FAKE_GH_STATUS_FILE": "{sandbox}/gh-status.txt"
+    },
+    "writes_only_under": [
+     "run"
+    ],
+    "path_prepend": [
+     "{sandbox}/bin"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "run/codehost-github.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "codehost-github"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "no_secret": [
+      "{canary_token}",
+      "{canary_github}",
+      "{canary_aws}",
+      "{canary_password}"
+     ],
+     "in": "run"
+    },
+    {
+     "absent": ".svc-codehost-mutations.log"
+    },
+    {
+     "no_secret": [
+      "{canary_token}"
+     ],
+     "in": ".svc-codehost-leaks"
+    },
+    {
+     "json": "run/codehost-github.findings.json",
+     "subset": {
+      "findings": {
+       "$contains": [
+        {
+         "check": "repo.default_branch_unprotected",
+         "asset": "repo:github/acme/public-open",
+         "severity": "high",
+         "title": "public repo: default branch 'main': no protection/ruleset",
+         "layer": "supply-chain"
+        },
+        {
+         "check": "repo.default_branch_unprotected",
+         "asset": "repo:github/acme/private-ruleset",
+         "severity": "medium",
+         "title": "private repo: default branch 'main': ruleset only has required_signatures (no PR / force-push / deletion rules)"
+        },
+        {
+         "check": "repo.actions_default_write",
+         "asset": "repo:github/acme/public-open",
+         "severity": "medium"
+        },
+        {
+         "check": "repo.actions_can_approve_prs",
+         "asset": "repo:github/acme/public-open"
+        },
+        {
+         "check": "repo.dependabot_alerts_off",
+         "asset": "repo:github/acme/public-open",
+         "severity": "medium"
+        },
+        {
+         "check": "repo.secret_scanning_off",
+         "asset": "repo:github/acme/public-open"
+        },
+        {
+         "check": "repo.push_protection_off",
+         "asset": "repo:github/acme/public-open",
+         "severity": "low"
+        },
+        {
+         "check": "repo.deploy_key_write",
+         "asset": "repo:github/acme/public-open/deploy-key/ci-push",
+         "title": "write-enabled deploy key 'ci-push' (created 2025-01-02)",
+         "layer": "identity"
+        },
+        {
+         "check": "secret.age_over_90d",
+         "asset": "repo:github/acme/public-open/actions-secret/DEPLOY_KEY",
+         "title": {
+          "$regex": "^Actions secret DEPLOY_KEY not rotated for 1[45]\\d days$"
+         }
+        },
+        {
+         "check": "repo.secret_scanning_alerts_open",
+         "asset": "repo:github/acme/public-safe",
+         "severity": "critical",
+         "layer": "data-secrets",
+         "title": "3 open secret-scanning alert(s) (types: Amazon AWS Access Key ID, GitHub Personal Access Token)"
+        },
+        {
+         "check": "repo.dependabot_alerts_open",
+         "asset": "repo:github/acme/public-safe",
+         "severity": "high",
+         "title": "open Dependabot alerts: critical=1, high=2"
+        },
+        {
+         "check": "github.token_broad_scopes",
+         "asset": "identity:github/bot@local-gh",
+         "title": "local gh token for bot has broad scopes: delete_repo, workflow, repo(full) (classic OAuth token, no expiry)"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/codehost-github.findings.json",
+     "subset": {
+      "findings": {
+       "$not_contains": [
+        {
+         "asset": "repo:github/acme/public-safe",
+         "check": "repo.default_branch_unprotected"
+        },
+        {
+         "asset": "repo:github/acme/private-ruleset",
+         "check": "repo.secret_scanning_off"
+        },
+        {
+         "asset": "repo:github/acme/private-ruleset",
+         "check": "repo.dependabot_alerts_off"
+        },
+        {
+         "asset": "repo:github/acme/public-open/actions-secret/FRESH"
+        },
+        {
+         "asset": "repo:github/acme/public-open/deploy-key/mirror"
+        },
+        {
+         "asset": "identity:github/reader@local-gh"
+        }
+       ]
+      },
+      "coverage": {
+       "$not_contains": [
+        {
+         "asset": "repo:github/acme/old"
+        },
+        {
+         "asset": "repo:github/other/fork"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/codehost-github.findings.json",
+     "subset": {
+      "coverage": {
+       "$contains": [
+        {
+         "asset": "repo:github/acme/public-open",
+         "status": "ok"
+        },
+        {
+         "asset": "repo:github/acme/private-ruleset",
+         "status": "ok"
+        },
+        {
+         "asset": "identity:github/reader@local-gh",
+         "status": "ok"
+        },
+        {
+         "asset": "codehost:github/ghost",
+         "status": "gap",
+         "reason": {
+          "$regex": "404"
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/raw/codehost-github/repos.json",
+     "subset": {
+      "acme/public-safe": {
+       "protected": true,
+       "classic_protection": true,
+       "ruleset_rules": [
+        "deletion",
+        "pull_request"
+       ],
+       "secret_scanning_alerts": {
+        "count": 3,
+        "types": {
+         "Amazon AWS Access Key ID": 1,
+         "GitHub Personal Access Token": 2
+        }
+       },
+       "dependabot_alerts": {
+        "critical": 1,
+        "high": 2
+       },
+       "actions_secrets": []
+      },
+      "acme/public-open": {
+       "protected": false,
+       "deploy_keys": [
+        {
+         "title": "ci-push",
+         "read_only": false
+        },
+        {
+         "title": "mirror",
+         "read_only": true
+        }
+       ]
+      }
+     }
+    },
+    {
+     "prom": "run/codehost-github.prom",
+     "has": [
+      {
+       "name": "security_repos_total",
+       "labels": {
+        "owner": "acme"
+       },
+       "value": 3
+      },
+      {
+       "name": "security_repos_public_without_protection",
+       "labels": {
+        "owner": "acme"
+       },
+       "value": 1
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

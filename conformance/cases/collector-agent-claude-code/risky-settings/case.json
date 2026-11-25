@@ -1,0 +1,138 @@
+{
+ "component": "collector-agent-claude-code",
+ "title": "Risky agent settings: bypassPermissions by default with the danger prompt skipped, reads outside the working directories, allow rules granting a shell / remote hosts / files outside the project, no credential-path deny rule, a settings file writable by others, transcripts kept too briefly; env values are never read into the output",
+ "contract": "collector-protocol/1.0",
+ "origin": "collectors/agent-claude-code",
+ "files": {
+  "instance.json": "instance.json",
+  "home/.claude/settings.json": {
+   "text": "{\n \"permissions\": {\n  \"defaultMode\": \"bypassPermissions\",\n  \"allow\": [\n   \"Bash(*)\",\n   \"Bash(ssh lab:*)\",\n   \"Bash(scp:*)\",\n   \"Read(~/notes/**)\",\n   \"Bash(ls:*)\"\n  ],\n  \"deny\": [\n   \"Read(./build/**)\"\n  ],\n  \"blockReadsOutsideWorkingDirectories\": false,\n  \"additionalDirectories\": [\n   \"/tmp/x\"\n  ]\n },\n \"skipDangerousModePermissionPrompt\": true,\n \"cleanupPeriodDays\": 7,\n \"hooks\": {\n  \"PreToolUse\": [\n   {\n    \"matcher\": \"Bash\"\n   }\n  ],\n  \"Stop\": []\n },\n \"env\": {\n  \"API_TOKEN\": \"{canary_token}\",\n  \"OTHER\": \"x\"\n }\n}",
+   "mode": "0666"
+  },
+  "home/.claude/projects/p/s1.jsonl": {
+   "text": "{}\n"
+  },
+  "data/.keep": {
+   "text": ""
+  }
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-agent-claude-code",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance"
+    },
+    "writes_only_under": [
+     "run"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "run/agent-claude-code.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "agent-claude-code"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "no_secret": [
+      "{canary_token}"
+     ],
+     "in": "run"
+    },
+    {
+     "json": "run/agent-claude-code.findings.json",
+     "subset": {
+      "findings": {
+       "$contains": [
+        {
+         "check": "agent.bypass_permissions_default",
+         "title": "agent runs in bypassPermissions by default (no per-action confirmation) and the danger prompt is skipped",
+         "severity": "high"
+        },
+        {
+         "check": "agent.reads_outside_workdir",
+         "severity": "high"
+        },
+        {
+         "check": "agent.broad_allow.any_shell_command",
+         "title": "1 allow rule(s) grant any shell command without confirmation",
+         "severity": "medium"
+        },
+        {
+         "check": "agent.broad_allow.remote_shell_to_other_hosts",
+         "title": "2 allow rule(s) grant remote shell to other hosts without confirmation"
+        },
+        {
+         "check": "agent.broad_allow.file_access_outside_the_project"
+        },
+        {
+         "check": "agent.settings_writable_by_others",
+         "title": "settings file writable by others (0o666)"
+        },
+        {
+         "check": "agent.no_credential_deny_rules",
+         "asset": "agent-guard:claude-code"
+        },
+        {
+         "check": "agent.audit_trail_missing",
+         "severity": "low",
+         "title": "agent transcripts are kept 7 days (< 30): too short to investigate an incident"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/agent-claude-code.findings.json",
+     "subset": {
+      "coverage": {
+       "$contains": [
+        {
+         "asset": "agent-memory:claude-code",
+         "status": "gap",
+         "reason": "no memory_dirs configured"
+        },
+        {
+         "asset": "agent-audit:claude-code",
+         "status": "ok"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/raw/agent-claude-code/guards.json",
+     "subset": {
+      "deny_rules": 1,
+      "credential_path_deny_rules": 0,
+      "hooks": {
+       "PreToolUse": 1,
+       "Stop": 0
+      }
+     }
+    },
+    {
+     "json": "run/raw/agent-claude-code/audit-trail.json",
+     "subset": {
+      "transcripts": 1,
+      "retention_days": 7
+     }
+    }
+   ]
+  }
+ ]
+}

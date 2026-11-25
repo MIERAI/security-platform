@@ -1,0 +1,92 @@
+{
+ "routes": {
+  "/repos/acme/fine": {
+   "body": {
+    "full_name": "acme/fine",
+    "security_and_analysis": null
+   }
+  },
+  "/repos/acme/fine/branches/main/protection": {
+   "body": {
+    "url": "x"
+   }
+  },
+  "/repos/acme/fine/rules/branches/main": {
+   "body": []
+  },
+  "/repos/acme/flaky": {
+   "body": {
+    "full_name": "acme/flaky",
+    "security_and_analysis": null
+   }
+  },
+  "/repos/acme/flaky/branches/main/protection": {
+   "body": {
+    "message": "Server Error"
+   },
+   "status": 502
+  },
+  "/repos/acme/flaky/rules/branches/main": {
+   "body": []
+  },
+  "/repos/acme/limited": {
+   "body": {
+    "full_name": "acme/limited",
+    "security_and_analysis": null
+   }
+  },
+  "/repos/acme/limited/branches/main/protection": {
+   "body": {
+    "message": "API rate limit exceeded for user ID 1."
+   },
+   "headers": {
+    "X-RateLimit-Remaining": "0"
+   },
+   "status": 403
+  },
+  "/repos/acme/limited/rules/branches/main": {
+   "body": []
+  },
+  "/user/repos": {
+   "items": []
+  },
+  "/users/acme/repos": {
+   "items": [
+    {
+     "archived": false,
+     "default_branch": "main",
+     "full_name": "acme/limited",
+     "name": "limited",
+     "owner": {
+      "login": "acme"
+     },
+     "private": false,
+     "visibility": "public"
+    },
+    {
+     "archived": false,
+     "default_branch": "main",
+     "full_name": "acme/flaky",
+     "name": "flaky",
+     "owner": {
+      "login": "acme"
+     },
+     "private": false,
+     "visibility": "public"
+    },
+    {
+     "archived": false,
+     "default_branch": "main",
+     "full_name": "acme/fine",
+     "name": "fine",
+     "owner": {
+      "login": "acme"
+     },
+     "private": false,
+     "visibility": "public"
+    }
+   ]
+  }
+ },
+ "token": "{canary_token}"
+}

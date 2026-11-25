@@ -1,0 +1,87 @@
+{
+ "component": "events",
+ "title": "A source name that is not letters, digits, . _ - (it names the state file) is refused before anything runs",
+ "contract": "events/1.0",
+ "origin": "events/ship.py main",
+ "services": [
+  {
+   "name": "obs",
+   "argv": [
+    "{python}",
+    "{case}/mock_events.py"
+   ]
+  }
+ ],
+ "files": {
+  "out/.keep": {
+   "text": ""
+  },
+  "events.json": {
+   "json": {
+    "loki": {
+     "url": "{svc_obs}/loki/api/v1/push"
+    },
+    "sources": [
+     {
+      "name": "../escape",
+      "type": "command",
+      "host": "lab",
+      "parser": "openssh",
+      "argv": [
+       "cat",
+       "{sandbox}/auth.log"
+      ]
+     }
+    ]
+   }
+  },
+  "auth.log": {
+   "text": "2026-11-25T11:40:00+00:00 lab sshd[101]: Accepted publickey for ops from 10.0.0.1 port 50000 ssh2\n2026-11-25T11:41:00+00:00 lab sshd[102]: Failed password for invalid user admin from 192.0.2.7 port 50001 ssh2\n2026-11-25T11:42:00+00:00 lab sudo:      ops : TTY=pts/0 ; PWD=/home/ops ; USER=root ; COMMAND=/usr/bin/id\n2026-11-25T11:43:00+00:00 lab cron[5]: unrelated\n"
+  }
+ },
+ "steps": [
+  {
+   "name": "ship",
+   "exec": {
+    "impl": "events",
+    "args": [
+     "--config",
+     "{sandbox}/events.json",
+     "--state",
+     "{sandbox}/state",
+     "--summary",
+     "{sandbox}/out/summary.json",
+     "--now",
+     "1795608000"
+    ],
+    "writes_only_under": [
+     "state",
+     "out",
+     "pushed",
+     "leak"
+    ]
+   },
+   "exit": {
+    "not": 0
+   },
+   "expect": [
+    {
+     "stderr": {
+      "regex": [
+       "letters, digits"
+      ]
+     }
+    },
+    {
+     "absent": "pushed/0001.json"
+    },
+    {
+     "absent": "mutations.log"
+    },
+    {
+     "writes_only_under": true
+    }
+   ]
+  }
+ ]
+}

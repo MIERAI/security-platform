@@ -2214,6 +2214,8 @@ def main(argv=None):
     helpers = types.SimpleNamespace(write_case=write_case, collector_env=collector_env, protocol_checks=protocol_checks)
     for module in COLLECTOR_CASE_MODULES:          # one module per collector: conformance/tools/collector_<name>.py
         importlib.import_module(module).cases(helpers)
+    import cases_net     # exposure, codehost-*, agent-claude-code, detection, events (conformance/tools/cases_net.py)
+    cases_net.cases(write_case)
     print(f"{len(OWNED)} cases written")
 
 

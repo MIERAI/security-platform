@@ -63,6 +63,12 @@ internal/cloud/        the cloud adapter (adapters/cloud.py): AWS, GCP, Azure on
 internal/collectors/cloud/  the cloud collector (`sp cloud collect`) and its engines, imports, controls, merge
 internal/collectors/rundoc/  what sdk/spsdk is for Python collectors: the findings document, evidence and metrics byte for
                        byte as the SDK writes them, the protocol environment, private writes, child processes
+internal/collectors/credential/  secrets from 0600 files or named environment variables only, never in errors
+internal/collectors/roclient/  the collectors' HTTP client: GET/HEAD only (anything else refused before it is sent),
+                       no redirect to another origin, bounded bodies, a deadline on every request
+internal/collectors/execad/  the exec adapter (adapters/exec.py): local or ssh, argument vectors, process-group kill
+internal/collectors/{exposure,codehostgithub,codehostgitea,agentclaude,detection}/  `sp <collector> collect`
+internal/events/       the events shipper (`sp events ship`, contracts/events)
 internal/collectors/k8s/    the k8s collector (`sp k8s collect`): kubectl, read verbs only; image inventory
 internal/collectors/vulnintel/  the vuln-intel collector (`sp vuln-intel collect`): feeds, trivy, image/host matching
 internal/collectors/identity/   the identity collector (`sp identity collect`): code host, overlay network, local credentials
@@ -202,6 +208,59 @@ form, so both implementations write the same groups and expiry.
 kube-bench (part `cis`) runs on a node through `host_exec` (`local`, or `ssh` with batch mode and strict host key
 checking): the same script as the Python collector, with the benchmark name checked against
 `^[A-Za-z0-9][A-Za-z0-9._-]*$` first, because it becomes part of that script.
+
+## Go collectors: exposure, codehost-github, codehost-gitea, agent-claude-code, detection; the events shipper
+
+Each has a Go implementation next to the unchanged Python one, which stays the default. A `command` job selects the Go
+one (as for the cloud collector, docs/cloud.md: a collector reads live systems, so there is no `shadow` mode):
+
+```yaml
+runner:
+  jobs:
+    exposure:  {type: command, argv: [~/.local/bin/sp, exposure, collect], schedule: "0 3 * * *", timeout: 2h}
+    detection: {type: command, argv: [~/.local/bin/sp, detection, collect], schedule: "*/30 * * * *"}
+```
+
+`sp codehost-github collect`, `sp codehost-gitea collect` and `sp agent-claude-code collect` likewise. The events
+shipper is `sp events ship --config F --state D [--summary F] [--now E] [--dry-run]` (contracts/events); the runner's
+`events` job still starts `events/ship.py`.
+
+**Proof of equivalence.** The conformance suite runs them with no expected failure (`conformance/impl/go/run.sh`):
+every case of a known deviation passes in Go. `tests/test_go_collectors_parity.py` runs every case of each component
+with both implementations and compares every file the cases leave behind (documents, evidence, metrics, pushed bodies,
+state, summaries) byte for byte (`conformance/tools/compare_impls.py`); the only differences are listed with their
+reason in `conformance/impl/go/explained-diffs.json`.
+
+**Security properties, tested in each package.** HTTP through `internal/collectors/roclient`: only GET/HEAD leave the
+process (the events shipper adds exactly two POSTs: the push URL and the OAuth token endpoint); a redirect to another
+origin is not followed, so a credential never reaches another host; bodies are bounded; every request has a deadline.
+Programs (nmap, kubectl, curl on an exec target, gh) run with argument vectors built from validated values: a target
+address, a port list, a kubeconfig, an ssh host or a remote program name that could be read as an option is refused
+before any program starts. Secrets come from 0600 files or named environment variables only, and tests plant canary
+values (tokens, alert payloads, memory-file credentials, settings `env`) and assert that none appears in any output,
+evidence, state or error text.
+
+**Differences an operator can notice** (the targets of the known deviations, contracts/collector-protocol and
+contracts/events):
+
+- exposure: an address from discovery that is not an IP address or a strict host name is a coverage gap, never an
+  nmap argument (EXPOSURE-D1); nmap gets `--host-timeout 30m` and an address it gave up on is a gap, with the
+  findings of the ports it saw (EXPOSURE-D2). The vantage probe is Go: in-process for `vantage: {type: local}`, and
+  `sp exposure probe` on an ssh vantage (`vantage.sp` names the program there, default `sp`): the vantage needs nmap
+  and the static `sp` binary instead of python3. Transport failures in `probe.json` are not Python exception names.
+- codehost-github: calls the REST API itself (`api`, default `https://api.github.com`) with a token from `token_file`
+  (0600) or `token_env`; it does not run `gh auth token` (an entry with only `gh_user` is a gap saying so). The local
+  `gh auth status` check still runs when gh is installed, and gh missing is not a crash (GITHUB-D3). A failed read of
+  branch protection other than 404 (rate limit, 5xx) is a gap, not an "unprotected" finding (GITHUB-D1); every page
+  of repositories is read (GITHUB-D2). API error texts in the evidence read `HTTP <code>: <message>`.
+- codehost-gitea: pagination follows `Link`/`X-Total-Count`, also when the server caps pages below 50 (GITEA-D1); the
+  token does not follow a redirect to another host (GITEA-D2).
+- agent-claude-code: memory-file findings name the credential pattern classes (AGENT-D1); a malformed settings file is
+  a coverage gap instead of a crashed run (AGENT-D2); symbolic links to directories under a memory directory are not
+  followed.
+- detection: a `token_file` readable by group/others is refused (DETECTION-D1); recorded times are UTC whatever the
+  host's time zone (DETECTION-D2).
+- events: no credential on a redirect to another host (EVENTS-D1); the state directory is created 0700.
 
 ## Working locally
 

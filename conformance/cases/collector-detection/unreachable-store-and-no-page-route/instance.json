@@ -1,0 +1,23 @@
+{
+ "detection": {
+  "alert_history": {
+   "exec": {
+    "type": "local"
+   },
+   "url": "http://127.0.0.1:9"
+  },
+  "alertmanager": {
+   "url": "{svc_obs}/"
+  },
+  "expected": {
+   "auth": [
+    "web-1",
+    "web-2"
+   ]
+  },
+  "log_store": {
+   "url": "http://127.0.0.1:9"
+  }
+ },
+ "name": "conformance"
+}

@@ -1,0 +1,17 @@
+{
+ "agents": [
+  {
+   "settings": [
+    "{sandbox}/home/a/settings.json",
+    "{sandbox}/home/b/settings.json",
+    "{sandbox}/home/c/settings.json",
+    "{sandbox}/home/missing.json"
+   ],
+   "transcripts_dirs": [
+    "{sandbox}/nowhere"
+   ],
+   "type": "claude-code"
+  }
+ ],
+ "name": "conformance"
+}

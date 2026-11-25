@@ -1,0 +1,23 @@
+{
+ "codehost": [
+  {
+   "owner": "lab",
+   "token_file": "{sandbox}/gitea.token",
+   "type": "gitea",
+   "url": "{svc_codehost}"
+  },
+  {
+   "include_private": false,
+   "owner": "solo",
+   "token_file": "{sandbox}/gitea.token",
+   "type": "forgejo",
+   "url": "{svc_codehost}/"
+  },
+  {
+   "gh_user": "x",
+   "owner": "elsewhere",
+   "type": "github"
+  }
+ ],
+ "name": "conformance"
+}

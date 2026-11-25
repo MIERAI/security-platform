@@ -1,0 +1,31 @@
+{
+ "alerts": {
+  "page": 12,
+  "ticket": 3
+ },
+ "am_original": "route:\n  receiver: team\n  routes:\n    - receiver: oncall\n      matchers: ['severity = \"page\"']\nreceivers:\n  - name: team\n    email_configs: [{to: team@example.org}]\n  - name: oncall\n    webhook_configs: [{url: \"http://pager.example.org/hook\"}]\n",
+ "require_token": true,
+ "rules": [
+  {
+   "health": "ok",
+   "name": "SecurityDetectionK8sPodExec"
+  },
+  {
+   "health": "err",
+   "name": "SecurityDetectionAuthSudoFailure"
+  },
+  {
+   "health": "unknown",
+   "name": "SomethingElse"
+  }
+ ],
+ "sources": {
+  "auth": {
+   "web-1": 2
+  },
+  "codehost": {},
+  "k8s-audit": {
+   "lab": 120
+  }
+ }
+}

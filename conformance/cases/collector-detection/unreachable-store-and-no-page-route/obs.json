@@ -1,0 +1,3 @@
+{
+ "am_original": "route:\n  receiver: team\n  routes:\n    - receiver: blackhole\n      matchers: [severity=\"page\"]\nreceivers:\n  - name: team\n    email_configs: [{to: team@example.org}]\n  - name: blackhole\n"
+}

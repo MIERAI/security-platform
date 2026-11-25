@@ -13,6 +13,17 @@ runner/dst-catch-up-across-spring-forward RUNNER-D6 day jump assumes 24-hour day
 runner/job-environment-allow-list        RUNNER-D7  jobs inherit the runner's whole environment
 ledger/removed-exception-reopens         LEDGER-D5  an exception deleted by a human leaves the finding accepted
 scorecard/attestation-expiry-is-utc       SCORECARD-D1  dates parsed as local time: an expiry is an hour early under DST
+collector-agent-claude-code/memory-credentials-pattern-class  AGENT-D1  a count per memory file, no pattern class
+collector-agent-claude-code/malformed-settings-is-a-gap       AGENT-D2  a malformed settings file crashes the run (exit 1)
+collector-detection/token-file-readable-by-others  DETECTION-D1  token_file read and sent without a permission check
+collector-detection/drill-time-is-utc              DETECTION-D2  recorded times parsed as local time: an hour off under DST
+collector-codehost-github/protection-unreadable-is-a-gap   GITHUB-D1  a failed protection read is reported as an unprotected branch
+collector-codehost-github/repositories-on-several-pages    GITHUB-D2  only the first page of repositories is read
+collector-codehost-gitea/server-page-size-below-50         GITEA-D1   a page shorter than 50 ends the listing
+collector-codehost-gitea/token-not-sent-to-another-host    GITEA-D2   the token follows a redirect to another host
+collector-exposure/target-is-never-an-nmap-option  EXPOSURE-D1  a discovered address is passed to nmap unchecked
+collector-exposure/timed-out-host-is-a-gap         EXPOSURE-D2  a partial (timed-out) nmap result covers the address
+events/credentials-not-sent-to-another-host           EVENTS-D1  the API token follows a redirect to another host
 cli/bad-input-is-one-line                CLI-D2  unreadable input escapes as a Python traceback, exit 1
 cli/due-date-in-local-time               CLI-D3  mktime - timezone: an hour off under daylight saving time
 cli/explain-ambiguous-prefix             CLI-D4  an ambiguous id prefix explains whichever finding comes first

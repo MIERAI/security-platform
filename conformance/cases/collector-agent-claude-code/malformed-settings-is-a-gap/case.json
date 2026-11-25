@@ -1,0 +1,96 @@
+{
+ "component": "collector-agent-claude-code",
+ "title": "A settings file that is not a settings document (invalid JSON, not an object) is a coverage gap for that file; the run completes and every other file is still evaluated",
+ "contract": "collector-protocol/1.0 §5",
+ "origin": "collectors/agent-claude-code: json.load of the second pass raises, the run exits 1 and no document is written",
+ "deviation": "AGENT-D2",
+ "files": {
+  "instance.json": "instance.json",
+  "home/a/settings.json": {
+   "text": "{\"permissions\": {\"allow\": [\"Bash(*)\"]"
+  },
+  "home/b/settings.json": {
+   "text": "{\"permissions\": {\"allow\": [\"Bash(curl:*)\"]}}"
+  },
+  "home/c/settings.json": {
+   "text": "[1, 2]"
+  },
+  "data/.keep": {
+   "text": ""
+  }
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-agent-claude-code",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance"
+    },
+    "writes_only_under": [
+     "run"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "run/agent-claude-code.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "agent-claude-code"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "json": "run/agent-claude-code.findings.json",
+     "subset": {
+      "coverage": {
+       "$contains": [
+        {
+         "asset": "agent:claude-code:{sandbox}/home/a/settings.json",
+         "status": "gap",
+         "reason": {
+          "$regex": "invalid JSON"
+         }
+        },
+        {
+         "asset": "agent:claude-code:{sandbox}/home/c/settings.json",
+         "status": "gap",
+         "reason": {
+          "$regex": "not a JSON object"
+         }
+        },
+        {
+         "asset": "agent:claude-code:{sandbox}/home/b/settings.json",
+         "status": "ok"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/agent-claude-code.findings.json",
+     "subset": {
+      "findings": {
+       "$contains": [
+        {
+         "check": "agent.broad_allow.arbitrary_network_egress",
+         "asset": "agent:claude-code:{sandbox}/home/b/settings.json"
+        }
+       ]
+      }
+     }
+    }
+   ]
+  }
+ ]
+}

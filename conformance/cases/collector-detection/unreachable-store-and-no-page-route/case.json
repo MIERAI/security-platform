@@ -1,0 +1,134 @@
+{
+ "component": "collector-detection",
+ "title": "An unreachable log store or alert history is a gap for every check that needed it (never a pass); a severity=page route ending at a receiver that notifies nobody is a finding; no drill recorded is a finding",
+ "contract": "collector-protocol/1.0 §4",
+ "origin": "tests/test_detection_collector.py::test_store_down_is_a_gap_not_a_pass",
+ "files": {
+  "instance.json": "instance.json",
+  "data/.keep": {
+   "text": ""
+  }
+ },
+ "services": [
+  {
+   "name": "obs",
+   "argv": [
+    "{python}",
+    "{case}/mock_obs.py",
+    "--config",
+    "{case}/obs.json"
+   ]
+  }
+ ],
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-detection",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance"
+    },
+    "writes_only_under": [
+     "run"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "run/detection.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "detection"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "json": "run/detection.findings.json",
+     "subset": {
+      "coverage": {
+       "$contains": [
+        {
+         "asset": "log-source:auth/web-1",
+         "status": "gap",
+         "reason": {
+          "$regex": "^log store query failed: URLError: "
+         }
+        },
+        {
+         "asset": "log-source:auth/web-2",
+         "status": "gap"
+        },
+        {
+         "asset": "detection-ruler:log-store",
+         "status": "gap",
+         "reason": {
+          "$regex": "^ruler API: URLError: "
+         }
+        },
+        {
+         "asset": "detection-alerts:history",
+         "status": "gap",
+         "reason": {
+          "$regex": "^alert history query: RuntimeError: curl rc=7\\b"
+         }
+        },
+        {
+         "asset": "detection-alertmanager:routing",
+         "status": "ok"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/detection.findings.json",
+     "subset": {
+      "findings": {
+       "$contains": [
+        {
+         "check": "detection.page_route_missing",
+         "asset": "detection-alertmanager:routing",
+         "severity": "high"
+        },
+        {
+         "check": "detection.drill_overdue",
+         "title": "no detection drill has been recorded"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/raw/detection/routing.json",
+     "subset": {
+      "notifying_receivers": [
+       "team"
+      ]
+     }
+    },
+    {
+     "prom": "run/detection.prom",
+     "has": [
+      {
+       "name": "security_detection_page_route",
+       "labels": {},
+       "value": 0
+      }
+     ]
+    },
+    {
+     "absent": ".svc-obs-mutations.log"
+    }
+   ]
+  }
+ ]
+}

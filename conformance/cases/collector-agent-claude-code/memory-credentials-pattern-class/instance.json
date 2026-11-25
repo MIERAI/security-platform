@@ -1,0 +1,14 @@
+{
+ "agents": [
+  {
+   "memory_dirs": [
+    "~/.claude/projects"
+   ],
+   "settings": [
+    "{sandbox}/home/.claude/settings.json"
+   ],
+   "type": "claude-code"
+  }
+ ],
+ "name": "conformance"
+}

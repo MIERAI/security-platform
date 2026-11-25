@@ -1,0 +1,14 @@
+{
+ "detection": {
+  "expected": {
+   "auth": [
+    "web-1"
+   ]
+  },
+  "log_store": {
+   "token_file": "{sandbox}/loki.token",
+   "url": "{svc_obs}"
+  }
+ },
+ "name": "conformance"
+}
