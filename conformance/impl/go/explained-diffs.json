@@ -1,6 +1,26 @@
 [
- {"case": "collector-agent-claude-code/*", "file": "agent-claude-code\\.findings\\.json$", "path": "^\\$\\.findings\\[\\d+\\]\\.attributes$",
-  "reason": "AGENT-D1: memory-file findings name the credential pattern classes (attributes.pattern_classes)"},
- {"case": "collector-agent-claude-code/*", "file": "memory-scan\\.json$", "path": "^\\$\\.pattern_classes$",
-  "reason": "AGENT-D1: the memory-scan evidence lists the pattern classes per file"}
+ {
+  "case": "collector-agent-claude-code/*",
+  "file": "agent-claude-code\\.findings\\.json$",
+  "path": "^\\$\\.findings\\[\\d+\\]\\.attributes$",
+  "reason": "AGENT-D1: memory-file findings name the credential pattern classes (attributes.pattern_classes)"
+ },
+ {
+  "case": "collector-agent-claude-code/*",
+  "file": "memory-scan\\.json$",
+  "path": "^\\$\\.pattern_classes$",
+  "reason": "AGENT-D1: the memory-scan evidence lists the pattern classes per file"
+ },
+ {
+  "case": "collector-exposure/*",
+  "file": "^nmaplog/argv\\.log$",
+  "path": "^\\$<text>$",
+  "reason": "EXPOSURE-D2: the probe gives nmap --host-timeout 30m (the fake nmap's argument log shows it)"
+ },
+ {
+  "case": "collector-exposure/nmap-failure-is-a-vantage-gap",
+  "file": "exposure\\.findings\\.json$",
+  "path": "^\\$\\.coverage\\[\\d+\\]\\.reason$",
+  "reason": "the vantage gap quotes the probe's failure: the tail of a Python traceback (reference) or nmap's exit status, parse error and stderr (Go); both start 'probe failed rc=1: '"
+ }
 ]

@@ -1,0 +1,308 @@
+{
+ "component": "collector-exposure",
+ "title": "Open ports seen from the vantage point (nmap from the vantage, recorded XML): an HTTP service is classified by its answers (unauthenticated Prometheus and Loki APIs, OTLP ingest), non-HTTP services by nmap's name; filtered and closed ports are not exposure; a down host nobody vouched for is a gap, an empty address of a CIDR range is not; the probe sends GET requests only",
+ "contract": "collector-protocol/1.0",
+ "origin": "collectors/exposure, remote/vantage_probe.py",
+ "files": {
+  "instance.json": {
+   "json": {
+    "name": "conformance",
+    "exposure": {
+     "discovery": [
+      {
+       "type": "static",
+       "targets": [
+        {
+         "name": "web",
+         "address": "127.0.0.1"
+        },
+        {
+         "name": "down",
+         "address": "192.0.2.10"
+        }
+       ],
+       "cidrs": [
+        "127.0.0.4/31"
+       ]
+      }
+     ],
+     "vantage": {
+      "type": "local"
+     },
+     "extra_ports": "18443,20000-20010"
+    }
+   }
+  },
+  "nmap.json": {
+   "json": {
+    "version": "Nmap version 7.95 ( https://nmap.org )",
+    "hosts": {
+     "127.0.0.1": {
+      "ports": [
+       [
+        "svc:web",
+        "open",
+        "http"
+       ],
+       [
+        "svc:web:closed1",
+        "open",
+        "telnet"
+       ],
+       [
+        "svc:web:closed2",
+        "open",
+        "postgresql"
+       ],
+       [
+        8080,
+        "filtered",
+        "http-proxy"
+       ],
+       [
+        9090,
+        "closed",
+        null
+       ]
+      ]
+     },
+     "192.0.2.10": {
+      "status": "down"
+     },
+     "127.0.0.4": {
+      "ports": []
+     },
+     "127.0.0.5": {
+      "ports": []
+     }
+    }
+   }
+  },
+  "bin/nmap": {
+   "text": "#!/bin/sh\nexec \"{python}\" \"{case}/fake_nmap.py\" \"$@\"\n",
+   "mode": "0755"
+  },
+  "bin/python": {
+   "text": "#!/bin/sh\nexec \"{python}\" \"$@\"\n",
+   "mode": "0755"
+  },
+  "data/.keep": {
+   "text": ""
+  }
+ },
+ "services": [
+  {
+   "name": "web",
+   "argv": [
+    "{python}",
+    "{case}/mock_http_targets.py"
+   ]
+  }
+ ],
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-exposure",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance",
+     "FAKE_NMAP_SPEC": "{sandbox}/nmap.json"
+    },
+    "writes_only_under": [
+     "run",
+     "nmaplog"
+    ],
+    "path_prepend": [
+     "{sandbox}/bin"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "run/exposure.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "exposure"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "json": "run/exposure.findings.json",
+     "subset": {
+      "findings": {
+       "$contains": [
+        {
+         "check": "prometheus.unauth_read",
+         "asset": {
+          "$regex": "^net-endpoint:web@127\\.0\\.0\\.1:\\d+$"
+         },
+         "severity": "medium",
+         "layer": "network",
+         "kind": "detection",
+         "title": {
+          "$regex": "^Prometheus query API without auth .* \\(127\\.0\\.0\\.1:\\d+\\)$"
+         },
+         "evidence": {
+          "$regex": "^raw/exposure/probe\\.json#127\\.0\\.0\\.1/\\d+$"
+         }
+        },
+        {
+         "check": "loki.unauth",
+         "asset": {
+          "$regex": "^net-endpoint:web@127\\.0\\.0\\.1:\\d+$"
+         },
+         "severity": "high"
+        },
+        {
+         "check": "otlp.unauth_ingest",
+         "asset": {
+          "$regex": "^net-endpoint:web@127\\.0\\.0\\.1:\\d+$"
+         },
+         "severity": "low"
+        },
+        {
+         "check": "telnet.open",
+         "asset": {
+          "$regex": "^net-endpoint:web@127\\.0\\.0\\.1:\\d+$"
+         },
+         "severity": "high"
+        },
+        {
+         "check": "db.reachable",
+         "asset": {
+          "$regex": "^net-endpoint:web@127\\.0\\.0\\.1:\\d+$"
+         },
+         "title": {
+          "$regex": "\\(postgresql\\)"
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/exposure.findings.json",
+     "subset": {
+      "findings": {
+       "$len": 5
+      },
+      "collector": {
+       "tools": {
+        "nmap": "Nmap version 7.95 ( https://nmap.org )"
+       }
+      }
+     }
+    },
+    {
+     "json": "run/exposure.findings.json",
+     "subset": {
+      "coverage": {
+       "$contains": [
+        {
+         "asset": "host:web",
+         "status": "ok"
+        },
+        {
+         "asset": "net-endpoint:web@127.0.0.1",
+         "status": "ok"
+        },
+        {
+         "asset": "host:down",
+         "status": "gap",
+         "reason": "no open port seen from the vantage point (down or filtered)"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/exposure.findings.json",
+     "subset": {
+      "coverage": {
+       "$not_contains": [
+        {
+         "asset": "host:127.0.0.4"
+        },
+        {
+         "asset": "host:127.0.0.5"
+        },
+        {
+         "asset": "net-endpoint:127.0.0.4@127.0.0.4"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/raw/exposure/probe.json",
+     "subset": {
+      "targets": [
+       "127.0.0.1",
+       "192.0.2.10",
+       "127.0.0.4",
+       "127.0.0.5"
+      ],
+      "hosts": {
+       "127.0.0.1": {
+        "8080": {
+         "$absent": true
+        },
+        "9090": {
+         "$absent": true
+        }
+       }
+      }
+     }
+    },
+    {
+     "json": "run/raw/exposure/devices.json",
+     "subset": {
+      "$len": 4
+     }
+    },
+    {
+     "prom": "run/exposure.prom",
+     "has": [
+      {
+       "name": "security_exposure_open_ports",
+       "value": 3
+      },
+      {
+       "name": "security_exposure_unauth_services",
+       "value": 4
+      }
+     ]
+    },
+    {
+     "file": "nmaplog/argv.log",
+     "regex": [
+      "\"--top-ports\", \"1000\"",
+      "\"-p\", \"22,53,.*,18443,20000-20010\"",
+      "\"--version\""
+     ]
+    },
+    {
+     "absent": "nmaplog/injected"
+    },
+    {
+     "absent": ".svc-web.MUTATION"
+    },
+    {
+     "file": ".svc-web.requests",
+     "regex": [
+      "^GET /api/v1/status/buildinfo$"
+     ]
+    }
+   ]
+  }
+ ]
+}

@@ -100,6 +100,8 @@
   "SCORECARD-D1": "scorecard/attestation-expiry-is-utc",
   "SCORECARD-D2": null,
   "AGENT-D1": "collector-agent-claude-code/memory-credentials-pattern-class",
-  "AGENT-D2": "collector-agent-claude-code/malformed-settings-is-a-gap"
+  "AGENT-D2": "collector-agent-claude-code/malformed-settings-is-a-gap",
+  "EXPOSURE-D1": "collector-exposure/target-is-never-an-nmap-option",
+  "EXPOSURE-D2": "collector-exposure/timed-out-host-is-a-gap"
  }
 }

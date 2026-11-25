@@ -199,9 +199,214 @@ def agent_cases(write_case):
 # ==================================================================================================================
 # exposure
 # ==================================================================================================================
+EXPOSURE = "collector-exposure"
+EXP_DOC = "run/exposure.findings.json"
+NMAP_VERSION = "Nmap version 7.95 ( https://nmap.org )"
+
+
+def exposure_files(spec, instance, **extra):
+    """Sandbox files of an exposure case: the instance, the fake nmap scenario and the programs on PATH (nmap, and
+    python for the reference, which runs its probe as `python -` on a local vantage)."""
+    return dict({"instance.json": {"json": instance}, "nmap.json": {"json": spec}, "bin/nmap": wrapper("fake_nmap.py"),
+                 "bin/python": {"text": '#!/bin/sh\nexec "{python}" "$@"\n', "mode": "0755"},
+                 "data/.keep": {"text": ""}}, **extra)
+
+
+def exposure_collect(expect, env=None, **kw):
+    return collect(EXPOSURE, expect, env=dict({"FAKE_NMAP_SPEC": "{sandbox}/nmap.json"}, **(env or {})), path=True,
+                   writes=("run", "nmaplog"), **kw)
+
+
+def exposure_instance(targets, **cfg):
+    return {"name": "conformance", "exposure": dict({"discovery": [{"type": "static", "targets": targets}],
+                                                     "vantage": {"type": "local"}}, **cfg)}
+
+
 def exposure_cases(write_case):
-    """exposure: cases written here."""
-    return None
+    web = {"name": "web", "address": "127.0.0.1"}
+    targets_svc = [{"name": "web", "argv": ["{python}", "{case}/mock_http_targets.py"]}]
+    tools = {"fake_nmap.py": tool("fake_nmap.py"), "mock_http_targets.py": tool("mock_http_targets.py")}
+    ep = {"$regex": r"^net-endpoint:web@127\.0\.0\.1:\d+$"}
+    spec = {"version": NMAP_VERSION, "hosts": {
+        "127.0.0.1": {"ports": [["svc:web", "open", "http"], ["svc:web:closed1", "open", "telnet"],
+                                ["svc:web:closed2", "open", "postgresql"], [8080, "filtered", "http-proxy"],
+                                [9090, "closed", None]]},
+        "192.0.2.10": {"status": "down"}, "127.0.0.4": {"ports": []}, "127.0.0.5": {"ports": []}}}
+    inst = exposure_instance([web, {"name": "down", "address": "192.0.2.10"}], extra_ports="18443,20000-20010")
+    inst["exposure"]["discovery"][0]["cidrs"] = ["127.0.0.4/31"]
+    write_case(EXPOSURE, "open-services-by-fingerprint", {
+        "title": "Open ports seen from the vantage point (nmap from the vantage, recorded XML): an HTTP service is "
+                 "classified by its answers (unauthenticated Prometheus and Loki APIs, OTLP ingest), non-HTTP services by "
+                 "nmap's name; filtered and closed ports are not exposure; a down host nobody vouched for is a gap, an "
+                 "empty address of a CIDR range is not; the probe sends GET requests only",
+        "contract": C, "origin": "collectors/exposure, remote/vantage_probe.py",
+        "files": exposure_files(spec, inst),
+        "services": targets_svc,
+        "steps": [exposure_collect(protocol_checks("exposure") + [
+            findings_has(EXP_DOC,
+                         {"check": "prometheus.unauth_read", "asset": ep, "severity": "medium", "layer": "network",
+                          "kind": "detection", "title": {"$regex": r"^Prometheus query API without auth .* \(127\.0\.0\.1:\d+\)$"},
+                          "evidence": {"$regex": r"^raw/exposure/probe\.json#127\.0\.0\.1/\d+$"}},
+                         {"check": "loki.unauth", "asset": ep, "severity": "high"},
+                         {"check": "otlp.unauth_ingest", "asset": ep, "severity": "low"},
+                         {"check": "telnet.open", "asset": ep, "severity": "high"},
+                         {"check": "db.reachable", "asset": ep, "title": {"$regex": r"\(postgresql\)"}}),
+            {"json": EXP_DOC, "subset": {"findings": {"$len": 5}, "collector": {"tools": {"nmap": NMAP_VERSION}}}},
+            coverage_has(EXP_DOC, {"asset": "host:web", "status": "ok"}, {"asset": "net-endpoint:web@127.0.0.1", "status": "ok"},
+                         {"asset": "host:down", "status": "gap", "reason": "no open port seen from the vantage point (down or filtered)"}),
+            {"json": EXP_DOC, "subset": {"coverage": {"$not_contains": [{"asset": "host:127.0.0.4"}, {"asset": "host:127.0.0.5"},
+                                                                         {"asset": "net-endpoint:127.0.0.4@127.0.0.4"}]}}},
+            {"json": "run/raw/exposure/probe.json", "subset": {"targets": ["127.0.0.1", "192.0.2.10", "127.0.0.4", "127.0.0.5"],
+                                                               "hosts": {"127.0.0.1": {"8080": {"$absent": True}, "9090": {"$absent": True}}}}},
+            {"json": "run/raw/exposure/devices.json", "subset": {"$len": 4}},
+            {"prom": "run/exposure.prom", "has": [{"name": "security_exposure_open_ports", "value": 3},
+                                                 {"name": "security_exposure_unauth_services", "value": 4}]},
+            {"file": "nmaplog/argv.log", "regex": [r'"--top-ports", "1000"', r'"-p", "22,53,.*,18443,20000-20010"', r'"--version"']},
+            {"absent": "nmaplog/injected"}, {"absent": ".svc-web.MUTATION"},
+            {"file": ".svc-web.requests", "regex": [r"^GET /api/v1/status/buildinfo$"]}])]},
+        tools)
+
+    fail = {"rc": 1, "stderr": "nmap: Failed to open device"}
+    write_case(EXPOSURE, "nmap-failure-is-a-vantage-gap", {
+        "title": "nmap failing on the vantage is a `vantage` coverage gap inside a valid document (exit 0), not a "
+                 "clean result and not a crash",
+        "contract": C + " §5", "origin": "collectors/exposure",
+        "files": exposure_files(fail, exposure_instance([web])),
+        "steps": [exposure_collect(protocol_checks("exposure") + [
+            coverage_has(EXP_DOC, {"asset": "vantage", "status": "gap", "reason": {"$regex": "^probe failed rc=1: "}},
+                         {"asset": "host:web", "status": "ok"}),
+            {"json": EXP_DOC, "subset": {"findings": [], "metrics": []}}])]},
+        tools)
+
+    evil = "-iL/etc/hosts"
+    write_case(EXPOSURE, "target-is-never-an-nmap-option", {
+        "title": "A target address that is not an address (here an nmap option) never reaches nmap's command line: it "
+                 "is a coverage gap for that host and the other targets are scanned",
+        "contract": C + " §4", "origin": "collectors/exposure: discovery addresses are passed to nmap unchecked",
+        "deviation": "EXPOSURE-D1",
+        "files": exposure_files({"hosts": {"127.0.0.1": {"ports": []}}},
+                                exposure_instance([web, {"name": "evil", "address": evil}])),
+        "steps": [exposure_collect(protocol_checks("exposure") + [
+            {"absent": "nmaplog/injected"},
+            coverage_has(EXP_DOC, {"asset": "host:evil", "status": "gap", "reason": {"$regex": "not an IP address or host name"}}),
+            {"json": "run/raw/exposure/probe.json", "subset": {"targets": ["127.0.0.1"]}}])]},
+        tools)
+
+    timed = {"hosts": {"127.0.0.1": {"timedout": True, "ports": [["svc:web:closed1", "open", "telnet"]]}}}
+    write_case(EXPOSURE, "timed-out-host-is-a-gap", {
+        "title": "An address nmap gave up on (host timeout) is a coverage gap: the ports it saw are reported, but a "
+                 "partial scan does not cover the address (no `fixed` for what it did not get to)",
+        "contract": C + " §4-5", "origin": "collectors/exposure: a partial nmap result counts as a complete one",
+        "deviation": "EXPOSURE-D2",
+        "files": exposure_files(timed, exposure_instance([web])),
+        "services": targets_svc,
+        "steps": [exposure_collect(protocol_checks("exposure") + [
+            coverage_has(EXP_DOC, {"asset": "net-endpoint:web@127.0.0.1", "status": "gap", "reason": {"$regex": "timed out"}}),
+            findings_has(EXP_DOC, {"check": "telnet.open", "asset": ep}),
+            {"file": "nmaplog/argv.log", "regex": [r'"--host-timeout", "30m"']}])]},
+        tools)
+
+    write_case(EXPOSURE, "classification-and-discovery", {
+        "title": "Re-classification of a recorded probe result (SP_EXPOSURE_RAW) after discovery from an overlay network "
+                 "(fake tailscale), static targets and an asset file: every fingerprint class, verified hosts with nothing "
+                 "open are covered, offline and out-of-scope assets, discovery failures are gaps",
+        "contract": C, "origin": "collectors/exposure classify(); adapters/discovery.py",
+        "files": {"instance.json": {"json": {"name": "conformance",
+                                             "scope": [{"names": ["laptop"], "scope": ["host"]},
+                                                       {"names": ["phone"], "scope": ["exposure"], "offline": "expected"}],
+                                             "exposure": {"discovery": [
+                                                 {"type": "tailscale"},
+                                                 {"type": "static", "targets": [{"name": "edge", "address": "198.51.100.7"}]},
+                                                 {"type": "static", "cidrs": ["10.0.0.0/16"]},
+                                                 {"type": "file", "path": "{sandbox}/assets.json", "max_age": 3600},
+                                                 {"type": "aws-vpc"}]}}},
+                  "assets.json": {"json": [{"name": "filehost", "address": "198.51.100.8"}]},
+                  "tailscale.json": {"json": TAILSCALE},
+                  "bin/tailscale": {"text": '#!/bin/sh\ncat "{sandbox}/tailscale.json"\n', "mode": "0755"},
+                  "probe.json": {"json": RAW_PROBE}, "data/.keep": {"text": ""}},
+        "steps": [collect(EXPOSURE, protocol_checks("exposure") + [
+            findings_has(EXP_DOC,
+                         {"check": "overlay.node_key_expiry_disabled", "asset": "host:nas", "layer": "identity", "needs_human": True},
+                         {"check": "http.catch_all_unverified", "asset": "net-endpoint:nas@100.64.0.1:3000"},
+                         {"check": "alertmanager.unauth", "asset": "net-endpoint:nas@100.64.0.1:9093"},
+                         {"check": "ollama.unauth", "asset": "net-endpoint:nas@100.64.0.1:11434"},
+                         {"check": "prometheus.unauth_read", "asset": "net-endpoint:nas@100.64.0.1:9090"},
+                         {"check": "prometheus.unauth_remote_write", "asset": "net-endpoint:nas@100.64.0.1:9090"},
+                         {"check": "prometheus.admin_api_unauth", "asset": "net-endpoint:nas@100.64.0.1:9090"},
+                         {"check": "blackbox.open_probe", "asset": "net-endpoint:edge@198.51.100.7:9115"},
+                         {"check": "otlp.unauth_ingest", "asset": "net-endpoint:edge@198.51.100.7:4318"},
+                         {"check": "metrics.unauth", "asset": "net-endpoint:edge@198.51.100.7:8080"},
+                         {"check": "http.unauth_root", "asset": "net-endpoint:edge@198.51.100.7:8081"},
+                         {"check": "telnet.open", "asset": "net-endpoint:edge@198.51.100.7:23"},
+                         {"check": "smb.reachable", "asset": "net-endpoint:edge@198.51.100.7:445",
+                          "title": "SMB (microsoft-ds) is reachable from the vantage point (198.51.100.7:445)"},
+                         {"check": "db.reachable", "asset": "net-endpoint:edge@198.51.100.7:6379",
+                          "title": "database port reachable from the vantage point (6379) (198.51.100.7:6379)"},
+                         {"check": "tempo.unauth_read", "asset": "net-endpoint:203.0.113.9@203.0.113.9:3200"}),
+            {"json": EXP_DOC, "subset": {"findings": {"$not_contains": [
+                {"asset": "net-endpoint:edge@198.51.100.7:8443"}, {"asset": "host:printer"},
+                {"check": "overlay.node_key_expiry_disabled", "asset": "host:scanner"}]}}},
+            coverage_has(EXP_DOC,
+                         {"asset": "discovery:static", "status": "gap",
+                          "reason": "ValueError: CIDR 10.0.0.0/16 has 65536 addresses (max_hosts 1024)"},
+                         {"asset": "discovery:aws-vpc", "status": "gap",
+                          "reason": "NotImplementedError: discovery adapter 'aws-vpc' is a documented future adapter"},
+                         {"asset": "host:old", "status": "gap", "reason": "offline at scan time"},
+                         {"asset": "net-endpoint:printer@100.64.0.2", "status": "ok"},
+                         {"asset": "host:filehost", "status": "gap",
+                          "reason": "no open port seen from the vantage point (down or filtered)"},
+                         {"asset": "host:scanner", "status": "ok"}),
+            {"json": EXP_DOC, "subset": {"coverage": {"$not_contains": [{"asset": "host:laptop"}, {"asset": "host:phone"}]},
+                                         "collector": {"tools": {"nmap": NMAP_VERSION}}}},
+            {"prom": "run/exposure.prom", "has": [{"name": "security_exposure_open_ports", "value": 13},
+                                                 {"name": "security_exposure_unauth_services", "value": 11}]}],
+            env={"SP_EXPOSURE_RAW": "{sandbox}/probe.json"}, path=True)]},
+        {})
+
+
+def r200(snippet, ctype="text/html"):
+    return {"status": 200, "auth": False, "server": "", "ctype": ctype, "snippet": snippet}
+
+
+def rerr(status, auth=False):
+    return {"status": status, "auth": auth, "server": "", "location": ""}
+
+
+TAILSCALE = {"Self": {"HostName": "scanner", "TailscaleIPs": ["100.64.0.10", "fd7a:115c:a1e0::a"], "Online": False, "OS": "linux"},
+             "Peer": {"n1": {"HostName": "nas", "TailscaleIPs": ["fd7a:115c:a1e0::1", "100.64.0.1"], "Online": True, "OS": "linux"},
+                      "n2": {"HostName": "printer", "TailscaleIPs": ["100.64.0.2"], "Online": True, "KeyExpiry": "2027-01-01T00:00:00Z"},
+                      "n3": {"HostName": "old", "TailscaleIPs": ["100.64.0.3"], "Online": False, "KeyExpiry": "2027-01-01T00:00:00Z"},
+                      "n4": {"HostName": "laptop", "TailscaleIPs": ["100.64.0.4"], "Online": True, "KeyExpiry": "2027-01-01T00:00:00Z"},
+                      "n5": {"HostName": "phone", "TailscaleIPs": ["100.64.0.5"], "Online": False, "KeyExpiry": "2027-01-01T00:00:00Z"}}}
+SAME = "<html><head><title>app</title></head></html>"
+RAW_PROBE = {
+    "targets": ["100.64.0.1", "100.64.0.2", "198.51.100.7", "198.51.100.8", "100.64.0.10"],
+    "tools": {"nmap": NMAP_VERSION},
+    "hosts": {
+        "100.64.0.1": {
+            "3000": {"nmap_service": "ppp", "scheme": "http", "paths": {p: r200(SAME) for p in (
+                "/", "/metrics", "/api/tags", "/api/search", "/status", "/api/health", "/api/v1/applications")}},
+            "9090": {"nmap_service": "zeus-admin", "scheme": "http", "paths": {
+                "/": rerr(302), "/api/v1/status/buildinfo": r200('{"status":"success","data":{"version":"2.53.0"}}', "application/json"),
+                "/api/v1/status/flags": {"status": 200, "auth": False, "fields": {
+                    "web.enable-remote-write-receiver": "true", "web.enable-admin-api": "true", "web.enable-lifecycle": None}}}},
+            "9093": {"nmap_service": "copycat", "scheme": "http", "paths": {
+                "/api/v2/status": r200('{"cluster":{"status":"ready"},"config":{"original":"x"}}', "application/json")}},
+            "11434": {"nmap_service": "unknown", "scheme": "http", "paths": {"/api/tags": r200('{"models":[]}', "application/json")}}},
+        "100.64.0.2": {},
+        "198.51.100.7": {
+            "23": {"nmap_service": "telnet"},
+            "445": {"nmap_service": "microsoft-ds"},
+            "4318": {"nmap_service": "unknown", "scheme": "http", "paths": {"/": rerr(404), "/v1/traces": rerr(405)}},
+            "6379": {"nmap_service": None},
+            "8080": {"nmap_service": "http-proxy", "scheme": "http", "paths": {"/": rerr(401, True), "/metrics": r200("# HELP x\n")}},
+            "8081": {"nmap_service": "blackice-icecap", "scheme": "http", "paths": {"/": r200("<html>ok</html>"), "/metrics": rerr(404)}},
+            "8443": {"nmap_service": "https-alt", "scheme": "https", "paths": {"/": rerr(401, True), "/api/v1/write": rerr(405, True)}},
+            "9115": {"nmap_service": "unknown", "scheme": "http", "paths": {
+                "/": r200("<html><head><title>Blackbox Exporter</title>"), "/probe": rerr(400)}}},
+        "198.51.100.8": {},
+        "203.0.113.9": {"3200": {"nmap_service": "unknown", "scheme": "http", "paths": {
+            "/api/search": r200('{"traces":[]}', "application/json"), "/": rerr(404)}}}}}
 
 
 # ==================================================================================================================

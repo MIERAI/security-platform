@@ -15,3 +15,5 @@ ledger/removed-exception-reopens         LEDGER-D5  an exception deleted by a hu
 scorecard/attestation-expiry-is-utc       SCORECARD-D1  dates parsed as local time: an expiry is an hour early under DST
 collector-agent-claude-code/memory-credentials-pattern-class  AGENT-D1  a count per memory file, no pattern class
 collector-agent-claude-code/malformed-settings-is-a-gap       AGENT-D2  a malformed settings file crashes the run (exit 1)
+collector-exposure/target-is-never-an-nmap-option  EXPOSURE-D1  a discovered address is passed to nmap unchecked
+collector-exposure/timed-out-host-is-a-gap         EXPOSURE-D2  a partial (timed-out) nmap result covers the address

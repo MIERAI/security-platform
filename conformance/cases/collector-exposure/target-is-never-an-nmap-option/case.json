@@ -1,0 +1,120 @@
+{
+ "component": "collector-exposure",
+ "title": "A target address that is not an address (here an nmap option) never reaches nmap's command line: it is a coverage gap for that host and the other targets are scanned",
+ "contract": "collector-protocol/1.0 §4",
+ "origin": "collectors/exposure: discovery addresses are passed to nmap unchecked",
+ "deviation": "EXPOSURE-D1",
+ "files": {
+  "instance.json": {
+   "json": {
+    "name": "conformance",
+    "exposure": {
+     "discovery": [
+      {
+       "type": "static",
+       "targets": [
+        {
+         "name": "web",
+         "address": "127.0.0.1"
+        },
+        {
+         "name": "evil",
+         "address": "-iL/etc/hosts"
+        }
+       ]
+      }
+     ],
+     "vantage": {
+      "type": "local"
+     }
+    }
+   }
+  },
+  "nmap.json": {
+   "json": {
+    "hosts": {
+     "127.0.0.1": {
+      "ports": []
+     }
+    }
+   }
+  },
+  "bin/nmap": {
+   "text": "#!/bin/sh\nexec \"{python}\" \"{case}/fake_nmap.py\" \"$@\"\n",
+   "mode": "0755"
+  },
+  "bin/python": {
+   "text": "#!/bin/sh\nexec \"{python}\" \"$@\"\n",
+   "mode": "0755"
+  },
+  "data/.keep": {
+   "text": ""
+  }
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-exposure",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance",
+     "FAKE_NMAP_SPEC": "{sandbox}/nmap.json"
+    },
+    "writes_only_under": [
+     "run",
+     "nmaplog"
+    ],
+    "path_prepend": [
+     "{sandbox}/bin"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "run/exposure.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "exposure"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "absent": "nmaplog/injected"
+    },
+    {
+     "json": "run/exposure.findings.json",
+     "subset": {
+      "coverage": {
+       "$contains": [
+        {
+         "asset": "host:evil",
+         "status": "gap",
+         "reason": {
+          "$regex": "not an IP address or host name"
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/raw/exposure/probe.json",
+     "subset": {
+      "targets": [
+       "127.0.0.1"
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}
