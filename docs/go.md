@@ -55,6 +55,14 @@ internal/runner/       `sp runner` (docs/runner.md): scheduling, locks, jobs, st
 internal/remediation/  track (`sp ledger track`): items, owners, SLO due dates, files and github-issues trackers
 internal/cloud/        the cloud adapter (adapters/cloud.py): AWS, GCP, Azure on the official SDKs; discovery gcp
 internal/collectors/cloud/  the cloud collector (`sp cloud collect`) and its engines, imports, controls, merge
+internal/collectors/rundoc/  the findings document of a collector run, byte for byte as sdk/spsdk writes it (document,
+                       evidence, Prometheus text); `sp <collector> collect` entry and exit statuses
+internal/collectors/credential/  secrets from 0600 files or named environment variables only, never in errors
+internal/collectors/roclient/  the collectors' HTTP client: GET/HEAD only (anything else refused before it is sent),
+                       no redirect to another origin, bounded bodies, a deadline on every request
+internal/collectors/execad/  the exec adapter (adapters/exec.py): local or ssh, argument vectors, process-group kill
+internal/collectors/{exposure,codehostgithub,codehostgitea,agentclaude,detection}/  `sp <collector> collect`
+internal/events/       the events shipper (`sp events ship`, contracts/events)
 internal/<component>/  added per component as it moves (collectors/<name>, ...)
 ```
 
