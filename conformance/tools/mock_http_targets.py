@@ -56,19 +56,41 @@ def closer(sock):
         c.close()
 
 
+def closed_sockets(below, n=2, attempts=500):
+    """n listening sockets on ports below `below`, in increasing order: the order of the open ports nmap reports, and so
+    of the findings, is then the same on every run (closed1 < closed2 < the HTTP service)."""
+    kept, spare = [], []
+    for _ in range(attempts):
+        s = socket.socket()
+        s.bind(("127.0.0.1", 0))
+        (kept if s.getsockname()[1] < below else spare).append(s)
+        if len(kept) == n:
+            break
+    for s in spare:
+        s.close()
+    if len(kept) < n:
+        for s in kept:
+            s.close()
+        return None
+    return sorted(kept, key=lambda s: s.getsockname()[1])
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--port-file", required=True)
     a = ap.parse_args()
     base = a.port_file[:-len(".port")] if a.port_file.endswith(".port") else a.port_file
-    for extra in ("closed1", "closed2"):
-        s = socket.socket()
-        s.bind(("127.0.0.1", 0))
+    while True:
+        srv = ThreadingHTTPServer(("127.0.0.1", 0), handler(base))
+        socks = closed_sockets(srv.server_address[1])
+        if socks:
+            break
+        srv.server_close()
+    for extra, s in zip(("closed1", "closed2"), socks):
         s.listen(16)
         threading.Thread(target=closer, args=(s,), daemon=True).start()
         with open(f"{base}.{extra}", "w") as f:
             f.write(str(s.getsockname()[1]))
-    srv = ThreadingHTTPServer(("127.0.0.1", 0), handler(base))
     with open(a.port_file + ".tmp", "w") as f:
         f.write(str(srv.server_address[1]))
     os.replace(a.port_file + ".tmp", a.port_file)
