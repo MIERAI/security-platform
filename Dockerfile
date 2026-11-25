@@ -17,7 +17,9 @@ ARG TARGETOS=linux
 ARG TARGETARCH=amd64
 ARG RELEASE=""
 WORKDIR /src
-COPY go.mod ./
+COPY go.mod go.sum ./
+# modules checked against go.sum (and the checksum database); a separate layer so code changes reuse it
+RUN GOTOOLCHAIN=local GOFLAGS=-mod=readonly go mod download && go mod verify
 COPY cmd cmd
 COPY internal internal
 # no .git in the build: VCS facts come from the RELEASE file instead; GOTOOLCHAIN=local: the image's Go, no download
