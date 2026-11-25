@@ -136,6 +136,9 @@ func TestErrorsHoldNoSecret(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+			if runtime.GOOS == "windows" && strings.Contains(tc.want, "0600") {
+				t.Skip("no permission bits on Windows")
+			}
 			err := Send(t.Context(), env(), tc.cfg, "text")
 			if err == nil || !strings.Contains(err.Error(), tc.want) || strings.Contains(err.Error(), "SECRET") ||
 				strings.Contains(err.Error(), "127.0.0.1") {

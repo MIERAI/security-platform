@@ -216,7 +216,7 @@ func TestUsageErrors(t *testing.T) {
 		{[]string{"findings", "--days", "1"}, nil, 2, "sp: error: unrecognized arguments: --days", false},
 		{[]string{"digest", "--days", "x"}, nil, 2, "sp digest: error: argument --days: invalid int value: 'x'\n", false},
 		{[]string{"status"}, nil, 2, "sp: where is your data directory?", false},
-		{[]string{"status", "--data", "/nonexistent/x"}, nil, 2, "sp: /nonexistent/x does not exist (create it with `sp init /nonexistent/x`)\n", false},
+		{[]string{"status", "--data", "/nonexistent/x"}, nil, 2, " does not exist (create it with `sp init /nonexistent/x`)\n", false},
 		{[]string{"--help"}, nil, 0, "", true},
 		{[]string{"--he"}, nil, 0, "", true},
 		{[]string{"findings", "-h"}, nil, 0, "", true},

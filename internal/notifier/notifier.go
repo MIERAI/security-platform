@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -105,7 +106,8 @@ func secret(env Env, path string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("%w: %s: %w", ErrConfig, path, errors.Unwrap(err))
 	}
-	if fi.Mode().Perm()&0o077 != 0 {
+	// Windows has no permission bits (ACLs decide; Go reports 0666 for every writable file): not checked there
+	if fi.Mode().Perm()&0o077 != 0 && runtime.GOOS != "windows" {
 		return "", fmt.Errorf("%w: %s must be mode 0600", ErrConfig, path)
 	}
 	b, err := readLimited(p, maxSecret)
