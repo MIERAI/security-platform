@@ -178,6 +178,21 @@ exactly as the Python collector does, instead of linking `k8s.io/client-go`:
   kubectl that logs every call, and assert that nothing but those verbs was ever called. Pod specs are decoded into
   structs that have no field for environment values, so they cannot reach an output.
 
+**vuln-intel**: the feeds (CISA KEV, EPSS, OSV per ecosystem, Android bulletins, Apple security releases, MSRC CVRF)
+are fetched with `net/http`: conditional GET with the Python implementation's cache files and ETag/Last-Modified
+metadata, TLS 1.2+ only (plain http only to a loopback mirror, also for redirects), a size limit per download and per
+inflated archive (gzip, zip: total size, entry count, entry size), and the payload is parsed before it replaces the
+cached copy. Trivy stays an external engine (argument vectors as in Python; registry credentials only in
+`TRIVY_USERNAME`/`TRIVY_PASSWORD`). Not in Go: feed `vendor-advisories` (unstructured pages, the advisor, the human
+review state) and `code_repos` (code-host listings and clones): an instance that uses them is refused with exit 2 and
+keeps the Python collector.
+
+**identity**: the code host's REST API and the overlay network's API directly over `net/http` (no `gh api`): GET
+only (plus the OAuth token exchange of the overlay network), redirects never followed (the token would follow),
+proxies from the run's environment except for loopback hosts, Link-header pagination bounded to 100 pages, the Python
+adapter's ETag cache files; certificates of kubeconfig users are read with `crypto/x509` and printed in OpenSSL's
+form, so both implementations write the same groups and expiry.
+
 kube-bench (part `cis`) runs on a node through `host_exec` (`local`, or `ssh` with batch mode and strict host key
 checking): the same script as the Python collector, with the benchmark name checked against
 `^[A-Za-z0-9][A-Za-z0-9._-]*$` first, because it becomes part of that script.
