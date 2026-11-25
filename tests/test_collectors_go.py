@@ -28,6 +28,8 @@ COMPONENTS = {c: n for c, n in (("collector-k8s", "k8s"), ("collector-vuln-intel
 ISO = re.compile(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?Z")
 EPOCH = re.compile(r"(_timestamp_seconds\{[^}]*\}|_age_seconds\{[^}]*\}) \S+")
 AGE = re.compile(r'"age_days": [0-9.]+')
+CLOCK_METRIC = re.compile(r'("name": "security_[a-z0-9_]*_(?:age_seconds|days)",\s*"value": )[0-9.e+-]+')
+CLOCK_SAMPLE = re.compile(r'^(security_[a-z0-9_]*_days\{[^}]*\}) \S+$', re.M)
 
 
 def build_sp(out):
@@ -62,6 +64,7 @@ def masked(path, root):
         return data
     text = text.replace(os.path.realpath(root), "<sandbox>").replace(root, "<sandbox>")
     text = EPOCH.sub(r"\1 <now>", ISO.sub("<time>", text))
+    text = CLOCK_SAMPLE.sub(r"\1 <clock>", CLOCK_METRIC.sub(r"\1<clock>", text))   # ages measured on the wall clock
     return AGE.sub('"age_days": <age>', text)
 
 
