@@ -1,6 +1,8 @@
 {
- "_comment": "Scenario for cloudmock.py (fictional identifiers). Two GCP projects / Azure subscriptions each: one where the platform's identity holds only the read-only roles, one where it was given a write role (must be refused).",
+ "_comment": "Scenario for cloudmock.py (fictional identifiers). Two GCP projects / Azure subscriptions each: one where the platform's identity holds only the read-only roles, one where it was given a write role (must be refused). GCP also: a gcloud ADC user (refresh token) allowed to impersonate (token_creators) the audit service accounts of adc-readonly (VM instances for discovery) and acme-overprivileged.",
  "gcp": {
+  "oauth_client": {"client_id": "mock-adc-client.apps.example", "client_secret": "mock-adc-client"},
+  "users": {"mock-refresh-operator": {"email": "operator@example.com"}},
   "providers": {
    "//iam.googleapis.com/projects/100000000001/locations/global/workloadIdentityPools/security-platform/providers/local-oidc": {
     "issuer": "http://127.0.0.1:18080/workload",
@@ -9,10 +11,21 @@
   },
   "service_accounts": {
    "auditor@acme-readonly.iam.gserviceaccount.com": {"subjects": ["system:serviceaccount:security:scanner"]},
-   "auditor@acme-overprivileged.iam.gserviceaccount.com": {"subjects": ["system:serviceaccount:security:scanner"]},
+   "auditor@acme-overprivileged.iam.gserviceaccount.com": {"subjects": ["system:serviceaccount:security:scanner"],
+                                                           "token_creators": ["operator@example.com"]},
+   "audit@adc-readonly.iam.gserviceaccount.com": {"subjects": [], "token_creators": ["operator@example.com"]},
    "someone-else@acme-readonly.iam.gserviceaccount.com": {"subjects": ["system:serviceaccount:other:app"]}
   },
   "projects": {
+   "adc-readonly": {"bindings": [
+     {"role": "roles/iam.securityReviewer", "members": ["serviceAccount:audit@adc-readonly.iam.gserviceaccount.com"],
+      "condition": {"title": "trial access", "expression": "request.time < timestamp(\"2999-01-01T00:00:00Z\")"}},
+     {"role": "roles/viewer", "members": ["serviceAccount:audit@adc-readonly.iam.gserviceaccount.com"]},
+     {"role": "roles/owner", "members": ["user:operator@example.com"]}],
+    "instances": [
+     {"name": "web-1", "zone": "europe-west1-b", "internal": ["10.10.0.2"], "external": ["192.0.2.10"]},
+     {"name": "batch-1", "zone": "europe-west1-b", "internal": ["10.10.0.3"], "external": []},
+     {"name": "old-1", "zone": "europe-west1-c", "internal": ["10.10.0.4"], "external": [], "state": "TERMINATED"}]},
    "acme-readonly": {"bindings": [
      {"role": "roles/iam.securityReviewer", "members": ["serviceAccount:auditor@acme-readonly.iam.gserviceaccount.com"]},
      {"role": "roles/viewer", "members": ["serviceAccount:auditor@acme-readonly.iam.gserviceaccount.com"]},

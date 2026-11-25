@@ -8,7 +8,7 @@ page is the recipe. The interfaces themselves are listed in `adapters/README.md`
 
 | you want to... | write | size | example |
 |---|---|---|---|
-| find assets somewhere new (cloud API, CMDB, inventory file) | a **discovery** adapter (`adapters/discovery.py`) | 20-40 lines | `static`, `file`, `tailscale` |
+| find assets somewhere new (cloud API, CMDB, inventory file) | a **discovery** adapter (`adapters/discovery.py`) | 20-40 lines | `static`, `file`, `tailscale`, `gcp` |
 | run read-only commands on machines a new way (SSM, osquery, an agent) | an **exec** adapter (`adapters/exec.py`) | 20-40 lines | `local`, `ssh` |
 | deliver metrics somewhere new | a **sink** (`adapters/sinks.py`) | 20-60 lines | `textfile`, `kubernetes-configmap`, `remote_write` |
 | send the daily summary somewhere new | a **notifier** (`notifier/notifiers.py`) | 10-20 lines | `telegram`, `webhook`, `exec` |
@@ -55,6 +55,37 @@ Then:
 2. Bump `VERSION` in the module (minor for a new adapter) and add a CHANGELOG line.
 3. Document the config keys in `docs/instance-reference.md`.
 4. Use it: `exposure: {discovery: [{type: netbox, url: ..., token_file: ...}]}`.
+
+### Example: `gcp` (a cloud API as discovery)
+
+`gcp` lists the Compute Engine VM instances of one or more projects as discovery assets, read-only (GET calls only):
+
+```yaml
+exposure:
+  discovery:
+    - type: gcp
+      project_id: my-project
+      source: adc                                   # or workload_identity (unattended), exactly as a cloud account
+      service_account: audit@my-project.iam.gserviceaccount.com
+      api: cloudasset                               # default; or compute
+      address: external                             # default; or internal
+```
+
+- **Login**: it reuses `adapters/cloud.py` (`cloud.provider`): the same short-lived, impersonated service-account
+  credentials as a GCP cloud account ([cloud.md](cloud.md)), and the same self-verification: a write-capable identity
+  is refused (`refuse_over_privileged`, default true) before anything is listed.
+- **API**: `cloudasset` = Cloud Asset API `projects/<id>:searchAllResources?assetTypes=compute.googleapis.com/Instance`
+  (`additionalAttributes.internalIPs` / `externalIPs`); `compute` = `projects/<id>/aggregated/instances` (network
+  interfaces' `networkIP` / `accessConfigs[].natIP`). Both follow `nextPageToken`; more than `max_hosts` (1024)
+  instances per project is an error (a wrong project must not start a huge scan).
+- **Result**: `{name, address, os: "", online, attrs: {provider, project, zone, status, online_verified, external,
+  asset: cloud:gcp/<project>/compute/<name>}}`. Only `RUNNING` instances unless `include_stopped`; an instance without
+  an address of the requested kind is listed with `address: None` (the exposure collector records it in its evidence
+  and has nothing to probe).
+- **Errors** (login, 403, unreachable) raise: the exposure collector turns them into a `discovery:gcp` coverage gap.
+- **Tests**: `tests/test_cloud.py` (`GcpAdc.test_discovery_gcp`) serves both APIs from an in-process fake, with
+  pagination, both address kinds, the over-privileged refusal and a 403; the cloud e2e lists the mock's instances.
+  The endpoints are configurable (`cloudasset_url`, `compute_url`).
 
 ## A collector, step by step
 

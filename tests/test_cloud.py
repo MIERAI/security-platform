@@ -12,6 +12,7 @@ import tempfile
 import threading
 import time
 import unittest
+import unittest.mock
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -241,7 +242,14 @@ class Adapter(unittest.TestCase):
 
 
 # ---- GCP / Azure token flows against fakes -------------------------------------------------------------------------
+ADC_REFRESH = "adc-refresh-" + "r" * 30          # fake values: the tests assert they never leave the adapter
+ADC_USER_TOKEN = "ya29.user-" + "u" * 30
+
+
 class FakeIdP(BaseHTTPRequestHandler):
+    calls, minted = [], 0
+    instances = []           # (name, zone, state, internal, external) served by the asset and compute fakes
+
     def log_message(self, *a):
         pass
 
@@ -261,14 +269,33 @@ class FakeIdP(BaseHTTPRequestHandler):
             if aud != "gcp-aud":
                 return self.reply(400, {"error": "invalid_grant", "error_description": "audience does not match"})
             return self.reply(200, {"access_token": "fed", "expires_in": 3600})
+        if self.path == "/oauth2":          # ADC: authorized_user refresh token -> user access token
+            f = dict(urllib.parse.parse_qsl(body))
+            FakeIdP.calls.append(("oauth2", f.get("grant_type")))
+            if f.get("grant_type") != "refresh_token" or f.get("client_id") != "adc-client" or f.get("client_secret") != "adc-client":
+                return self.reply(401, {"error": "invalid_client", "error_description": "The OAuth client was not found."})
+            if f.get("refresh_token") != ADC_REFRESH:
+                return self.reply(400, {"error": "invalid_grant", "error_description": "Token has been expired or revoked."})
+            return self.reply(200, {"access_token": ADC_USER_TOKEN, "expires_in": 3599, "token_type": "Bearer"})
         if ":generateAccessToken" in self.path:
+            FakeIdP.calls.append(("generate", self.headers.get("Authorization", "").removeprefix("Bearer ")))
             if "denied" in self.path:
                 return self.reply(403, {"error": {"code": 403, "status": "PERMISSION_DENIED", "message": "denied"}})
-            return self.reply(200, {"accessToken": "ya29.x", "expireTime": "2999-01-01T00:00:00Z"})
+            if "nobody" in self.path:
+                return self.reply(404, {"error": {"code": 404, "status": "NOT_FOUND", "message": "Service account does not exist."}})
+            FakeIdP.minted += 1
+            return self.reply(200, {"accessToken": f"ya29.x{FakeIdP.minted}", "expireTime": "2999-01-01T00:00:00Z"})
         if self.path.endswith(":getIamPolicy"):
+            FakeIdP.calls.append(("getIamPolicy", self.headers.get("Authorization", "").removeprefix("Bearer ")))
             sa = "serviceAccount:a@p.iam.gserviceaccount.com"
             roles = ["roles/viewer", "roles/iam.securityReviewer"] + (["roles/editor"] if "over" in self.path else [])
-            return self.reply(200, {"bindings": [{"role": r, "members": [sa]} for r in roles] + [{"role": "roles/owner", "members": ["user:x"]}]})
+            bindings = [{"role": r, "members": [sa]} for r in roles] + [{"role": "roles/owner", "members": ["user:x"]}]
+            if "cond" in self.path:     # time-bound grants, as Google returns them: real role only at policy version 3
+                v3 = (json.loads(body or "{}").get("options") or {}).get("requestedPolicyVersion") == 3
+                cond = {"title": "expires", "expression": 'request.time < timestamp("2999-01-01T00:00:00Z")'}
+                bindings = [dict(b, condition=cond) if v3 else dict(b, role=b["role"] + "_withcond_0123abcd")
+                            for b in bindings if b["role"] != "roles/viewer"] + [b for b in bindings if b["role"] == "roles/viewer"]
+            return self.reply(200, {"bindings": bindings})
         if self.path.endswith("/oauth2/v2.0/token"):
             f = dict(urllib.parse.parse_qsl(body))
             if f["client_id"] != "app":
@@ -277,6 +304,28 @@ class FakeIdP(BaseHTTPRequestHandler):
         self.reply(404, {})
 
     def do_GET(self):
+        u = urllib.parse.urlparse(self.path)
+        q = dict(urllib.parse.parse_qsl(u.query))
+        if u.path.startswith(("/asset/", "/compute/")):
+            FakeIdP.calls.append(("list", self.headers.get("Authorization", "").removeprefix("Bearer "), u.path, q))
+            if "/projects/forbidden" in u.path:
+                return self.reply(403, {"error": {"code": 403, "status": "PERMISSION_DENIED", "message": "caller lacks permission"}})
+            page = int(q.get("pageToken", "0"))
+            rows = FakeIdP.instances[page * 2:page * 2 + 2]       # two per page: exercises pagination
+            nxt = {"nextPageToken": str(page + 1)} if len(FakeIdP.instances) > page * 2 + 2 else {}
+            if u.path.startswith("/asset/"):
+                assert q.get("assetTypes") == "compute.googleapis.com/Instance", q
+                return self.reply(200, dict(nxt, results=[{
+                    "name": f"//compute.googleapis.com/projects/p/zones/{z}/instances/{n}", "displayName": n,
+                    "assetType": "compute.googleapis.com/Instance", "location": z, "state": st,
+                    "additionalAttributes": {"internalIPs": i, "externalIPs": e}} for n, z, st, i, e in rows]))
+            items = {}
+            for n, z, st, i, e in rows:
+                items.setdefault(f"zones/{z}", {"instances": []})["instances"].append({
+                    "name": n, "status": st, "networkInterfaces": [
+                        {"networkIP": ip, "accessConfigs": [{"natIP": x} for x in e] if k == 0 else []} for k, ip in enumerate(i)]})
+            items["zones/empty-zone"] = {"warning": {"code": "NO_RESULTS_ON_PAGE"}}
+            return self.reply(200, dict(nxt, items=items))
         sub = self.path.split("/")[3]
         roles = ["acdd72a7-3385-48ef-bd42-f606fba81ae7", "39bc4728-0917-49c7-9d2c-d95423bc2eb4"]
         if sub == "over":
@@ -308,6 +357,10 @@ class GcpAzure(unittest.TestCase):
         p = self.gcp()
         self.assertEqual(p.permissions()["write_capable"], [])
         self.assertEqual(self.gcp(project="over").permissions()["write_capable"], ["roles/editor"])
+        # a time-bound (conditional) grant: judged by its real role, read at IAM policy version 3
+        p = self.gcp(project="cond").permissions()
+        self.assertEqual((p["write_capable"], p["conditional"]), ([], ["roles/iam.securityReviewer"]))
+        self.assertEqual(self.gcp(project="cond-over").permissions()["write_capable"], ["roles/editor"])
         with self.assertRaisesRegex(cloud.CloudAuthError, "audience does not match"):
             self.gcp(aud="wrong").credentials()
         with self.assertRaisesRegex(cloud.CloudAuthError, "PERMISSION_DENIED"):
@@ -324,6 +377,210 @@ class GcpAzure(unittest.TestCase):
         self.assertEqual(cloud.provider(dict(base, subscription_id="over")).permissions()["write_capable"], ["Owner"])
         with self.assertRaisesRegex(cloud.CloudAuthError, "AADSTS700016"):
             cloud.provider(dict(base, subscription_id="ro", client_id="other")).credentials()
+
+
+# ---- GCP with the operator's Application Default Credentials (source: adc) + discovery gcp ------------------------
+FAKE_PROWLER_GCP = r'''#!/usr/bin/env python3
+import json, os, sys
+a = sys.argv[1:]
+out = a[a.index("-o") + 1]
+os.makedirs(out, exist_ok=True)
+cfgdir = os.environ.get("CLOUDSDK_CONFIG", "")
+json.dump({"argv": a, "env": {k: v for k, v in os.environ.items() if k.startswith(("GOOGLE_", "CLOUDSDK_"))},
+           "gcloud_config_files": os.listdir(cfgdir) if os.path.isdir(cfgdir) else None},
+          open(os.environ["FAKE_ENGINE_LOG"], "w"))
+json.dump(json.load(open(os.environ["FAKE_PROWLER_FIXTURE"])), open(os.path.join(out, "scan.ocsf.json"), "w"))
+'''
+
+
+class GcpAdc(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.srv = ThreadingHTTPServer(("127.0.0.1", 0), FakeIdP)
+        threading.Thread(target=cls.srv.serve_forever, daemon=True).start()
+        cls.url = f"http://127.0.0.1:{cls.srv.server_address[1]}"
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.srv.shutdown()
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        FakeIdP.calls, FakeIdP.instances = [], []
+        self.adc = self.write_adc("adc.json")
+
+    def tearDown(self):
+        shutil.rmtree(self.d)
+
+    def write_adc(self, name, mode=0o600, **kw):
+        p = os.path.join(self.d, name)
+        d = dict({"type": "authorized_user", "client_id": "adc-client", "client_secret": "adc-client",
+                  "refresh_token": ADC_REFRESH, "account": "operator@example.com"}, **kw)
+        with open(os.open(p, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, mode), "w") as f:
+            json.dump(d, f)
+        os.chmod(p, mode)
+        return p
+
+    def cfg(self, project="p", sa="a@p.iam.gserviceaccount.com", **kw):
+        return dict(dict(provider="gcp", project_id=project, source="adc", service_account=sa, adc_file=self.adc,
+                         oauth_token_url=self.url + "/oauth2", iamcredentials_url=self.url + "/iam",
+                         resourcemanager_url=self.url + "/crm"), **kw)
+
+    def test_adc_impersonates_and_self_checks(self):
+        p = cloud.provider(self.cfg())          # no workload_identity_provider / identity_token needed
+        self.assertEqual(p.credentials()["access_token"], "ya29.x" + str(FakeIdP.minted))
+        self.assertEqual(p.identity(), {"principal": "serviceAccount:a@p.iam.gserviceaccount.com", "account": "p",
+                                        "source": "adc"})
+        self.assertEqual(p.permissions()["write_capable"], [])
+        self.assertEqual(cloud.provider(self.cfg(project="over")).permissions()["write_capable"], ["roles/editor"])
+        # the user's token is used for impersonation ONLY; everything else runs as the service account
+        self.assertIn(("generate", ADC_USER_TOKEN), FakeIdP.calls)
+        self.assertTrue(all(c[1].startswith("ya29.x") for c in FakeIdP.calls if c[0] == "getIamPolicy"))
+        # nothing of the ADC is kept in the provider (only the impersonated token is cached)
+        kept = json.dumps(vars(p), default=str)
+        self.assertNotIn(ADC_REFRESH, kept)
+        self.assertNotIn(ADC_USER_TOKEN, kept)
+        # the default workload_identity source still needs its keys
+        with self.assertRaisesRegex(cloud.CloudAuthError, "workload_identity_provider missing"):
+            cloud.provider({k: v for k, v in self.cfg().items() if k != "source"})
+        with self.assertRaisesRegex(cloud.CloudAuthError, "source 'keyfile' unknown"):
+            cloud.provider(self.cfg(source="keyfile"))
+
+    def test_adc_location(self):
+        cfg = {k: v for k, v in self.cfg().items() if k != "adc_file"}
+        with unittest.mock.patch.dict(os.environ, {"GOOGLE_APPLICATION_CREDENTIALS": self.adc}):
+            self.assertEqual(cloud.adc_path(cfg), (self.adc, "GOOGLE_APPLICATION_CREDENTIALS"))
+            self.assertTrue(cloud.provider(cfg).credentials()["access_token"].startswith("ya29.x"))
+        gdir = os.path.join(self.d, "gcloud")
+        os.mkdir(gdir)
+        shutil.copy(self.adc, os.path.join(gdir, "application_default_credentials.json"))
+        env = {k: v for k, v in os.environ.items() if k != "GOOGLE_APPLICATION_CREDENTIALS"}
+        with unittest.mock.patch.dict(os.environ, dict(env, CLOUDSDK_CONFIG=gdir), clear=True):
+            self.assertEqual(cloud.adc_path(cfg)[1], "the gcloud default location")
+            self.assertTrue(cloud.provider(cfg).credentials()["access_token"].startswith("ya29.x"))
+        with unittest.mock.patch.dict(os.environ, dict(env, HOME=self.d), clear=True):
+            self.assertEqual(cloud.adc_path(cfg)[0], os.path.join(self.d, ".config", "gcloud", "application_default_credentials.json"))
+
+    def test_adc_failure_modes_are_reasons(self):
+        cases = [
+            (dict(adc_file=os.path.join(self.d, "absent.json")), "no application default credentials \\(adc_file\\)"),
+            (dict(adc_file=self.write_adc("revoked.json", refresh_token="other")), "invalid_grant.*gcloud auth application-default login"),
+            (dict(adc_file=self.write_adc("key.json", type="service_account")), "service-account key file is a long-lived"),
+            (dict(adc_file=self.write_adc("ext.json", type="external_account")), "type 'external_account' not supported"),
+            (dict(adc_file=self.write_adc("open.json", mode=0o644)), "readable by group/others"),
+            (dict(adc_file=self.write_adc("partial.json", refresh_token="")), "incomplete"),
+            (dict(sa="denied@p.iam.gserviceaccount.com"), "HTTP 403 PERMISSION_DENIED.*serviceAccountTokenCreator"),
+            (dict(sa="nobody@p.iam.gserviceaccount.com"), "HTTP 404 NOT_FOUND.*does not exist"),
+            (dict(oauth_token_url="http://127.0.0.1:9/token"), "unreachable"),
+        ]
+        for kw, want in cases:
+            with self.subTest(want=want), self.assertRaisesRegex(cloud.CloudAuthError, want) as cm:
+                cloud.provider(self.cfg(**kw)).identity()
+            self.assertNotIn(ADC_REFRESH, str(cm.exception))
+            self.assertNotIn(self.d, str(cm.exception), "reasons name the ADC source, not its path")
+        with self.assertRaisesRegex(cloud.CloudAuthError, "engine_auth 'file' unknown"):
+            cloud.provider(self.cfg(engine_auth="file"))
+
+    def test_engine_gets_the_service_account_never_the_adc(self):
+        tmp = os.path.join(self.d, "run")
+        os.mkdir(tmp, 0o700)
+        p = cloud.provider(self.cfg())
+        p.credentials()
+        env, args = p.engine_env(tmp)
+        self.assertEqual(args, {"projects": ["p"], "gcp_source": "adc", "engine_auth": "access_token"})
+        self.assertEqual(env["CLOUDSDK_AUTH_ACCESS_TOKEN"], "ya29.x" + str(FakeIdP.minted), "a fresh SA token (full lifetime)")
+        self.assertNotIn("GOOGLE_APPLICATION_CREDENTIALS", env)
+        self.assertEqual(os.listdir(env["CLOUDSDK_CONFIG"]), [], "gcloud config dir: empty, the operator's ADC invisible")
+        self.assertEqual(os.stat(env["CLOUDSDK_CONFIG"]).st_mode & 0o077, 0)
+        for root, _, files in os.walk(tmp):
+            self.assertEqual(files, [], "nothing written")
+        self.assertFalse(any(ADC_REFRESH in v or ADC_USER_TOKEN in v for v in env.values()))
+        env, args = cloud.provider(self.cfg(engine_auth="impersonate")).engine_env(tmp)
+        self.assertEqual(env["GOOGLE_APPLICATION_CREDENTIALS"], self.adc, "the operator's own file; nothing copied")
+        self.assertNotIn("CLOUDSDK_AUTH_ACCESS_TOKEN", env)
+        self.assertEqual(args["impersonate_service_account"], "a@p.iam.gserviceaccount.com")
+        # ScoutSuite can only use google.auth.default(): it would scan as the operator -> not run (a gap, with a reason)
+        run = engines.scoutsuite(p, env, args, {}, tmp)
+        self.assertFalse(run.ok)
+        self.assertIn("scoutsuite cannot act as the audit service account", run.reason)
+
+    def test_collector_scan_with_adc(self):
+        fake = os.path.join(self.d, "prowler")
+        open(fake, "w").write(FAKE_PROWLER_GCP)
+        os.chmod(fake, 0o755)
+        logs = {}
+        for mode in ("access_token", "impersonate"):
+            acct = self.cfg(project="acme-readonly", sa="a@p.iam.gserviceaccount.com", engine_auth=mode,
+                            engines=["prowler", "scoutsuite"])
+            inst = os.path.join(self.d, f"inst-{mode}.json")
+            json.dump({"cloud": {"accounts": [acct], "engines": {"prowler": {"path": fake}, "scoutsuite": {"path": fake}}}},
+                      open(inst, "w"))
+            run = os.path.join(self.d, "runs", mode)
+            log = logs[mode] = os.path.join(self.d, f"engine-{mode}.json")
+            env = dict(os.environ, SP_INSTANCE=inst, SP_RUN_DIR=run, FAKE_ENGINE_LOG=log,
+                       FAKE_PROWLER_FIXTURE=os.path.join(FX, "prowler-gcp.ocsf.json"),
+                       GOOGLE_APPLICATION_CREDENTIALS="/ambient/admin-key.json", CLOUDSDK_AUTH_ACCESS_TOKEN="ambient-token")
+            subprocess.run([sys.executable, os.path.join(ROOT, "collectors", "cloud", "collector.py")], env=env,
+                           check=True, capture_output=True)
+            doc = json.load(open(os.path.join(run, "cloud.findings.json")))
+            cov = {c["asset"]: (c["status"], c.get("reason", "")) for c in doc["coverage"]}
+            self.assertEqual(cov["cloud:gcp/acme-readonly"][0], "ok", cov)
+            self.assertIn("scoutsuite cannot act as the audit service account", cov["cloud:gcp/acme-readonly/engine:scoutsuite"][1])
+            self.assertTrue(any(f["check"] == "cloud.storage_public" for f in doc["findings"]))
+            ev = json.load(open(os.path.join(run, "raw", "cloud", "gcp-acme-readonly.json")))
+            self.assertEqual(ev["identity"], {"principal": "serviceAccount:a@p.iam.gserviceaccount.com",
+                                              "account": "acme-readonly", "source": "adc"})
+            for root, _, files in os.walk(run):
+                for f in files:
+                    text = open(os.path.join(root, f)).read()
+                    for secret in (ADC_REFRESH, ADC_USER_TOKEN, "ya29.x", "operator@example.com"):
+                        self.assertNotIn(secret, text, f"{f} holds {secret[:10]}")
+        e = json.load(open(logs["access_token"]))
+        self.assertTrue(e["env"]["CLOUDSDK_AUTH_ACCESS_TOKEN"].startswith("ya29.x"), "the service account's token")
+        self.assertNotIn("GOOGLE_APPLICATION_CREDENTIALS", e["env"], "ambient key file stripped, no ADC handed over")
+        self.assertEqual(e["gcloud_config_files"], [])
+        self.assertNotIn("--impersonate-service-account", e["argv"])
+        e = json.load(open(logs["impersonate"]))
+        self.assertEqual(e["env"]["GOOGLE_APPLICATION_CREDENTIALS"], self.adc)
+        self.assertNotIn("CLOUDSDK_AUTH_ACCESS_TOKEN", e["env"], "ambient access token stripped")
+        i = e["argv"].index("--impersonate-service-account")
+        self.assertEqual(e["argv"][i + 1], "a@p.iam.gserviceaccount.com")
+
+    def test_discovery_gcp(self):
+        from adapters import discovery
+        FakeIdP.instances = [("web-1", "europe-west1-b", "RUNNING", ["10.0.0.2"], ["192.0.2.10"]),
+                             ("batch-1", "europe-west1-b", "RUNNING", ["10.0.0.3"], []),
+                             ("old-1", "europe-west1-c", "TERMINATED", ["10.0.0.4"], []),
+                             ("db-1", "europe-west1-c", "RUNNING", ["10.0.0.5", "10.1.0.5"], ["198.51.100.7"])]
+        base = dict({k: v for k, v in self.cfg().items() if k != "provider"}, type="gcp",
+                    cloudasset_url=self.url + "/asset/v1", compute_url=self.url + "/compute/v1")
+        want = [("web-1", "192.0.2.10", True), ("batch-1", None, True), ("db-1", "198.51.100.7", True)]
+        for api in ("cloudasset", "compute"):
+            with self.subTest(api=api):
+                FakeIdP.calls = []
+                got = discovery.discover(dict(base, api=api))
+                self.assertEqual([(d["name"], d["address"], d["online"]) for d in got], want)
+                self.assertEqual(got[0]["attrs"], {"provider": "gcp", "project": "p", "zone": "europe-west1-b",
+                                                   "status": "RUNNING", "online_verified": True, "external": True,
+                                                   "asset": "cloud:gcp/p/compute/web-1"})
+                lists = [c for c in FakeIdP.calls if c[0] == "list"]
+                self.assertEqual(len(lists), 2, "followed nextPageToken")
+                self.assertTrue(all(c[1].startswith("ya29.x") for c in lists), "listed as the service account")
+                self.assertIn("getIamPolicy", [c[0] for c in FakeIdP.calls], "self-check before listing")
+        got = discovery.discover(dict(base, address="internal", include_stopped=True))
+        self.assertEqual([(d["name"], d["address"], d["online"]) for d in got],
+                         [("web-1", "10.0.0.2", True), ("batch-1", "10.0.0.3", True), ("old-1", "10.0.0.4", False),
+                          ("db-1", "10.0.0.5", True)])
+        got = discovery.discover(dict(base, project_ids=["p", "p2"]))
+        self.assertEqual(sorted({d["attrs"]["project"] for d in got}), ["p", "p2"])
+        with self.assertRaisesRegex(ValueError, "more than 3 instances"):
+            discovery.discover(dict(base, max_hosts=3))
+        with self.assertRaisesRegex(cloud.CloudAuthError, "refused: the discovery identity is over-privileged.*roles/editor"):
+            discovery.discover(dict(base, project_id="over"))
+        with self.assertRaisesRegex(cloud.CloudAuthError, "gcp discovery searchAllResources: HTTP 403 PERMISSION_DENIED"):
+            discovery.discover(dict(base, project_ids=["forbidden"]))
+        with self.assertRaisesRegex(ValueError, "api 'x' unknown"):
+            discovery.discover(dict(base, api="x"))
 
 
 # ---- engine / import contracts and classification -----------------------------------------------------------------

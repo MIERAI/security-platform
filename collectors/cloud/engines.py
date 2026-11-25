@@ -123,6 +123,8 @@ def prowler(prov, env, args, ecfg, workdir):
         argv += ["--profile", args["profile"], "--region", *args["regions"]]
     elif prov.kind == "gcp":
         argv += ["--project-id", *args["projects"]]
+        if args.get("impersonate_service_account"):           # source adc, engine_auth impersonate
+            argv += ["--impersonate-service-account", args["impersonate_service_account"]]
     elif prov.kind == "azure":
         argv += ["--managed-identity-auth", "--subscription-ids", *args["subscriptions"]]
     if ecfg.get("checks"):
@@ -301,6 +303,11 @@ def scoutsuite_blind_services(doc):
 
 def scoutsuite(prov, env, args, ecfg, workdir):
     run = Run("scoutsuite")
+    if args.get("gcp_source") == "adc":
+        # ScoutSuite only uses google.auth.default(): it can neither impersonate nor take an access token, so with the
+        # operator's ADC it would scan AS THE OPERATOR. Not run (a coverage gap of this engine, never a silent pass).
+        run.reason = "scoutsuite cannot act as the audit service account with gcp source adc (use prowler)"
+        return run
     out = os.path.join(workdir, "scoutsuite")
     argv = [_expand(ecfg.get("path", "scout")), prov.kind, "--no-browser", "--report-dir", out, "--force", "--quiet"]
     if prov.kind == "aws":

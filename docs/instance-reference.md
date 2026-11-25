@@ -46,12 +46,17 @@ exposure:
 
 | key | default | meaning |
 |---|---|---|
-| `discovery[].type` | — | `static`, `tailscale`, `file` ([adapters.md](adapters.md)) |
+| `discovery[].type` | — | `static`, `tailscale`, `file`, `gcp` ([adapters.md](adapters.md)) |
 | `static.targets` | `[]` | `{name, address, os?}` |
 | `static.cidrs` | `[]` | ranges expanded to host addresses; an address where nothing answers is "no host", not a gap |
 | `static.exclude` | `[]` | addresses to skip (e.g. the scanner itself) |
 | `static.max_hosts` | `1024` | refuse larger ranges (a typo must not start a /8 scan) |
 | `file.path`, `file.max_age` | —, none | a JSON list of `{name, address, os, online}`; older than `max_age` seconds = error |
+| `gcp.project_id`, `gcp.project_ids` | —, `[project_id]` | Compute Engine VM instances of these projects (read-only); login keys as a [cloud](#cloud) GCP account (`source`, `service_account`, `workload_identity_provider`, `identity_token`, `adc_file`) |
+| `gcp.api` | `cloudasset` | `cloudasset` (Cloud Asset `searchAllResources`, needs `roles/cloudasset.viewer` or `roles/viewer`) or `compute` (aggregated `instances.list`) |
+| `gcp.address` | `external` | which address is the target: `external` (an instance without one is listed with no address) or `internal` |
+| `gcp.include_stopped`, `gcp.max_hosts`, `gcp.refuse_over_privileged` | false, 1024, true | stopped instances; refuse more instances per project; refuse a write-capable identity |
+| `gcp.cloudasset_url`, `gcp.compute_url` | Google's | endpoint overrides (tests, private endpoints) |
 | `vantage` | — (required) | an exec adapter config (`{type: local}` or `{type: ssh, host}`); needs python3 + nmap there |
 | `extra_ports` | none | nmap port list syntax |
 
@@ -191,6 +196,15 @@ cloud:
       identity_token: {type: file, path: ...}
       project_ids: [my-project, other-project]       # optional: what the engines scan (default project_id)
       # sts_url, iamcredentials_url, resourcemanager_url: optional endpoint overrides (default: Google's)
+    - provider: gcp                   # a HUMAN-RUN scan (trial, investigation) with the operator's gcloud login
+      project_id: my-project
+      source: adc                     # default workload_identity (unattended); adc = Application Default Credentials
+      service_account: audit@my-project.iam.gserviceaccount.com    # impersonated (operator: serviceAccountTokenCreator)
+      adc_file: ~/.config/gcloud/application_default_credentials.json   # optional; default GOOGLE_APPLICATION_CREDENTIALS,
+                                      #   then $CLOUDSDK_CONFIG or ~/.config/gcloud; authorized_user only, mode 0600
+      engine_auth: access_token       # default: Prowler gets the SA's 1 h token only (scan must fit in session_seconds);
+                                      #   impersonate: Prowler --impersonate-service-account (refreshes; reads the ADC)
+      # oauth_token_url: optional endpoint override (default https://oauth2.googleapis.com/token)
     - provider: azure
       subscription_id: ...
       tenant_id: ...

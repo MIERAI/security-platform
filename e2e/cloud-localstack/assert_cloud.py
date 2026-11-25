@@ -5,6 +5,8 @@
   assert_cloud.py failures  WORK PY ROOT      each failure scenario = a coverage gap with its reason
   assert_cloud.py scorecard WORK PY ROOT      cloud dimension applicable here, N/A without cloud, other scores unchanged
   assert_cloud.py secrets   WORK              no credential material on disk, temporary directories removed
+  assert_cloud.py adc       WORK ROOT         GCP source adc: evidence names the service account + source only;
+                                              discovery gcp lists the project's VM instances through the same login
 """
 import glob
 import json
@@ -155,7 +157,7 @@ def scorecard(work, py, root):
 
 
 CRED = re.compile(r'"(?:SecretAccessKey|SessionToken|secret_access_key|session_token)"\s*:|\b(?:ASIA|LSIA)[A-Z0-9]{16}\b|'
-                  r'ya29\.mock-|"access_token"\s*:')
+                  r'ya29\.mock-|"access_token"\s*:|mock-refresh-|"refresh_token"\s*:')
 
 
 def secrets(work):
@@ -178,9 +180,37 @@ def secrets(work):
                                                           for r, _, fs in os.walk(os.path.join(work, "home")) for f in fs)[:8]) or "none"))
 
 
+def adc(work, root):
+    raw = os.path.join(work, "runs", "1", "raw", "cloud", "gcp-adc-readonly.json")
+    ev = json.load(open(raw))
+    expect(ev.get("identity") == {"principal": "serviceAccount:audit@adc-readonly.iam.gserviceaccount.com",
+                                  "account": "adc-readonly", "source": "adc"},
+           f"GCP source adc: logged in as the audit service account, evidence = principal + source ({ev.get('identity')})")
+    expect((ev.get("self_check") or {}).get("write_capable") == [], "GCP source adc: self-check ran and passed (read-only)")
+    text = open(raw).read()
+    expect("operator@example.com" not in text and "mock-refresh-" not in text, "GCP source adc: the operator's account and "
+           "refresh token are not in the evidence")
+    sys.path.insert(0, root)
+    from adapters import discovery
+    inst = json.load(open(os.path.join(work, "instance.json")))
+    acct = next(a for a in inst["cloud"]["accounts"] if a.get("source") == "adc")
+    m = acct["iamcredentials_url"].split("/gcp/")[0]
+    got = discovery.discover(dict({k: v for k, v in acct.items() if k not in ("provider", "engines")}, type="gcp",
+                                  cloudasset_url=m + "/gcp/cloudasset/v1"))
+    expect([(d["name"], d["address"], d["online"]) for d in got] == [("web-1", "192.0.2.10", True), ("batch-1", None, True)],
+           f"discovery gcp (cloudasset, operator ADC): running instances with their external address ({len(got)})")
+    try:
+        discovery.discover(dict({k: v for k, v in acct.items() if k not in ("provider", "engines")}, type="gcp",
+                                project_id="acme-overprivileged", service_account="auditor@acme-overprivileged.iam.gserviceaccount.com",
+                                cloudasset_url=m + "/gcp/cloudasset/v1"))
+        expect(False, "discovery gcp refuses an over-privileged identity")
+    except Exception as e:  # noqa: BLE001
+        expect("over-privileged" in str(e), f"discovery gcp refuses an over-privileged identity ({str(e)[:80]})")
+
+
 if __name__ == "__main__":
     cmd, work = sys.argv[1], sys.argv[2]
     {"first": lambda: first(work), "second": lambda: second(work), "secrets": lambda: secrets(work),
      "failures": lambda: failures_(work, sys.argv[3], sys.argv[4]),
-     "scorecard": lambda: scorecard(work, sys.argv[3], sys.argv[4])}[cmd]()
+     "scorecard": lambda: scorecard(work, sys.argv[3], sys.argv[4]), "adc": lambda: adc(work, sys.argv[3])}[cmd]()
     sys.exit(1 if failures else 0)

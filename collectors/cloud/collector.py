@@ -21,6 +21,8 @@ Instance config (docs/cloud.md, docs/instance-reference.md):
          regions: [eu-west-1], engines: [prowler, steampipe]}
       - {provider: gcp, project_id: my-project, workload_identity_provider: projects/N/locations/global/workloadIdentityPools/P/providers/X,
          service_account: auditor@my-project.iam.gserviceaccount.com, identity_token: {...}}
+      - {provider: gcp, project_id: my-project, source: adc,          # a human-run scan with the operator's gcloud ADC
+         service_account: audit@my-project.iam.gserviceaccount.com}   # impersonated; the engine never sees the ADC
       - {provider: azure, subscription_id: ..., tenant_id: ..., client_id: ..., identity_token: {...}}
     engines:
       prowler:   {path: ~/.local/opt/security-platform/tools/prowler/bin/prowler, checks: [..]?, services: [..]?, timeout: 3h}
@@ -162,7 +164,12 @@ def scan_account(c, acct, ecfgs, default_refuse, pool, evidence, stats):
         if not names:          # authentication + self-verification only (posture comes from an import, if any)
             ev["engines"] = {}
             return
-        env_add, args = prov.engine_env(tmp)
+        try:
+            env_add, args = prov.engine_env(tmp)
+        except cloud.CloudAuthError as e:
+            c.gap(prov.asset, f"engine credentials: {e}")
+            stats["gap"] += 1
+            return
         env = cloud.clean_env()
         env.update(env_add)
         ok, runs = [], []

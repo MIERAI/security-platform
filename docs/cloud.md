@@ -6,7 +6,7 @@ result in the same ledger as the rest of the platform. Environments without clou
 scorecard dimension is then *not applicable* and never lowers a score.
 
 ```
-            OIDC token (projected / CI / local issuer)
+            OIDC token (projected / CI / local issuer)   or, for a human-run GCP scan, the operator's gcloud ADC
                     │  short-lived, in memory
    adapters/cloud.py ── STS / token exchange / Entra ──▶ temporary credentials (refreshed before expiry)
         │  self-verification: are MY permissions read-only? (no → finding + refuse to scan)
@@ -21,10 +21,10 @@ scorecard dimension is then *not applicable* and never lowers a score.
 
 | part | AWS | GCP | Azure |
 |---|---|---|---|
-| login with short-lived credentials (OIDC → STS / token exchange + impersonation / federated client assertion) | **e2e**: LocalStack STS `AssumeRoleWithWebIdentity` with a token from a real OIDC issuer (mock-oauth2-server); unit tests with a fake STS (+ `AssumeRole` chain, SigV4 checked against the AWS documentation's example) | **e2e** against `cloudmock.py` (our mock of `sts.googleapis.com` / `iamcredentials` / `getIamPolicy`, verifying the token's RS256 signature, issuer, expiry, audience); unit tests | **e2e** against `cloudmock.py` (our mock of the Entra token endpoint and ARM role assignments); unit tests |
+| login with short-lived credentials (OIDC → STS / token exchange + impersonation / federated client assertion) | **e2e**: LocalStack STS `AssumeRoleWithWebIdentity` with a token from a real OIDC issuer (mock-oauth2-server); unit tests with a fake STS (+ `AssumeRole` chain, SigV4 checked against the AWS documentation's example) | **e2e** against `cloudmock.py` (our mock of `sts.googleapis.com` / `oauth2.googleapis.com` (ADC refresh) / `iamcredentials` / `getIamPolicy`, verifying the token's RS256 signature, issuer, expiry, audience, and which ADC user may impersonate which service account); unit tests | **e2e** against `cloudmock.py` (our mock of the Entra token endpoint and ARM role assignments); unit tests |
 | refresh before expiry, nothing on disk | unit test (fake clock); e2e asserts no credential material in data, runs, home or temp, temp dirs removed | unit test | unit test |
 | self-verification (read-only?) | **e2e**: attached + inline role policies via IAM (`SecurityAudit` + `ViewOnlyAccess` pass; `AdministratorAccess` → finding + refused) | **e2e** (mock bindings: Security Reviewer + Viewer pass; Editor refused) | **e2e** (mock assignments: Reader + Security Reader pass; Contributor refused) |
-| failure modes → coverage gap with reason | **e2e**: expired token, wrong audience, missing role; unit: AssumeRole denied, STS expired-token | **e2e**: wrong audience (server side), denied impersonation, missing service account | **e2e**: wrong audience, unknown application |
+| failure modes → coverage gap with reason | **e2e**: expired token, wrong audience, missing role; unit: AssumeRole denied, STS expired-token | **e2e**: wrong audience (server side), denied impersonation, missing service account; `source: adc`: ADC missing, refresh token revoked (`invalid_grant`), a key file as ADC, impersonation denied (403), service account missing (404), over-privileged | **e2e**: wrong audience, unknown application |
 | scanning engines | **e2e**: Prowler, Steampipe **and** ScoutSuite against LocalStack into ONE ledger, de-duplicated (ScoutSuite: S3 and IAM; it cannot enumerate EC2 regions on LocalStack); contract tests | contract tests (Prowler json-ocsf fixtures) | contract tests (Prowler json-ocsf fixtures) |
 | native service import | e2e (an ASFF export file) + contract test | e2e (SCC export fixture) + contract test | e2e (Defender export fixture) + contract test |
 | lifecycle (fixed on the next covered run) | **e2e** (public bucket, open SSH, console user without MFA fixed → `fixed`) | unit (ledger) | unit (ledger) |
@@ -57,7 +57,7 @@ Honest limits:
 | provider | grant to the platform's identity | how the platform gets in (no stored key) |
 |---|---|---|
 | AWS | managed policies `SecurityAudit` + `job-function/ViewOnlyAccess` on a role | `AssumeRoleWithWebIdentity` with an OIDC token (IAM OIDC identity provider + trust policy on `aud`/`sub`); optionally an `AssumeRole` chain into each member account (`chain_role_arn`, `external_id`); or an IAM Identity Center (SSO) profile (`profile:`; `aws configure export-credentials`) |
-| GCP | `roles/iam.securityReviewer` + `roles/viewer` (on the project, folder or organisation) to a service account | workload identity federation: a pool + OIDC provider, the federated principal may `roles/iam.workloadIdentityUser` on the service account; the platform impersonates it (`generateAccessToken`, 1 h) |
+| GCP | `roles/iam.securityReviewer` + `roles/viewer` (on the project, folder or organisation) to a service account | workload identity federation: a pool + OIDC provider, the federated principal may `roles/iam.workloadIdentityUser` on the service account; the platform impersonates it (`generateAccessToken`, 1 h). Human-run alternative `source: adc`: the operator's gcloud login may `roles/iam.serviceAccountTokenCreator` on the same service account ([below](#gcp-a-human-run-scan-with-your-own-login-source-adc)) |
 | Azure | `Reader` + `Security Reader` on the subscription (or management group) to an app registration / user-assigned managed identity | a federated identity credential on the app (issuer + subject + audience `api://AzureADTokenExchange`); the OIDC token is the client assertion |
 
 The self-verification runs before every scan. An identity with anything else (AWS: any policy beyond those two whose
@@ -71,17 +71,20 @@ not guessed: the evidence lists the grants it saw.
 Refused configuration: `access_key_id`, `secret_access_key`, `client_secret`, `private_key`, ... in an account entry
 (long-lived keys) are rejected with a coverage gap. Ambient keys in the runner's environment (`AWS_ACCESS_KEY_ID`,
 `AZURE_CLIENT_SECRET`, `GOOGLE_APPLICATION_CREDENTIALS`, ...) are removed before an engine starts, so an
-administrator's shell credentials can never be used for a scan.
+administrator's shell credentials can never be used for a scan. (With GCP `source: adc` the adapter itself reads the
+operator's ADC, only to impersonate the audit service account; the engine still never acts as the operator.)
 
 ## Data handling
 
 - **Credentials**: in memory only. Engines receive no secret: AWS engines get a profile whose `credential_process`
   calls back into `adapters/cloud.py` (temporary credentials on stdout, refreshed by the SDK before expiry); GCP
-  engines get an *external account* config (token exchange + impersonation URLs, no key); Azure engines get the
+  engines get an *external account* config (token exchange + impersonation URLs, no key), or with `source: adc` the
+  service account's short-lived access token in the process environment (see below); Azure engines get the
   workload-identity variables. The per-run temporary directory (0700) is removed after the run. For Azure with a
   `command`/`env` token source the OIDC assertion (not a cloud credential; minutes-lived) is written to a 0600 file in
   that directory, because the Azure SDK reads it from a file.
-- **Evidence** (`raw/cloud/<provider>-<account>.json`, private): the identity's principal and grant names, engine
+- **Evidence** (`raw/cloud/<provider>-<account>.json`, private): the identity's principal (for GCP also its `source`:
+  `workload_identity` or `adc`; never the operator's own account) and grant names, engine
   versions and error messages, and per finding its sources (engine, engine check id, a short detail line). Never
   resource contents, never tokens.
 - **Findings are attacker intelligence**: they stay in the private data directory; metrics carry aggregates only
@@ -118,6 +121,54 @@ Each tool lives in `$I/tools/<tool>/current`, separate from the runner's environ
 and `roles/viewer`; allow the federated principal (`principal://iam.googleapis.com/projects/N/locations/global/workloadIdentityPools/P/subject/<sub>`)
 `roles/iam.workloadIdentityUser` on it. No service-account key.
 
+#### GCP: a human-run scan with your own login (`source: adc`)
+
+For a **trial or a one-off scan run by a person** (not for the daily unattended job: use workload identity federation
+there), the platform can start from the operator's gcloud *Application Default Credentials* and impersonate the same
+read-only audit service account:
+
+```sh
+gcloud auth application-default login            # once; writes ~/.config/gcloud/application_default_credentials.json
+gcloud iam service-accounts add-iam-policy-binding audit@my-project.iam.gserviceaccount.com \
+  --member user:<you> --role roles/iam.serviceAccountTokenCreator     # you may mint tokens for the audit SA
+```
+
+```yaml
+    - provider: gcp
+      project_id: my-project
+      source: adc                                       # default: workload_identity
+      service_account: audit@my-project.iam.gserviceaccount.com
+```
+
+- **Where the ADC comes from**: `adc_file` if set, else `GOOGLE_APPLICATION_CREDENTIALS`, else gcloud's well-known
+  file (`$CLOUDSDK_CONFIG` or `~/.config/gcloud/application_default_credentials.json`). Only the `authorized_user`
+  type (a user login) is accepted; a service-account **key file** is refused (long-lived), other types too. The file
+  must not be readable by group/others.
+- **Flow**: refresh token → user access token (`oauth2.googleapis.com/token`) → `generateAccessToken` for
+  `service_account` (1 h, `cloud-platform` scope). The user token is used for that one call and dropped; the refresh
+  token is read from the file on each acquisition and never kept, logged or written. Everything after that,
+  including the same self-verification as above (refuse to scan when the service account can write), runs as the
+  service account. Evidence records `principal: serviceAccount:audit@...` and `source: adc` only.
+- **Engines never get your login**. gcloud's config directory is pointed at an empty private directory for the
+  engine, so your ADC is invisible to it, and:
+  - `engine_auth: access_token` (default): Prowler gets a freshly minted service-account access token in
+    `CLOUDSDK_AUTH_ACCESS_TOKEN` (process environment, never a file). It is **not refreshed**: the scan must finish
+    within `session_seconds` (default 3600; Google allows up to 12 h only with the
+    `iam.allowServiceAccountCredentialLifetimeExtension` organisation policy). Services listed after expiry fail and
+    become coverage gaps, never "fixed". Narrow `engines.prowler.checks` / `services` for large projects.
+  - `engine_auth: impersonate`: Prowler's `--impersonate-service-account` with `GOOGLE_APPLICATION_CREDENTIALS`
+    pointing at your existing ADC file (nothing is copied). Tokens refresh for long scans, but the Prowler process
+    then reads your refresh token. Use it only when a scan cannot fit in the token lifetime.
+  - ScoutSuite can neither impersonate nor take an access token (it only uses `google.auth.default()`, i.e. it would
+    scan as you), so it is **not run** with `source: adc`: `.../engine:scoutsuite` is a coverage gap with that reason.
+- **Failures are coverage gaps with a reason**: no ADC (`run gcloud auth application-default login`), refresh token
+  expired/revoked or re-authentication required (`invalid_grant` / `invalid_rapt`), impersonation denied (HTTP 403:
+  you lack `roles/iam.serviceAccountTokenCreator` on the service account), service account missing (HTTP 404).
+- **adc vs workload identity**: ADC is tied to a person, expires with their session policy and needs their login on
+  the machine: fine for a trial or an investigation, wrong for the scheduled job (a scan must not depend on someone
+  being logged in, and a person's refresh token does not belong on a server). Workload identity federation has no
+  long-lived secret at all.
+
 **Azure**: an app registration (or user-assigned managed identity) with a federated credential (issuer, subject,
 audience `api://AzureADTokenExchange`); role assignments `Reader` and `Security Reader` on the subscription. No secret.
 
@@ -139,6 +190,8 @@ cloud:
       workload_identity_provider: projects/123/locations/global/workloadIdentityPools/security/providers/k8s
       service_account: security-audit@my-project.iam.gserviceaccount.com
       identity_token: {type: file, path: /var/run/secrets/tokens/gcp}
+    # - {provider: gcp, project_id: my-project, source: adc, service_account: audit@my-project.iam.gserviceaccount.com}
+    #   (a human-run scan with your gcloud login, see above)
     - provider: azure
       subscription_id: 00000000-0000-0000-0000-000000000000
       tenant_id: 00000000-0000-0000-0000-000000000000

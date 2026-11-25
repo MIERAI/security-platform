@@ -2,11 +2,13 @@
 """A LOCAL MOCK of the GCP and Azure token/authorisation endpoints the cloud adapter talks to (stdlib only).
 
 It validates the platform's FLOW, not the real clouds' behaviour: the token exchange and impersonation calls are shaped
-like Google's (sts.googleapis.com/v1/token, iamcredentials generateAccessToken, cloudresourcemanager getIamPolicy) and
+like Google's (sts.googleapis.com/v1/token, oauth2.googleapis.com/token with a refresh token = gcloud Application Default
+Credentials, iamcredentials generateAccessToken, cloudresourcemanager getIamPolicy, cloudasset searchAllResources) and
 Microsoft's (Entra /{tenant}/oauth2/v2.0/token with a client assertion, ARM roleAssignments), and they enforce what the
 real services enforce for these flows: the OIDC token's RS256 signature (against the issuer's JWKS), issuer, expiry
 and audience; which federated subject may impersonate which service account / use which app registration; and the
-role bindings / assignments a scenario declares. Error bodies follow the services' formats.
+role bindings / assignments a scenario declares; which user (ADC refresh token) may impersonate which service account
+(`token_creators`, i.e. roles/iam.serviceAccountTokenCreator). Error bodies follow the services' formats.
 
 usage: cloudmock.py --port 18090 --config scenario.json
 """
@@ -20,7 +22,7 @@ import urllib.parse
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-CFG, JWKS, TOKENS = {}, {}, {}           # TOKENS: opaque token -> {"kind", "sub", "sa"/"oid", "exp"}
+CFG, JWKS, TOKENS = {}, {}, {}           # TOKENS: opaque token -> {"kind", "sub"/"email"/"sa"/"oid", "exp"}
 SHA256_DIGEST_INFO = bytes.fromhex("3031300d060960864801650304020105000420")
 
 
@@ -115,14 +117,32 @@ class H(BaseHTTPRequestHandler):
         self.reply(200, {"access_token": tok, "issued_token_type": "urn:ietf:params:oauth:token-type:access_token",
                          "token_type": "Bearer", "expires_in": 3600})
 
+    def gcp_oauth(self):
+        """oauth2.googleapis.com/token, grant_type=refresh_token (what google-auth does with authorized_user ADC)."""
+        g, f = CFG["gcp"], self.body()
+        if f.get("grant_type") != "refresh_token":
+            return self.reply(400, {"error": "unsupported_grant_type", "error_description": "Invalid grant_type"})
+        client = g.get("oauth_client") or {}
+        if f.get("client_id") != client.get("client_id") or f.get("client_secret") != client.get("client_secret"):
+            return self.reply(401, {"error": "invalid_client", "error_description": "The OAuth client was not found."})
+        user = (g.get("users") or {}).get(f.get("refresh_token", ""))
+        if not user:
+            return self.reply(400, {"error": "invalid_grant", "error_description": "Token has been expired or revoked."})
+        tok = "ya29.mock-user-" + secrets.token_urlsafe(24)
+        TOKENS[tok] = {"kind": "gcp-user", "email": user["email"], "exp": time.time() + 3600}
+        self.reply(200, {"access_token": tok, "expires_in": 3599, "scope": "https://www.googleapis.com/auth/cloud-platform",
+                         "token_type": "Bearer"})
+
     def gcp_generate(self, sa):
-        t = self.bearer("gcp-fed")
+        t = self.bearer("gcp-fed") or self.bearer("gcp-user")
         if not t:
             return self.gerr(401, "UNAUTHENTICATED", "Request had invalid authentication credentials.")
         accounts = CFG["gcp"]["service_accounts"]
         if sa not in accounts:
             return self.gerr(404, "NOT_FOUND", f"Service account projects/-/serviceAccounts/{sa} does not exist.")
-        if t["sub"] not in accounts[sa]["subjects"]:
+        allowed = t["email"] in accounts[sa].get("token_creators", []) if t["kind"] == "gcp-user" \
+            else t["sub"] in accounts[sa].get("subjects", [])
+        if not allowed:
             return self.gerr(403, "PERMISSION_DENIED", "Permission 'iam.serviceAccounts.getAccessToken' denied on resource "
                              "(or it may not exist).")
         life = int(str(self.body().get("lifetime", "3600s")).rstrip("s"))
@@ -137,7 +157,27 @@ class H(BaseHTTPRequestHandler):
         p = CFG["gcp"]["projects"].get(project)
         if not p or not any(f"serviceAccount:{t['sa']}" in b["members"] for b in p["bindings"]):
             return self.gerr(403, "PERMISSION_DENIED", f"The caller does not have permission on project {project}")
-        self.reply(200, {"version": 1, "etag": "BwX=", "bindings": p["bindings"]})
+        # like Google: a conditional binding is shown with its real role only to a policy version 3 request
+        v3 = (self.body().get("options") or {}).get("requestedPolicyVersion") == 3
+        out = [b if not b.get("condition") or v3 else
+               {k: v for k, v in dict(b, role=b["role"] + "_withcond_5f0c1d2e").items() if k != "condition"}
+               for b in p["bindings"]]
+        self.reply(200, {"version": 3 if v3 else 1, "etag": "BwX=", "bindings": out})
+
+    def gcp_assets(self, project):
+        """cloudasset searchAllResources: the scenario's instances, only to a service account with a role there."""
+        t = self.bearer("gcp")
+        if not t:
+            return self.gerr(401, "UNAUTHENTICATED", "Request had invalid authentication credentials.")
+        p = CFG["gcp"]["projects"].get(project)
+        if not p or not any(f"serviceAccount:{t['sa']}" in b["members"] for b in p["bindings"]):
+            return self.gerr(403, "PERMISSION_DENIED", f"The caller does not have permission on projects/{project}")
+        self.reply(200, {"results": [{
+            "name": f"//compute.googleapis.com/projects/{project}/zones/{i['zone']}/instances/{i['name']}",
+            "assetType": "compute.googleapis.com/Instance", "project": f"projects/{p.get('number', '0')}",
+            "displayName": i["name"], "location": i["zone"], "state": i.get("state", "RUNNING"),
+            "additionalAttributes": {"internalIPs": i.get("internal", []), "externalIPs": i.get("external", [])}}
+            for i in p.get("instances", [])]})
 
     # ---- Azure -----------------------------------------------------------------------------------------------
     def azure_token(self, tenant):
@@ -180,6 +220,8 @@ class H(BaseHTTPRequestHandler):
         path = urllib.parse.urlparse(self.path).path
         if path == "/gcp/sts/v1/token":
             return self.gcp_sts()
+        if path == "/gcp/oauth2/token":
+            return self.gcp_oauth()
         if path.startswith("/gcp/iamcredentials/v1/projects/-/serviceAccounts/") and path.endswith(":generateAccessToken"):
             return self.gcp_generate(urllib.parse.unquote(path.split("/serviceAccounts/")[1].rsplit(":", 1)[0]))
         if path.startswith("/gcp/crm/v1/projects/") and path.endswith(":getIamPolicy"):
@@ -190,6 +232,8 @@ class H(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = urllib.parse.urlparse(self.path).path
+        if path.startswith("/gcp/cloudasset/v1/projects/") and path.endswith(":searchAllResources"):
+            return self.gcp_assets(path.split("/projects/")[1].rsplit(":", 1)[0])
         if path.startswith("/azure/arm/subscriptions/") and path.endswith("/providers/Microsoft.Authorization/roleAssignments"):
             return self.azure_assignments(path.split("/")[4])
         if path == "/health":

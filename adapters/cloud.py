@@ -15,7 +15,11 @@ Credential modes (long-lived keys are refused: access keys, client secrets, serv
          profile       an AWS CLI profile that yields temporary credentials (IAM Identity Center/SSO, a role with
                        credential_source); `aws configure export-credentials`; refused if it yields long-lived keys
   gcp    workload_identity  OIDC token -> STS token exchange (sts.googleapis.com) -> iamcredentials generateAccessToken
-                            for `service_account` (impersonation)
+                            for `service_account` (impersonation)   [default; unattended runs]
+         adc                the operator's gcloud Application Default Credentials (authorized_user: refresh token ->
+                            access token at oauth2.googleapis.com) -> generateAccessToken for `service_account`
+                            [human-run / trial scans]; ADC read fresh per acquisition, never cached, logged or written;
+                            a service-account key file as ADC is refused (long-lived)
   azure  federated     OIDC token as client assertion -> Microsoft Entra token endpoint (workload identity federation)
 Every endpoint is configurable (an emulator or a sovereign cloud) and defaults to the public one.
 
@@ -27,6 +31,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import shlex
 import subprocess
 import sys
@@ -36,7 +41,7 @@ import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 REFRESH_MARGIN = 300          # seconds before expiry at which cached credentials are renewed
 SESSION_SECONDS = 3600
 LONG_LIVED_KEYS = ("access_key_id", "secret_access_key", "aws_access_key_id", "aws_secret_access_key", "client_secret",
@@ -52,6 +57,7 @@ AZURE_ENV_KEYS = ("AZURE_CLIENT_SECRET", "AZURE_CLIENT_CERTIFICATE_PATH", "AZURE
 AWS_READ_ONLY_POLICIES = {"arn:aws:iam::aws:policy/SecurityAudit", "arn:aws:iam::aws:policy/job-function/ViewOnlyAccess"}
 AWS_READ_VERBS = ("Get", "List", "Describe", "BatchGet", "Search", "Lookup", "View", "Head", "Query", "Select",
                   "Generate", "Simulate", "Check", "Validate", "Preview", "Estimate")
+GCP_WITHCOND = re.compile(r"_withcond_[0-9a-f]+$")      # a conditional binding read at policy version 1
 GCP_READ_ONLY_ROLES = {"roles/iam.securityReviewer", "roles/viewer", "roles/browser", "roles/cloudasset.viewer",
                        "roles/securitycenter.findingsViewer", "roles/securitycenter.adminViewer", "roles/logging.viewer",
                        "roles/monitoring.viewer", "roles/serviceusage.serviceUsageConsumer", "roles/iam.roleViewer"}
@@ -380,58 +386,168 @@ def write_actions(doc):
 
 
 # ---- GCP ------------------------------------------------------------------------------------------------------
+GCP_SCOPE = "https://www.googleapis.com/auth/cloud-platform"
+ADC_HINT = "run `gcloud auth application-default login`"
+
+
+def adc_path(cfg):
+    """-> (path, where): the Application Default Credentials file google-auth and gcloud use, in their order: the
+    account's `adc_file`, GOOGLE_APPLICATION_CREDENTIALS, then gcloud's well-known file (CLOUDSDK_CONFIG or
+    ~/.config/gcloud; %APPDATA%/gcloud on Windows). `where` names the source without the path (reasons stay generic)."""
+    if cfg.get("adc_file"):
+        return os.path.expanduser(cfg["adc_file"]), "adc_file"
+    if os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
+        return os.environ["GOOGLE_APPLICATION_CREDENTIALS"], "GOOGLE_APPLICATION_CREDENTIALS"
+    base = os.environ.get("CLOUDSDK_CONFIG") or (os.path.join(os.environ.get("APPDATA", ""), "gcloud") if os.name == "nt"
+                                                 else os.path.join(os.path.expanduser("~"), ".config", "gcloud"))
+    return os.path.join(base, "application_default_credentials.json"), "the gcloud default location"
+
+
 class GCP(Provider):
     kind, ID_KEY = "gcp", "project_id"
+    SOURCES = ("workload_identity", "adc")
+    ENGINE_AUTH = ("access_token", "impersonate")
 
     def __init__(self, cfg, clock=time.time):
         super().__init__(cfg, clock)
+        self.source = cfg.get("source") or "workload_identity"
+        if self.source not in self.SOURCES:
+            raise CloudAuthError(f"gcp: source {self.source!r} unknown ({', '.join(self.SOURCES)})")
         self.sts_url = cfg.get("sts_url", "https://sts.googleapis.com/v1/token")
+        self.oauth_url = cfg.get("oauth_token_url", "https://oauth2.googleapis.com/token")
         self.iamcred = cfg.get("iamcredentials_url", "https://iamcredentials.googleapis.com/v1").rstrip("/")
         self.crm = cfg.get("resourcemanager_url", "https://cloudresourcemanager.googleapis.com/v1").rstrip("/")
-        for k in ("workload_identity_provider", "service_account"):
+        for k in ("service_account",) + (("workload_identity_provider",) if self.source == "workload_identity" else ()):
             if not cfg.get(k):
                 raise CloudAuthError(f"gcp: {k} missing")
-        self.audience = "//iam.googleapis.com/" + cfg["workload_identity_provider"].removeprefix("//iam.googleapis.com/")
+        self.engine_auth = cfg.get("engine_auth") or "access_token"
+        if self.engine_auth not in self.ENGINE_AUTH:
+            raise CloudAuthError(f"gcp: engine_auth {self.engine_auth!r} unknown ({', '.join(self.ENGINE_AUTH)})")
+        if self.source == "workload_identity":
+            self.audience = "//iam.googleapis.com/" + cfg["workload_identity_provider"].removeprefix("//iam.googleapis.com/")
 
     def _acquire(self):
+        src = self._adc_access_token() if self.source == "adc" else self._federated_access_token()
+        return self._impersonate(src)
+
+    def _federated_access_token(self):
         tok = self._token()
         body = urllib.parse.urlencode({
             "grant_type": "urn:ietf:params:oauth:grant-type:token-exchange", "audience": self.audience,
-            "scope": "https://www.googleapis.com/auth/cloud-platform",
-            "requested_token_type": "urn:ietf:params:oauth:token-type:access_token",
+            "scope": GCP_SCOPE, "requested_token_type": "urn:ietf:params:oauth:token-type:access_token",
             "subject_token_type": "urn:ietf:params:oauth:token-type:jwt", "subject_token": tok}).encode()
         st, out = http("POST", self.sts_url, body, {"Content-Type": "application/x-www-form-urlencoded"})
         if st != 200:
             raise CloudAuthError(f"gcp sts token exchange: HTTP {st} {_err_text(out)}")
-        fed = json.loads(out)["access_token"]
+        return json.loads(out)["access_token"]
+
+    def _adc_access_token(self):
+        """The operator's ADC (authorized_user) -> a user access token, used ONLY to impersonate `service_account`.
+        The file is read on every acquisition and nothing from it is kept: not the refresh token, not the user token."""
+        path, where = adc_path(self.cfg)
+        try:
+            st = os.stat(path)
+        except FileNotFoundError:
+            raise CloudAuthError(f"gcp adc: no application default credentials ({where}): {ADC_HINT}")
+        except OSError as e:
+            raise CloudAuthError(f"gcp adc: credentials unreadable ({where}): {type(e).__name__}")
+        if os.name != "nt" and st.st_mode & 0o077:
+            raise CloudAuthError(f"gcp adc: credentials file ({where}) is readable by group/others: chmod 600 it")
+        try:
+            with open(path) as f:
+                d = json.load(f)
+        except (OSError, ValueError) as e:
+            raise CloudAuthError(f"gcp adc: credentials unreadable ({where}): {type(e).__name__}")
+        typ = d.get("type") if isinstance(d, dict) else None
+        if typ == "service_account":
+            raise CloudAuthError("gcp adc: a service-account key file is a long-lived credential and is refused: "
+                                 f"{ADC_HINT} (a user login) or use source workload_identity")
+        if typ != "authorized_user":
+            raise CloudAuthError(f"gcp adc: credential type {typ!r} not supported (authorized_user expected: {ADC_HINT})")
+        if not all(d.get(k) for k in ("client_id", "client_secret", "refresh_token")):
+            raise CloudAuthError(f"gcp adc: incomplete authorized_user credentials ({where}): {ADC_HINT}")
+        body = urllib.parse.urlencode({"grant_type": "refresh_token", "client_id": d["client_id"],
+                                       "client_secret": d["client_secret"], "refresh_token": d["refresh_token"]}).encode()
+        del d
+        st, out = http("POST", self.oauth_url, body, {"Content-Type": "application/x-www-form-urlencoded"})
+        del body
+        if st != 200:
+            why = _err_text(out)
+            hint = f" (expired, revoked or re-authentication required: {ADC_HINT})" \
+                if any(x in why for x in ("invalid_grant", "invalid_rapt")) else ""
+            raise CloudAuthError(f"gcp adc refresh: HTTP {st} {why}{hint}")
+        tok = json.loads(out).get("access_token")
+        if not tok:
+            raise CloudAuthError("gcp adc refresh: no access token returned")
+        return tok
+
+    def _impersonate(self, source_token):
+        """iamcredentials generateAccessToken for `service_account`: the ONLY credential the platform keeps."""
         sa = self.cfg["service_account"]
         st, out = http("POST", f"{self.iamcred}/projects/-/serviceAccounts/{urllib.parse.quote(sa)}:generateAccessToken",
-                       json.dumps({"scope": ["https://www.googleapis.com/auth/cloud-platform"],
+                       json.dumps({"scope": [GCP_SCOPE],
                                    "lifetime": f"{int(self.cfg.get('session_seconds', SESSION_SECONDS))}s"}).encode(),
-                       {"Authorization": "Bearer " + fed, "Content-Type": "application/json"})
+                       {"Authorization": "Bearer " + source_token, "Content-Type": "application/json"})
         if st != 200:
-            raise CloudAuthError(f"gcp impersonation of {sa}: HTTP {st} {_err_text(out)}")
+            hint = " (the operator needs roles/iam.serviceAccountTokenCreator on it)" \
+                if st == 403 and self.source == "adc" else ""
+            raise CloudAuthError(f"gcp impersonation of {sa}: HTTP {st} {_err_text(out)}{hint}")
         d = json.loads(out)
         return {"access_token": d["accessToken"], "expires": _iso_epoch(d["expireTime"])}
 
     def identity(self):
+        """The service account the platform runs as, and how it got there (never the operator's own account)."""
         self.credentials()
-        return {"principal": "serviceAccount:" + self.cfg["service_account"], "account": self.account}
+        return {"principal": "serviceAccount:" + self.cfg["service_account"], "account": self.account, "source": self.source}
 
     def permissions(self):
         """Roles bound to the service account on the project (getIamPolicy: allowed by Security Reviewer)."""
         member = "serviceAccount:" + self.cfg["service_account"]
-        st, out = http("POST", f"{self.crm}/projects/{urllib.parse.quote(self.account)}:getIamPolicy", b"{}",
+        # Policy version 3: a binding with an IAM condition (e.g. an expiry, as recommended for audit access) is
+        # returned with its real role and the condition. Without it, Google returns such a binding under a synthetic
+        # role name "<role>_withcond_<hash>", which no allow-list knows (the account would be refused as
+        # over-privileged). A condition can only narrow a grant, so the base role is what is judged.
+        st, out = http("POST", f"{self.crm}/projects/{urllib.parse.quote(self.account)}:getIamPolicy",
+                       json.dumps({"options": {"requestedPolicyVersion": 3}}).encode(),
                        {"Authorization": "Bearer " + self.credentials()["access_token"], "Content-Type": "application/json"})
         if st != 200:
             raise CloudAuthError(f"gcp getIamPolicy {self.account}: HTTP {st} {_err_text(out)}")
-        roles = sorted({b["role"] for b in json.loads(out).get("bindings") or [] if member in (b.get("members") or [])})
-        return {"principal": member, "method": "project IAM policy bindings", "grants": roles,
+        roles, conditional = set(), set()
+        for b in json.loads(out).get("bindings") or []:
+            if member not in (b.get("members") or []):
+                continue
+            role = GCP_WITHCOND.sub("", b["role"])
+            roles.add(role)
+            if b.get("condition") or role != b["role"]:
+                conditional.add(role)
+        roles = sorted(roles)
+        return {"principal": member, "method": "project IAM policy bindings (policy version 3)", "grants": roles,
+                "conditional": sorted(conditional),
                 "write_capable": [r for r in roles if r not in GCP_READ_ONLY_ROLES]}
 
     def engine_env(self, tmpdir):
-        """An external-account (workload identity federation) config: no key; google-auth exchanges the OIDC token
-        itself and impersonates the service account, refreshing as needed."""
+        """workload_identity: an external-account (workload identity federation) config: no key; google-auth exchanges
+        the OIDC token itself and impersonates the service account, refreshing as needed.
+        adc: the engine must act as the SERVICE ACCOUNT and must never hold the operator's refresh token. gcloud's
+        config directory is pointed at an empty private directory (the operator's ADC is invisible to the engine) and
+          engine_auth access_token (default): a freshly minted service-account access token (session_seconds, 1 h)
+              in CLOUDSDK_AUTH_ACCESS_TOKEN (Prowler reads it; process environment only, never a file). It is not
+              refreshed: a scan longer than its lifetime loses its remaining services (they become coverage gaps).
+          engine_auth impersonate: Prowler's --impersonate-service-account with GOOGLE_APPLICATION_CREDENTIALS = the
+              operator's existing ADC file (refreshes for long scans, but the engine process reads the refresh token).
+        Engines without either mechanism (ScoutSuite) are not run with source adc."""
+        projects = self.cfg.get("project_ids") or [self.account]
+        if self.source == "adc":
+            empty = os.path.join(tmpdir, "gcloud-config")
+            os.makedirs(empty, mode=0o700, exist_ok=True)
+            env = {"CLOUDSDK_CONFIG": empty, "GOOGLE_CLOUD_PROJECT": self.account, "CLOUDSDK_CORE_PROJECT": self.account}
+            args = {"projects": projects, "gcp_source": "adc", "engine_auth": self.engine_auth}
+            if self.engine_auth == "access_token":
+                env["CLOUDSDK_AUTH_ACCESS_TOKEN"] = self._acquire()["access_token"]     # full lifetime for the scan
+            else:
+                env["GOOGLE_APPLICATION_CREDENTIALS"] = adc_path(self.cfg)[0]
+                args["impersonate_service_account"] = self.cfg["service_account"]
+            return env, args
         src = self.cfg.get("identity_token") or {}
         if src.get("type", "file") == "file":
             cred_src = {"file": os.path.expanduser(src["path"])}
@@ -451,8 +567,7 @@ class GCP(Provider):
         p = os.path.join(tmpdir, f"gcp-{self.account}.external-account.json")
         with open(os.open(p, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "w") as f:
             json.dump(conf, f)
-        return dict(extra, GOOGLE_APPLICATION_CREDENTIALS=p, GOOGLE_CLOUD_PROJECT=self.account), \
-            {"projects": self.cfg.get("project_ids") or [self.account]}
+        return dict(extra, GOOGLE_APPLICATION_CREDENTIALS=p, GOOGLE_CLOUD_PROJECT=self.account), {"projects": projects}
 
 
 # ---- Azure ----------------------------------------------------------------------------------------------------
