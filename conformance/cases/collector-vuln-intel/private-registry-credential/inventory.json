@@ -1,0 +1,49 @@
+{
+ "complete": true,
+ "items": [
+  {
+   "cluster": "prod",
+   "exposed": false,
+   "image": "registry.private.example/app:1",
+   "image_id": "",
+   "namespaces": [
+    "apps"
+   ],
+   "prod": true,
+   "workloads": [
+    "k8s-workload:prod/apps/Deployment/app"
+   ]
+  },
+  {
+   "cluster": "prod",
+   "exposed": false,
+   "image": "registry.other.example/app:2",
+   "image_id": "",
+   "namespaces": [
+    "apps"
+   ],
+   "prod": true,
+   "workloads": [
+    "k8s-workload:prod/apps/Deployment/app"
+   ]
+  },
+  {
+   "cluster": "prod",
+   "exposed": false,
+   "image": "registry.loose.example/x:1",
+   "image_id": "",
+   "namespaces": [
+    "apps"
+   ],
+   "prod": true,
+   "workloads": [
+    "k8s-workload:prod/apps/Deployment/x"
+   ]
+  }
+ ],
+ "kind": "container-image",
+ "schema": "security-platform/inventory/v1",
+ "sources": {
+  "k8s-cluster:prod": "complete"
+ }
+}

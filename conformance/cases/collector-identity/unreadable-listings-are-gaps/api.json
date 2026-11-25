@@ -1,0 +1,144 @@
+{
+ "page_size": 2,
+ "routes": {
+  "/orgs/acme": {
+   "body": {
+    "login": "acme",
+    "two_factor_requirement_enabled": false
+   }
+  },
+  "/orgs/acme/members?filter=2fa_disabled&per_page=100": {
+   "body": {
+    "message": "Must be an owner"
+   },
+   "status": 403
+  },
+  "/orgs/acme/members?per_page=100": {
+   "body": {
+    "message": "Resource not accessible"
+   },
+   "headers": {
+    "X-Accepted-OAuth-Scopes": "read:org"
+   },
+   "status": 403
+  },
+  "/orgs/acme/outside_collaborators?per_page=100": {
+   "body": {
+    "message": "Must have admin rights to Repository."
+   },
+   "headers": {
+    "X-Accepted-OAuth-Scopes": "admin:org"
+   },
+   "status": 403
+  },
+  "/repos/octo/app/actions/permissions/fork-pr-contributor-approval": {
+   "body": {
+    "message": "Forbidden"
+   },
+   "status": 403
+  },
+  "/repos/octo/app/collaborators?affiliation=direct&per_page=100": {
+   "body": [
+    {
+     "login": "octo",
+     "permissions": {
+      "admin": true,
+      "maintain": true,
+      "pull": true,
+      "push": true,
+      "triage": true
+     }
+    },
+    {
+     "login": "mallory",
+     "permissions": {
+      "admin": false,
+      "pull": true,
+      "push": true
+     }
+    }
+   ]
+  },
+  "/repos/octo/app/keys": {
+   "body": {
+    "message": "Not Found"
+   },
+   "status": 404
+  },
+  "/repos/octo/notes/collaborators?affiliation=direct&per_page=100": {
+   "body": [
+    {
+     "login": "octo",
+     "permissions": {
+      "admin": true,
+      "pull": true
+     }
+    },
+    {
+     "login": "viewer",
+     "permissions": {
+      "admin": false,
+      "pull": true,
+      "push": false
+     }
+    }
+   ]
+  },
+  "/repos/octo/notes/keys": {
+   "body": []
+  },
+  "/user": {
+   "body": {
+    "created_at": "2019-05-01T00:00:00Z",
+    "id": 1,
+    "login": "octo",
+    "two_factor_authentication": null,
+    "type": "User"
+   }
+  },
+  "/user/orgs": {
+   "body": [
+    {
+     "login": "acme"
+    },
+    {
+     "login": "elsewhere"
+    }
+   ]
+  },
+  "/user/repos?per_page=100&affiliation=owner": {
+   "body": [
+    {
+     "full_name": "octo/app",
+     "owner": {
+      "login": "octo"
+     },
+     "visibility": "public"
+    },
+    {
+     "full_name": "octo/notes",
+     "owner": {
+      "login": "octo"
+     },
+     "visibility": "private"
+    },
+    {
+     "archived": true,
+     "full_name": "octo/old",
+     "owner": {
+      "login": "octo"
+     },
+     "visibility": "public"
+    },
+    {
+     "full_name": "other/x",
+     "owner": {
+      "login": "other"
+     },
+     "visibility": "public"
+    }
+   ]
+  }
+ },
+ "scopes": "repo, read:org"
+}

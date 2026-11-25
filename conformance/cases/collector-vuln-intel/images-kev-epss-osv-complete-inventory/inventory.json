@@ -1,0 +1,76 @@
+{
+ "complete": true,
+ "items": [
+  {
+   "cluster": "prod",
+   "exposed": true,
+   "image": "registry.example/web:1.4",
+   "image_id": "docker-pullable://registry.example/web@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "namespaces": [
+    "apps"
+   ],
+   "prod": true,
+   "workloads": [
+    "k8s-workload:prod/apps/Deployment/web"
+   ]
+  },
+  {
+   "cluster": "lab",
+   "exposed": false,
+   "image": "registry.example/web:1.4",
+   "image_id": "docker-pullable://registry.example/web@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "namespaces": [
+    "apps"
+   ],
+   "prod": false,
+   "workloads": [
+    "k8s-workload:lab/apps/Deployment/web"
+   ]
+  },
+  {
+   "cluster": "prod",
+   "exposed": false,
+   "image": "registry.example/batch:2",
+   "image_id": "",
+   "namespaces": [
+    "apps"
+   ],
+   "prod": true,
+   "workloads": [
+    "k8s-workload:prod/apps/Deployment/batch"
+   ]
+  },
+  {
+   "cluster": "lab",
+   "exposed": true,
+   "image": "registry.example/tool:1",
+   "image_id": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+   "namespaces": [
+    "apps"
+   ],
+   "prod": false,
+   "workloads": [
+    "k8s-workload:lab/apps/Deployment/tool"
+   ]
+  },
+  {
+   "cluster": "lab",
+   "exposed": false,
+   "image": "busybox:1.36",
+   "image_id": "docker-pullable://busybox@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+   "namespaces": [
+    "apps"
+   ],
+   "prod": false,
+   "workloads": [
+    "k8s-workload:lab/apps/Deployment/busybox"
+   ]
+  }
+ ],
+ "kind": "container-image",
+ "schema": "security-platform/inventory/v1",
+ "sources": {
+  "k8s-cluster:lab": "complete",
+  "k8s-cluster:prod": "complete"
+ }
+}

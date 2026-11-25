@@ -1,0 +1,23 @@
+{
+ "complete": true,
+ "items": [
+  {
+   "cluster": "prod",
+   "exposed": true,
+   "image": "registry.example/web:1.4",
+   "image_id": "docker-pullable://registry.example/web@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "namespaces": [
+    "apps"
+   ],
+   "prod": true,
+   "workloads": [
+    "k8s-workload:prod/apps/Deployment/web"
+   ]
+  }
+ ],
+ "kind": "container-image",
+ "schema": "security-platform/inventory/v1",
+ "sources": {
+  "k8s-cluster:prod": "complete"
+ }
+}

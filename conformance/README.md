@@ -63,7 +63,8 @@ builders by `tools/gen_cases.py` (edit there, re-run, commit both); the generate
 ```
 
 - Templates in arguments, env values and text fixtures: `{sandbox}`, `{case}`, `{python}` (the suite's interpreter, for
-  mocks only), `{now_epoch}`, `{fake_jwt}` (an unsigned JWT built at run time: fixtures never contain token-shaped strings), `{epoch:-2820}` / `{utc:+3600}` (real clock + offset), `{svc_<name>}` (a service URL).
+  mocks only), `{path}` (the suite's own `PATH`, to put fake tools in front of it: `{sandbox}/bin:{path}`), `{now_epoch}`, `{fake_jwt}` (an unsigned JWT built at run time: fixtures never contain token-shaped strings), `{fake_key}` (a
+  random stand-in for private key material, built at run time for the same reason), `{epoch:-2820}` / `{utc:+3600}` (real clock + offset), `{svc_<name>}` (a service URL).
 - `exit`: a number, `{"in": [..]}` or `{"not": n}`.
 - Assertions (`expect`):
   - `{"json": path, "schema": name, "subset": {...} | "file", "findings_ids": true}`; `{"jsonl": path, ...}`.
@@ -73,7 +74,7 @@ builders by `tools/gen_cases.py` (edit there, re-run, commit both); the generate
   - `{"prom": path, "families": [..], "has": [{"name", "labels", "value", "exact_labels"}], "absent": [..],
     "types": {name: type}, "forbidden_labels": [..]}` — parses the text format.
   - `{"stdout"|"stderr": {"regex": [..], "not_regex": [..], "not_contains": [..], "json": subset, "schema": name, "lines": [..]}}`.
-  - `{"file": path, "regex": [..], "lines": n}`, `{"exists": path}`, `{"absent": path}`, `{"glob": pattern, "count": n}`,
+  - `{"file": path, "regex": [..], "not_regex": [..], "lines": n}`, `{"exists": path}`, `{"absent": path}`, `{"glob": pattern, "count": n}`,
     `{"writes_only_under": true}` (with `exec.writes_only_under`: nothing outside those sandbox paths changed),
     `{"no_secret": [canaries], "in": path}` (no canary in any file under path, nor in stdout/stderr),
     `{"duration_max": seconds}`.

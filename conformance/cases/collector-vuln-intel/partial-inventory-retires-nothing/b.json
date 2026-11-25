@@ -1,0 +1,24 @@
+{
+ "complete": false,
+ "items": [
+  {
+   "cluster": "b",
+   "exposed": false,
+   "image": "registry.example/b:1",
+   "image_id": "",
+   "namespaces": [
+    "apps"
+   ],
+   "prod": true,
+   "workloads": [
+    "k8s-workload:b/apps/Deployment/b"
+   ]
+  }
+ ],
+ "kind": "container-image",
+ "schema": "security-platform/inventory/v1",
+ "sources": {
+  "k8s-cluster:b": "failed: RuntimeError",
+  "k8s-cluster:b2": "complete"
+ }
+}

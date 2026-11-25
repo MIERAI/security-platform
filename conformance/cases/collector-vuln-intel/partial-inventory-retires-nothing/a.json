@@ -1,0 +1,23 @@
+{
+ "complete": true,
+ "items": [
+  {
+   "cluster": "a",
+   "exposed": false,
+   "image": "registry.example/a:1",
+   "image_id": "",
+   "namespaces": [
+    "apps"
+   ],
+   "prod": true,
+   "workloads": [
+    "k8s-workload:a/apps/Deployment/a"
+   ]
+  }
+ ],
+ "kind": "container-image",
+ "schema": "security-platform/inventory/v1",
+ "sources": {
+  "k8s-cluster:a": "complete"
+ }
+}

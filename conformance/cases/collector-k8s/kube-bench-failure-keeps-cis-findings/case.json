@@ -1,0 +1,91 @@
+{
+ "component": "collector-k8s",
+ "title": "When kube-bench fails, the CIS findings on k8s-cluster:<name> stay unknown: a narrow gap k8s-cluster:<name>/cis with checks cis.* (a gap on cis:<name> alone let the ledger fix them)",
+ "contract": "collector-protocol/1.0 / findings/1.2",
+ "deviation": "K8S-D3",
+ "origin": "the cluster's ok entry covered the CIS findings of a failed kube-bench run",
+ "files": {
+  "instance.json": "instance.json",
+  "data/.keep": {
+   "text": ""
+  },
+  "bin/kubectl": {
+   "text": "#!/bin/sh\nexec \"{python}\" \"{case}/fake_kubectl.py\" \"$@\"\n",
+   "mode": "0755"
+  },
+  "bin/sudo": {
+   "text": "#!/bin/sh\n[ \"$1\" = \"-n\" ] && shift\nexec \"$@\"\n",
+   "mode": "0755"
+  },
+  "kube/lab.json": "lab.json",
+  "data/kube-bench_0.9.0_linux_amd64.tar.gz": {
+   "raw": "kube-bench.tar.gz"
+  }
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-k8s",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance",
+     "PATH": "{sandbox}/bin:{path}",
+     "FAKE_KUBE_DIR": "{sandbox}/kube",
+     "FAKE_KUBE_LOG": "{sandbox}/.svc-kubectl.calls"
+    },
+    "writes_only_under": [
+     "run"
+    ]
+   },
+   "expect": [
+    {
+     "json": "run/k8s.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "k8s"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "json": "run/k8s.findings.json",
+     "subset": {
+      "coverage": {
+       "$contains": [
+        {
+         "asset": "k8s-cluster:lab",
+         "status": "ok"
+        },
+        {
+         "asset": "cis:lab",
+         "status": "gap",
+         "reason": {
+          "$regex": "kube-bench failed"
+         }
+        },
+        {
+         "asset": "k8s-cluster:lab/cis",
+         "status": "gap",
+         "checks": [
+          "cis.*"
+         ],
+         "reason": {
+          "$regex": "kube-bench failed"
+         }
+        }
+       ]
+      }
+     }
+    }
+   ]
+  }
+ ]
+}
