@@ -1,0 +1,19 @@
+{
+ "kv": {
+  "os.name": "Android 14 (patch 2020-01-05)",
+  "os.security_patch": "2020-01-05",
+  "pkg.cache_mtime": "",
+  "pkg.upgradable": "4",
+  "probe.end": "1",
+  "proc.secret_in_argv_suspects": "1",
+  "sshd.passwordauthentication": "no",
+  "uptime_days": "9"
+ },
+ "listen": [
+  "00000000:8022",
+  "00000000:27017"
+ ],
+ "profile": "termux",
+ "rc": 0,
+ "unread": {}
+}

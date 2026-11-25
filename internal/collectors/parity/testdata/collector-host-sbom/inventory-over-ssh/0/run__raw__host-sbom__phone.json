@@ -1,0 +1,26 @@
+{
+ "packages": 0,
+ "platform": {
+  "arch": "aarch64",
+  "device": "Acme P1",
+  "exposed": false,
+  "firmware": null,
+  "fs_sbom": null,
+  "host": "phone",
+  "kernel_running": "5.15.0",
+  "os_build": "AP1A.2510",
+  "os_codename": "",
+  "os_edition": "",
+  "os_family": "android",
+  "os_name": "Android 14",
+  "os_product": "",
+  "os_version": "14",
+  "package_count": 0,
+  "patch_level": "2025-10-01",
+  "prod": true,
+  "profile": "termux",
+  "rsr": "",
+  "vendor_patch_level": "2025-09-01"
+ },
+ "rc": 0
+}

@@ -1,0 +1,12 @@
+-o
+BatchMode=yes
+-o
+ConnectTimeout=10
+-o
+PasswordAuthentication=no
+-o
+KbdInteractiveAuthentication=no
+-o
+StrictHostKeyChecking=yes
+silent.test
+sh -s

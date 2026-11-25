@@ -1,0 +1,26 @@
+{
+ "packages": 2,
+ "platform": {
+  "arch": "AMD64",
+  "device": "",
+  "exposed": false,
+  "firmware": null,
+  "fs_sbom": null,
+  "host": "win",
+  "kernel_running": "",
+  "os_build": "10.0.26100.4652",
+  "os_codename": "",
+  "os_edition": "Professional",
+  "os_family": "windows",
+  "os_name": "Microsoft Windows 11 Pro",
+  "os_product": "Windows 10 Pro",
+  "os_version": "24H2",
+  "package_count": 2,
+  "patch_level": "",
+  "prod": true,
+  "profile": "windows",
+  "rsr": "",
+  "vendor_patch_level": ""
+ },
+ "rc": 0
+}

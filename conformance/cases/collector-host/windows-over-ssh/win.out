@@ -1,0 +1,16 @@
+sshd.passwordauthentication=yes(default)
+sshd.permitrootlogin=n/a
+os.name=Microsoft Windows 11 Pro édition 10.0.26100
+uptime_days=2
+reboot_required=no
+fw.profile_domain=on
+fw.profile_private=off
+fw.profile_public=off
+av.realtime=off
+av.signature_age_days=12
+disk.bitlocker=Off
+smb.v1=True
+listen=0.0.0.0:3306 mysqld
+listen=127.0.0.1:5432 postgres
+pkg.last_hotfix=2020-01-14
+probe.end=1

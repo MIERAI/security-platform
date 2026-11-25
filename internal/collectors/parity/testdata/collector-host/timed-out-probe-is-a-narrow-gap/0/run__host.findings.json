@@ -1,0 +1,87 @@
+{
+ "collector": {
+  "name": "host",
+  "tools": {},
+  "version": "0.4.0"
+ },
+ "coverage": [
+  {
+   "asset": "host:m",
+   "status": "ok"
+  },
+  {
+   "asset": "host:m/os-updates",
+   "checks": [
+    "patch.os_updates_pending"
+   ],
+   "reason": "m os-updates: could not check (pkg.os_updates_pending: did not finish within its time limit)",
+   "status": "gap"
+  },
+  {
+   "asset": "host:l",
+   "status": "ok"
+  },
+  {
+   "asset": "host:l/firewall",
+   "checks": [
+    "fw.host_firewall_off"
+   ],
+   "reason": "l firewall: could not check (fw.nft_input_policy: did not finish within its time limit)",
+   "status": "gap"
+  },
+  {
+   "asset": "host:l/listeners",
+   "checks": [
+    "listen.db_wildcard.*"
+   ],
+   "reason": "l listeners: could not check (listen: did not finish within its time limit)",
+   "status": "gap"
+  }
+ ],
+ "findings": [
+  {
+   "asset": "host:m",
+   "check": "macos.disk_filevault_off",
+   "evidence": "raw/host/m.json",
+   "id": "490ad7aae458",
+   "kind": "compliance",
+   "layer": "host",
+   "needs_human": true,
+   "observed_at": "T",
+   "owner": "human",
+   "remediation": "enable FileVault",
+   "severity": "high",
+   "title": "FileVault disk encryption is off"
+  },
+  {
+   "asset": "host:l",
+   "check": "ssh.password_auth_enabled",
+   "evidence": "raw/host/l.json",
+   "id": "9e28ea35b715",
+   "kind": "compliance",
+   "layer": "identity",
+   "needs_human": false,
+   "observed_at": "T",
+   "owner": "platform",
+   "remediation": "PasswordAuthentication no (keys only)",
+   "severity": "high",
+   "title": "SSH password authentication is enabled"
+  }
+ ],
+ "metrics": [
+  {
+   "help": "Sockets listening on all interfaces",
+   "labels": {
+    "host": "m"
+   },
+   "name": "security_host_wildcard_listeners",
+   "value": 0.0
+  }
+ ],
+ "run": {
+  "finished_at": "T",
+  "instance": "conformance",
+  "started_at": "T"
+ },
+ "schema_version": "1.2"
+}

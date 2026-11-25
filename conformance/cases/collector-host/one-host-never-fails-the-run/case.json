@@ -1,0 +1,174 @@
+{
+ "component": "collector-host",
+ "title": "A host the collector cannot fully evaluate never fails the run (collector-protocol §5): a probe value that is not a date is a narrow gap for the checks reading it, a missing exec program (no powershell on a local Windows profile) is a host gap; every other host and check still reports",
+ "contract": "collector-protocol/1.0 / findings/1.2",
+ "deviation": "COLLECTOR-D2",
+ "origin": "collectors/host/collector.py: time.strptime ValueError and FileNotFoundError end the whole run (exit 1)",
+ "files": {
+  "bin/ssh": {
+   "raw": "fake_exec.sh",
+   "mode": "0755"
+  },
+  "instance.json": {
+   "json": {
+    "name": "conformance",
+    "hosts": [
+     {
+      "name": "win",
+      "profile": "windows",
+      "exec": {
+       "type": "ssh",
+       "host": "win.test",
+       "shell": "windows"
+      }
+     },
+     {
+      "name": "tab",
+      "profile": "termux",
+      "exec": {
+       "type": "ssh",
+       "host": "tab.test"
+      }
+     },
+     {
+      "name": "nops",
+      "profile": "windows",
+      "exec": {
+       "type": "local"
+      }
+     },
+     {
+      "name": "fine",
+      "profile": "busybox",
+      "exec": {
+       "type": "ssh",
+       "host": "fine.test"
+      }
+     }
+    ]
+   }
+  },
+  "replay/win.test.out": {
+   "raw": "win.out"
+  },
+  "replay/tab.test.out": {
+   "text": "os.security_patch=2026-13-45\nproc.secret_in_argv_suspects=1\nprobe.end=1\n"
+  },
+  "replay/fine.test.out": {
+   "text": "sshd.passwordauthentication=yes\nsshd.permitrootlogin=yes\nos.name=OpenWrt 24.10\nos.kernel=6.6.0\ntelnetd=1\nuptime_days=120\nfw.iptables_input_policy=ACCEPT\nlisten=0.0.0.0:53\nlisten=0.0.0.0:6379\nprobe.end=1\n"
+  }
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-host",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance",
+     "PATH": "{sandbox}/bin:/usr/bin:/bin",
+     "FAKE_EXEC": "{sandbox}"
+    },
+    "writes_only_under": [
+     "run",
+     "trace"
+    ]
+   },
+   "expect": [
+    {
+     "json": "run/host.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "host"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "json": "run/host.findings.json",
+     "subset": {
+      "coverage": [
+       {
+        "asset": "host:win",
+        "status": "ok"
+       },
+       {
+        "asset": "host:win/windows-updates",
+        "status": "gap",
+        "checks": [
+         "patch.windows_stale"
+        ],
+        "reason": {
+         "$regex": "could not check.*pkg.last_hotfix"
+        }
+       },
+       {
+        "asset": "host:tab",
+        "status": "ok"
+       },
+       {
+        "asset": "host:tab/android-patch",
+        "status": "gap",
+        "checks": [
+         "patch.android_security_patch_old"
+        ]
+       },
+       {
+        "asset": "host:nops",
+        "status": "gap",
+        "reason": {
+         "$regex": "^exec failed"
+        }
+       },
+       {
+        "asset": "host:fine",
+        "status": "ok"
+       }
+      ],
+      "findings": {
+       "$contains": [
+        {
+         "asset": "host:win",
+         "check": "win.smb1_enabled",
+         "severity": "high"
+        },
+        {
+         "asset": "host:tab",
+         "check": "secret.in_process_argv",
+         "severity": "medium"
+        },
+        {
+         "asset": "host:fine",
+         "check": "telnet.daemon_running",
+         "severity": "high"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/host.findings.json",
+     "subset": {
+      "findings": {
+       "$not_contains": [
+        {
+         "check": "patch.windows_stale"
+        },
+        {
+         "check": "patch.android_security_patch_old"
+        }
+       ]
+      }
+     }
+    }
+   ]
+  }
+ ]
+}

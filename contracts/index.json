@@ -96,6 +96,11 @@
   "RUNNER-D7": "runner/job-environment-allow-list",
   "RUNNER-D8": null,
   "COLLECTOR-D1": null,
+  "COLLECTOR-D2": "collector-host/one-host-never-fails-the-run",
+  "COLLECTOR-D3": "collector-host-sbom/missing-tool-is-a-gap",
+  "COLLECTOR-D4": "collector-secrets-files/unreadable-scan-output-is-a-gap",
+  "COLLECTOR-D5": "collector-secrets-files/home-replaced-only-as-prefix",
+  "COLLECTOR-D6": "collector-host-sbom/evidence-follows-collector-name",
   "METRICS-D1": null,
   "SCORECARD-D1": "scorecard/attestation-expiry-is-utc",
   "SCORECARD-D2": null

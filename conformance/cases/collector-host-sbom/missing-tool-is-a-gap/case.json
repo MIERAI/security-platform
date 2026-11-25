@@ -1,0 +1,116 @@
+{
+ "component": "collector-host-sbom",
+ "title": "A program the collector needs that is not installed never fails the run (collector-protocol §5): no trivy for sbom_paths is a narrow fs-sbom gap next to the package inventory, no powershell for a local Windows profile is a host gap",
+ "contract": "collector-protocol/1.0 / inventory/v1",
+ "deviation": "COLLECTOR-D3",
+ "origin": "collectors/host-sbom/collector.py: FileNotFoundError from subprocess ends the whole run (exit 1)",
+ "files": {
+  "bin/sh": {
+   "raw": "fake_exec.sh",
+   "mode": "0755"
+  },
+  "instance.json": {
+   "json": {
+    "name": "conformance",
+    "hosts": [
+     {
+      "name": "l",
+      "profile": "linux",
+      "exec": {
+       "type": "local"
+      },
+      "sbom_paths": [
+       "{sandbox}/apps"
+      ]
+     },
+     {
+      "name": "w",
+      "profile": "windows",
+      "exec": {
+       "type": "local"
+      }
+     }
+    ]
+   }
+  },
+  "apps/.keep": {
+   "text": ""
+  },
+  "replay/local-sh.out": {
+   "text": "os.family=debian\nos.version=13\nos.codename=trixie\nos.name=Debian GNU/Linux 13 (trixie)\nkernel.running=6.12.0-1-amd64\narch=x86_64\npkg\tdeb\topenssl\t3.5.1-1\topenssl\t3.5.1-1\tamd64\npkg\tdeb\tlibssl3t64\t3.5.1-1\topenssl\t3.5.1-1\tamd64\npkg\tdeb\tbash\t5.2.37-2\t\t\tamd64\npkg\tdeb\t\t1.0\t\t\t\npkg\tdeb\tshort\n# comment=ignored\n indented=ignored\n"
+  }
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-host-sbom",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance",
+     "PATH": "{sandbox}/bin:/usr/bin:/bin",
+     "FAKE_EXEC": "{sandbox}"
+    },
+    "writes_only_under": [
+     "run",
+     "trace"
+    ]
+   },
+   "expect": [
+    {
+     "json": "run/host-sbom.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "host-sbom"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "json": "run/host-sbom.findings.json",
+     "subset": {
+      "coverage": [
+       {
+        "asset": "host:l",
+        "status": "ok"
+       },
+       {
+        "asset": "host:l/fs-sbom",
+        "status": "gap",
+        "reason": {
+         "$regex": "trivy"
+        }
+       },
+       {
+        "asset": "host:w",
+        "status": "gap",
+        "reason": {
+         "$regex": "^inventory failed"
+        }
+       }
+      ]
+     }
+    },
+    {
+     "json": "run/inventory.host-platforms.json",
+     "subset": {
+      "items": [
+       {
+        "host": "l",
+        "fs_sbom": null,
+        "package_count": 3
+       }
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,264 @@
+{
+ "component": "collector-secrets-files",
+ "title": "Where secrets live, never what they are: a local scan of a fixture home records kind, mode, size and properties of private keys, dotenv, Terraform state, docker/gh/rclone/kube configs, netrc, secret files and credential-like notes (excluded directories and example files skipped), raises the documented findings and metrics, and no byte of any file's content reaches the run directory or the output",
+ "contract": "collector-protocol/1.0 / findings/1.2",
+ "origin": "collectors/secrets-files/collector.py + remote/scan.py; docs/threat-model.md (values never stored)",
+ "files": {
+  "instance.json": {
+   "json": {
+    "name": "conformance",
+    "secrets_files": [
+     {
+      "host": "lab",
+      "exec": {
+       "type": "local"
+      },
+      "roots": [
+       "~"
+      ],
+      "exclude": [
+       "~/skip"
+      ],
+      "python": "{python}"
+     }
+    ]
+   }
+  },
+  "home/.ssh/id_conformance": {
+   "text": "-----BEGIN RSA PRIVATE KEY-----\nProc-Type: 4,ENCRYPTED\nconformance-canary-value-00\n",
+   "mode": "0644"
+  },
+  "home/work/.env": {
+   "text": "API_TOKEN=conformance-canary-value-02\nexport X=1\n",
+   "mode": "0640"
+  },
+  "home/work/.env.example": {
+   "text": "API_TOKEN=\n",
+   "mode": "0644"
+  },
+  "home/work/node_modules/pkg/.env": {
+   "text": "T=conformance-canary-value-03\n",
+   "mode": "0644"
+  },
+  "home/skip/.env": {
+   "text": "T=conformance-canary-value-03\n",
+   "mode": "0644"
+  },
+  "home/infra/terraform.tfstate": {
+   "text": "{\"resources\": [{\"password\": \"conformance-canary-value-04\"}]}\n",
+   "mode": "0600"
+  },
+  "home/infra/.terraform/terraform.tfstate": {
+   "text": "{\"backend\": \"conformance-canary-value-04\"}\n",
+   "mode": "0600"
+  },
+  "home/.docker/config.json": {
+   "text": "{\"auths\": {\"registry.example\": {\"auth\": \"conformance-canary-value-05\"}}}\n",
+   "mode": "0600"
+  },
+  "home/.config/gh/hosts.yml": {
+   "text": "github.com:\n    oauth_token: conformance-canary-value-06\n",
+   "mode": "0600"
+  },
+  "home/.config/rclone/rclone.conf": {
+   "text": "[remote]\ntype = s3\nsecret_access_key = conformance-canary-value-07\n",
+   "mode": "0600"
+  },
+  "home/.kube/config": {
+   "text": "apiVersion: v1\nclusters:\n- cluster: {server: https://k.example}\nusers:\n- user:\n    client-key-data: conformance-canary-value-08\n",
+   "mode": "0644"
+  },
+  "home/notes/MEMORY.md": {
+   "text": "the db password: conformance-canary-value-09\nstored in the vault, value not written here\n",
+   "mode": "0600"
+  },
+  "home/.netrc": {
+   "text": "machine example login u password conformance-canary-value-10\n",
+   "mode": "0600"
+  },
+  "home/.secrets/db": {
+   "text": "conformance-canary-value-11\n",
+   "mode": "0600"
+  }
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-secrets-files",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance",
+     "PATH": "{sandbox}/bin:/usr/bin:/bin",
+     "FAKE_EXEC": "{sandbox}"
+    },
+    "writes_only_under": [
+     "run"
+    ]
+   },
+   "expect": [
+    {
+     "json": "run/secrets-files.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "secrets-files"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "no_secret": [
+      "conformance-canary-value-00",
+      "conformance-canary-value-01",
+      "conformance-canary-value-02",
+      "conformance-canary-value-03",
+      "conformance-canary-value-04",
+      "conformance-canary-value-05",
+      "conformance-canary-value-06",
+      "conformance-canary-value-07",
+      "conformance-canary-value-08",
+      "conformance-canary-value-09",
+      "conformance-canary-value-10",
+      "conformance-canary-value-11"
+     ],
+     "in": "run"
+    },
+    {
+     "json": "run/secrets-files.findings.json",
+     "subset": {
+      "coverage": [
+       {
+        "asset": "host:lab",
+        "status": "ok"
+       }
+      ],
+      "findings": {
+       "$unordered": [
+        {
+         "asset": "secret-file:lab:~/.ssh/id_conformance",
+         "check": "secret.permissions_too_open",
+         "severity": "high",
+         "title": "private-key readable by group/others (mode 0o644)",
+         "evidence": "raw/secrets-files/lab.json#~/.ssh/id_conformance"
+        },
+        {
+         "asset": "secret-file:lab:~/work/.env",
+         "check": "secret.permissions_too_open",
+         "severity": "medium"
+        },
+        {
+         "asset": "secret-file:lab:~/infra/terraform.tfstate",
+         "check": "secret.tf_state_plaintext",
+         "severity": "medium"
+        },
+        {
+         "asset": "secret-file:lab:~/.docker/config.json",
+         "check": "secret.docker_inline_auth",
+         "severity": "medium"
+        },
+        {
+         "asset": "secret-file:lab:~/.config/gh/hosts.yml",
+         "check": "secret.gh_token_in_file",
+         "severity": "medium"
+        },
+        {
+         "asset": "secret-file:lab:~/.config/rclone/rclone.conf",
+         "check": "secret.rclone_config_plaintext",
+         "severity": "medium"
+        },
+        {
+         "asset": "secret-file:lab:~/.kube/config",
+         "check": "secret.permissions_too_open",
+         "severity": "high"
+        },
+        {
+         "asset": "secret-file:lab:~/.kube/config",
+         "check": "secret.kubeconfig_embedded_client_key",
+         "severity": "medium"
+        },
+        {
+         "asset": "secret-file:lab:~/notes/MEMORY.md",
+         "check": "secret.credential_in_notes",
+         "severity": "high",
+         "layer": "ai-agents",
+         "title": {
+          "$regex": "^1 line"
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/raw/secrets-files/lab.json",
+     "subset": {
+      "$contains": [
+       {
+        "path": "~/work/.env",
+        "kind": "dotenv",
+        "mode": "0o640",
+        "vars": 1
+       },
+       {
+        "path": "~/.ssh/id_conformance",
+        "kind": "private-key",
+        "passphrase": true,
+        "format": "pem"
+       },
+       {
+        "path": "~/.secrets/db",
+        "kind": "secret-file",
+        "mode": "0o600"
+       }
+      ]
+     }
+    },
+    {
+     "json": "run/raw/secrets-files/lab.json",
+     "subset": {
+      "$not_contains": [
+       {
+        "path": "~/skip/.env"
+       },
+       {
+        "path": "~/work/.env.example"
+       },
+       {
+        "path": "~/work/node_modules/pkg/.env"
+       },
+       {
+        "path": "~/infra/.terraform/terraform.tfstate"
+       }
+      ]
+     }
+    },
+    {
+     "prom": "run/secrets-files.prom",
+     "has": [
+      {
+       "name": "security_secrets_total",
+       "labels": {
+        "store": "files:lab"
+       },
+       "value": 9
+      },
+      {
+       "name": "security_secrets_older_than_90d",
+       "labels": {
+        "store": "files:lab"
+       },
+       "value": 0
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

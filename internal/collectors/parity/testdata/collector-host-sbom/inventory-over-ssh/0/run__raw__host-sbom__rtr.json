@@ -1,0 +1,31 @@
+{
+ "packages": 1,
+ "platform": {
+  "arch": "aarch64_cortex-a53",
+  "device": "",
+  "exposed": true,
+  "firmware": {
+   "build_date": "2023-11-14",
+   "model": "GL-EXAMPLE",
+   "vendor": "gl-inet",
+   "version": "4.8.1"
+  },
+  "fs_sbom": null,
+  "host": "rtr",
+  "kernel_running": "6.6.73",
+  "os_build": "",
+  "os_codename": "",
+  "os_edition": "",
+  "os_family": "openwrt",
+  "os_name": "OpenWrt 24.10.0",
+  "os_product": "",
+  "os_version": "24.10.0",
+  "package_count": 1,
+  "patch_level": "",
+  "prod": true,
+  "profile": "busybox",
+  "rsr": "",
+  "vendor_patch_level": ""
+ },
+ "rc": 0
+}

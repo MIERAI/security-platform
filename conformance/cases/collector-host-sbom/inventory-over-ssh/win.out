@@ -1,0 +1,9 @@
+os.family=windows
+os.name=Microsoft Windows 11 Pro
+os.product=Windows 10 Pro
+os.edition=Professional
+os.version=24H2
+os.build=10.0.26100.4652
+arch=AMD64
+pkg	windows-kb	KB5062553	2025-07-08	Security Update		
+pkg	windows-program	Éditeur Example	1.2.3	Example Corp		

@@ -6,7 +6,7 @@
 | data | the findings document: [findings](../findings/SPEC.md) |
 | caller | the runner ([runner](../runner/SPEC.md)) — `collector` jobs (`collectors/<name>/collector.py`) and `command` jobs (any `argv`) |
 | example | [`examples/collector.sh`](examples/collector.sh): a complete collector in POSIX sh, no SDK |
-| conformance | `conformance/cases/collector-*/*` (impl: `SP_IMPL_COLLECTOR_<NAME>`), plus `runner/job-environment`, `runner/timeout-kills-job`, `runner/contract-violation-not-promoted`, `runner/missing-document-is-failure` |
+| conformance | `conformance/cases/collector-*/*` (impl: `SP_IMPL_COLLECTOR_<NAME>`; exec-adapter collectors run against `conformance/tools/fake_exec.sh` as `ssh`/`sh`/`sudo`), plus `runner/job-environment`, `runner/timeout-kills-job`, `runner/contract-violation-not-promoted`, `runner/missing-document-is-failure` |
 
 The key words MUST, MUST NOT, SHOULD, SHOULD NOT and MAY are used as in RFC 2119.
 
@@ -97,6 +97,11 @@ hitting the job timeout and losing every result.
 | id | what | target |
 |---|---|---|
 | COLLECTOR-D1 | `vuln-intel` and `host-sbom` write SBOMs to `$SP_DATA/sbom/` and caches to `$SP_DATA/cache/{repos,trivy}`; `vuln-intel` keeps `$SP_DATA/state/vendor-advisories.json` and appends to the advisor decision log; `identity` caches under `$SP_DATA/cache/identity/`. | Only `$SP_DATA/cache/<name>/` (rebuildable). SBOMs that other components read become `inventory.*`/run-directory outputs or an explicit, versioned data-directory path in a later minor of this contract. No conformance case (these collectors need external tools/network). |
+| COLLECTOR-D2 | `host`: a probe value that is not a date (`pkg.last_hotfix`, `os.security_patch`) or an exec program that is not installed (e.g. `powershell` for a local Windows profile) raises an exception and ends the whole run (exit 1, no document). | §5: the checks reading that value become a narrow gap (`host:<name>/<part>`, `checks`); a missing program is a gap for that host; every other host and check reports. Case `collector-host/one-host-never-fails-the-run`. |
+| COLLECTOR-D3 | `host-sbom`: `trivy` not installed (with `sbom_paths`) or no `powershell` for a local Windows profile raises `FileNotFoundError` and ends the whole run. | A narrow gap `host:<name>/fs-sbom` (the package inventory stays), a host gap for the missing exec program. Case `collector-host-sbom/missing-tool-is-a-gap`. |
+| COLLECTOR-D4 | `secrets-files`: scan output that is not the result document (no output, a traceback) or an interpreter that does not exist locally ends the whole run. | A gap for that host (`scan output unreadable: …`, `scan failed …`). Case `collector-secrets-files/unreadable-scan-output-is-a-gap`. |
+| COLLECTOR-D5 | `secrets-files`: the target's home directory is replaced by `~` wherever it first occurs in a path (`/backup/home/u/x` → `/backup~/x`, `/home/u2/x` → `~2/x`). | Only a leading home directory, as whole path components (`/home/u/x` → `~/x`; other paths unchanged). Asset names of the affected files change once (two-step rule: the old ones close as fixed on the next covering run). Case `collector-secrets-files/home-replaced-only-as-prefix`. |
+| COLLECTOR-D6 | `host-sbom`: under `SP_COLLECTOR_NAME` the `sbom.no_packages` finding still points to `raw/host-sbom/<host>.json`, where no evidence is (it is stored under `raw/<name>/`). | Evidence pointers name the directory the evidence is in (§3). Case `collector-host-sbom/evidence-follows-collector-name`. |
 
 ## History
 

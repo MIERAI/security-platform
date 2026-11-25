@@ -1,0 +1,163 @@
+{
+ "component": "collector-host",
+ "title": "A probe that did not finish (probe.timeout=KEY) makes only the checks reading KEY unknown: a narrow gap host:<name>/<part> listing those checks, the host itself stays covered and every other check reports; a finding of a part with one unread key is dropped (a guess is not an observation); a timed-out listener probe drops the wildcard-listener metric",
+ "contract": "collector-protocol/1.0 / findings/1.2",
+ "origin": "tests/test_host_probes.py::Collector; contracts/collector-protocol §5 (narrow gaps)",
+ "files": {
+  "bin/ssh": {
+   "raw": "fake_exec.sh",
+   "mode": "0755"
+  },
+  "instance.json": {
+   "json": {
+    "name": "conformance",
+    "hosts": [
+     {
+      "name": "m",
+      "profile": "macos",
+      "exec": {
+       "type": "ssh",
+       "host": "m.test"
+      }
+     },
+     {
+      "name": "l",
+      "profile": "linux",
+      "exec": {
+       "type": "ssh",
+       "host": "l.test"
+      }
+     }
+    ]
+   }
+  },
+  "replay/m.test.out": {
+   "text": "os.name=macOS 26.1 (25B78)\ndisk.filevault=off\nfw.app_firewall=on\nfw.stealth=on\nsip=on\ngatekeeper=on\nssh.remote_login=off\npkg.auto_install_os=unset\npkg.auto_security=1\nuptime_days=3\nlisten=127.0.0.1:5432 postgres\npkg.brew_outdated=2\npkg.os_updates_pending=unknown\nprobe.timeout=pkg.os_updates_pending\nprobe.end=1\n"
+  },
+  "replay/l.test.out": {
+   "text": "sshd.passwordauthentication=yes\nos.name=Debian\nreboot_required=no\nfw.ufw=inactive\nfw.nft_input_policy=unknown\nprobe.timeout=fw.nft_input_policy\nfw.iptables_input_policy=ACCEPT\nprobe.timeout=listen\npkg.auto_updates=yes\npkg.upgradable=0\npkg.security_upgradable=0\nprobe.end=1\n"
+  }
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-host",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance",
+     "PATH": "{sandbox}/bin:/usr/bin:/bin",
+     "FAKE_EXEC": "{sandbox}"
+    },
+    "writes_only_under": [
+     "run",
+     "trace"
+    ]
+   },
+   "expect": [
+    {
+     "json": "run/host.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "host"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "json": "run/host.findings.json",
+     "subset": {
+      "coverage": [
+       {
+        "asset": "host:m",
+        "status": "ok"
+       },
+       {
+        "asset": "host:m/os-updates",
+        "status": "gap",
+        "checks": [
+         "patch.os_updates_pending"
+        ],
+        "reason": {
+         "$regex": "^m os-updates: could not check \\(pkg\\.os_updates_pending: did not finish"
+        }
+       },
+       {
+        "asset": "host:l",
+        "status": "ok"
+       },
+       {
+        "asset": "host:l/firewall",
+        "status": "gap",
+        "checks": [
+         "fw.host_firewall_off"
+        ]
+       },
+       {
+        "asset": "host:l/listeners",
+        "status": "gap",
+        "checks": [
+         "listen.db_wildcard.*"
+        ]
+       }
+      ],
+      "findings": {
+       "$unordered": [
+        {
+         "asset": "host:m",
+         "check": "macos.disk_filevault_off",
+         "severity": "high"
+        },
+        {
+         "asset": "host:l",
+         "check": "ssh.password_auth_enabled",
+         "severity": "high"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "json": "run/raw/host/m.json",
+     "subset": {
+      "unread": {
+       "pkg.os_updates_pending": "did not finish within its time limit"
+      },
+      "kv": {
+       "pkg.os_updates_pending": {
+        "$absent": true
+       }
+      }
+     }
+    },
+    {
+     "prom": "run/host.prom",
+     "has": [
+      {
+       "name": "security_host_wildcard_listeners",
+       "labels": {
+        "host": "m"
+       },
+       "value": 0
+      }
+     ],
+     "absent": [
+      {
+       "name": "security_host_wildcard_listeners",
+       "labels": {
+        "host": "l"
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

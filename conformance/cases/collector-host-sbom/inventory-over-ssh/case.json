@@ -1,0 +1,387 @@
+{
+ "component": "collector-host-sbom",
+ "title": "Platform facts and package lines of linux, macOS, OpenWrt, Android and Windows hosts become the inventory/v1 documents (host-packages, host-platforms) and per-ecosystem metrics; incomplete package lines are skipped, a missing source defaults to the package, firmware build time becomes a UTC date; no os.family is a gap, no package an info finding, sbom: false skips, sbom_paths needs a local exec adapter (narrow fs-sbom gap)",
+ "contract": "collector-protocol/1.0 / inventory/v1",
+ "origin": "collectors/host-sbom/collector.py; docs/design.md (inventory/v1)",
+ "files": {
+  "bin/ssh": {
+   "raw": "fake_exec.sh",
+   "mode": "0755"
+  },
+  "instance.json": {
+   "json": {
+    "name": "conformance",
+    "scope": [
+     {
+      "names": [
+       "elsewhere"
+      ],
+      "scope": [
+       "host"
+      ]
+     }
+    ],
+    "hosts": [
+     {
+      "name": "deb",
+      "profile": "linux",
+      "exec": {
+       "type": "ssh",
+       "host": "deb.test"
+      },
+      "sbom_paths": [
+       "/opt"
+      ]
+     },
+     {
+      "name": "mac",
+      "profile": "macos",
+      "exec": {
+       "type": "ssh",
+       "host": "mac.test"
+      },
+      "prod": false
+     },
+     {
+      "name": "rtr",
+      "profile": "busybox",
+      "exec": {
+       "type": "ssh",
+       "host": "rtr.test"
+      },
+      "exposed": true
+     },
+     {
+      "name": "phone",
+      "profile": "termux",
+      "exec": {
+       "type": "ssh",
+       "host": "phone.test"
+      }
+     },
+     {
+      "name": "win",
+      "profile": "windows",
+      "exec": {
+       "type": "ssh",
+       "host": "win.test",
+       "shell": "windows"
+      }
+     },
+     {
+      "name": "broken",
+      "profile": "linux",
+      "exec": {
+       "type": "ssh",
+       "host": "broken.test"
+      }
+     },
+     {
+      "name": "skipped",
+      "profile": "linux",
+      "exec": {
+       "type": "ssh",
+       "host": "skipped.test"
+      },
+      "sbom": false
+     },
+     {
+      "name": "dormant",
+      "profile": "linux",
+      "exec": null
+     },
+     {
+      "name": "elsewhere",
+      "profile": "linux",
+      "exec": {
+       "type": "ssh",
+       "host": "elsewhere.test"
+      }
+     }
+    ]
+   }
+  },
+  "replay/deb.test.out": {
+   "text": "os.family=debian\nos.version=13\nos.codename=trixie\nos.name=Debian GNU/Linux 13 (trixie)\nkernel.running=6.12.0-1-amd64\narch=x86_64\npkg\tdeb\topenssl\t3.5.1-1\topenssl\t3.5.1-1\tamd64\npkg\tdeb\tlibssl3t64\t3.5.1-1\topenssl\t3.5.1-1\tamd64\npkg\tdeb\tbash\t5.2.37-2\t\t\tamd64\npkg\tdeb\t\t1.0\t\t\t\npkg\tdeb\tshort\n# comment=ignored\n indented=ignored\n"
+  },
+  "replay/mac.test.out": {
+   "text": "os.family=macos\nos.version=26.1\nos.build=25B78\nos.name=macOS 26.1\nos.rsr=\nkernel.running=25.1.0\narch=arm64\nbrew.prefix=/opt/homebrew\npkg\tbrew\tgit\t2.51.0\tgit\t2.51.0\t\npkg\tbrew-cask\tfirefox\t145.0\tfirefox\t145.0\t\n"
+  },
+  "replay/rtr.test.out": {
+   "text": "os.family=openwrt\nos.version=24.10.0\nos.name=OpenWrt 24.10.0\narch=aarch64_cortex-a53\nkernel.running=6.6.73\nfirmware.vendor=gl-inet\nfirmware.version=4.8.1\nfirmware.model=GL-EXAMPLE\nfirmware.build_ts=1700000000\npkg\topkg\tdropbear\t2024.86-r1\tdropbear\t2024.86-r1\t\n"
+  },
+  "replay/phone.test.out": {
+   "text": "os.family=android\nos.version=14\nos.name=Android 14\nplatform.patch_level=2025-10-01\nplatform.vendor_patch_level=2025-09-01\ndevice.manufacturer=Acme\ndevice.model=P1\nos.build=AP1A.2510\nkernel.running=5.15.0\narch=aarch64\n"
+  },
+  "replay/win.test.out": {
+   "raw": "win.out"
+  },
+  "replay/broken.test.out": {
+   "text": "no facts here\n"
+  },
+  "replay/broken.test.err": {
+   "text": "dpkg-query: permission denied\n"
+  }
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-host-sbom",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance",
+     "PATH": "{sandbox}/bin:/usr/bin:/bin",
+     "FAKE_EXEC": "{sandbox}"
+    },
+    "writes_only_under": [
+     "run",
+     "trace"
+    ]
+   },
+   "expect": [
+    {
+     "json": "run/host-sbom.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "host-sbom"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "json": "run/host-sbom.findings.json",
+     "subset": {
+      "coverage": [
+       {
+        "asset": "host:deb",
+        "status": "ok"
+       },
+       {
+        "asset": "host:deb/fs-sbom",
+        "status": "gap",
+        "reason": {
+         "$regex": "local exec adapter"
+        }
+       },
+       {
+        "asset": "host:mac",
+        "status": "ok"
+       },
+       {
+        "asset": "host:rtr",
+        "status": "ok"
+       },
+       {
+        "asset": "host:phone",
+        "status": "ok"
+       },
+       {
+        "asset": "host:win",
+        "status": "ok"
+       },
+       {
+        "asset": "host:broken",
+        "status": "gap",
+        "reason": "inventory failed rc=0: dpkg-query: permission denied"
+       },
+       {
+        "asset": "host:dormant",
+        "status": "gap",
+        "reason": "no exec adapter configured"
+       }
+      ],
+      "findings": [
+       {
+        "check": "sbom.no_packages",
+        "asset": "host:phone",
+        "severity": "info",
+        "evidence": "raw/host-sbom/phone.json"
+       }
+      ]
+     }
+    },
+    {
+     "json": "run/inventory.host-packages.json",
+     "subset": {
+      "schema": "security-platform/inventory/v1",
+      "kind": "host-package",
+      "generated_at": {
+       "$regex": "^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\dZ$"
+      },
+      "items": [
+       {
+        "host": "deb",
+        "ecosystem": "deb",
+        "name": "openssl",
+        "version": "3.5.1-1",
+        "source_name": "openssl",
+        "source_version": "3.5.1-1",
+        "arch": "amd64"
+       },
+       {
+        "host": "deb",
+        "ecosystem": "deb",
+        "name": "libssl3t64",
+        "version": "3.5.1-1",
+        "source_name": "openssl",
+        "source_version": "3.5.1-1",
+        "arch": "amd64"
+       },
+       {
+        "host": "deb",
+        "ecosystem": "deb",
+        "name": "bash",
+        "version": "5.2.37-2",
+        "source_name": "bash",
+        "source_version": "5.2.37-2",
+        "arch": "amd64"
+       },
+       {
+        "host": "mac",
+        "ecosystem": "brew",
+        "name": "git",
+        "version": "2.51.0",
+        "source_name": "git",
+        "source_version": "2.51.0",
+        "arch": ""
+       },
+       {
+        "host": "mac",
+        "ecosystem": "brew-cask",
+        "name": "firefox",
+        "version": "145.0",
+        "source_name": "firefox",
+        "source_version": "145.0",
+        "arch": ""
+       },
+       {
+        "host": "rtr",
+        "ecosystem": "opkg",
+        "name": "dropbear",
+        "version": "2024.86-r1",
+        "source_name": "dropbear",
+        "source_version": "2024.86-r1",
+        "arch": ""
+       },
+       {
+        "host": "win",
+        "ecosystem": "windows-kb",
+        "name": "KB5062553",
+        "version": "2025-07-08",
+        "source_name": "Security Update",
+        "source_version": "2025-07-08",
+        "arch": ""
+       },
+       {
+        "host": "win",
+        "ecosystem": "windows-program",
+        "name": "Éditeur Example",
+        "version": "1.2.3",
+        "source_name": "Example Corp",
+        "source_version": "1.2.3",
+        "arch": ""
+       }
+      ]
+     }
+    },
+    {
+     "json": "run/inventory.host-platforms.json",
+     "subset": {
+      "kind": "host-platform",
+      "items": [
+       {
+        "host": "deb",
+        "profile": "linux",
+        "os_family": "debian",
+        "os_codename": "trixie",
+        "package_count": 3,
+        "fs_sbom": null,
+        "firmware": null,
+        "exposed": false,
+        "prod": true,
+        "device": ""
+       },
+       {
+        "host": "mac",
+        "os_build": "25B78",
+        "prod": false,
+        "package_count": 2
+       },
+       {
+        "host": "rtr",
+        "exposed": true,
+        "firmware": {
+         "vendor": "gl-inet",
+         "model": "GL-EXAMPLE",
+         "version": "4.8.1",
+         "build_date": "2023-11-14"
+        }
+       },
+       {
+        "host": "phone",
+        "device": "Acme P1",
+        "patch_level": "2025-10-01",
+        "package_count": 0
+       },
+       {
+        "host": "win",
+        "os_build": "10.0.26100.4652",
+        "os_edition": "Professional",
+        "package_count": 2
+       }
+      ]
+     }
+    },
+    {
+     "prom": "run/host-sbom.prom",
+     "has": [
+      {
+       "name": "security_sbom_host_packages",
+       "labels": {
+        "kind": "deb"
+       },
+       "value": 3
+      },
+      {
+       "name": "security_sbom_host_packages",
+       "labels": {
+        "kind": "windows-program"
+       },
+       "value": 1
+      },
+      {
+       "name": "security_sbom_hosts",
+       "value": 5
+      }
+     ]
+    },
+    {
+     "file": "trace/deb.test.argv",
+     "regex": [
+      "\\A\\-o\\nBatchMode=yes\\n\\-o\\nConnectTimeout=10\\n\\-o\\nPasswordAuthentication=no\\n\\-o\\nKbdInteractiveAuthentication=no\\n\\-o\\nStrictHostKeyChecking=yes\\ndeb\\.test\\nsh\\ \\-s\\n\\Z"
+     ]
+    },
+    {
+     "file": "trace/deb.test.stdin",
+     "regex": [
+      "\\A# host-sbom profile: Linux"
+     ]
+    },
+    {
+     "absent": "trace/skipped.test.argv"
+    },
+    {
+     "absent": "trace/elsewhere.test.argv"
+    }
+   ]
+  }
+ ]
+}

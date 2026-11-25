@@ -1,0 +1,5 @@
+-n
+{python}
+-c
+import sys;exec(sys.stdin.buffer.read().decode('utf-8'))
+{"roots": ["~/work"], "exclude": [], "maxdepth": 3}

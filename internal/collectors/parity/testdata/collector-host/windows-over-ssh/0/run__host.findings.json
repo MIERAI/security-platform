@@ -1,0 +1,157 @@
+{
+ "collector": {
+  "name": "host",
+  "tools": {},
+  "version": "0.4.0"
+ },
+ "coverage": [
+  {
+   "asset": "host:win",
+   "status": "ok"
+  }
+ ],
+ "findings": [
+  {
+   "asset": "host:win",
+   "check": "ssh.password_auth_enabled",
+   "evidence": "raw/host/win.json",
+   "id": "bb853a8f4fcf",
+   "kind": "compliance",
+   "layer": "identity",
+   "needs_human": false,
+   "observed_at": "T",
+   "owner": "platform",
+   "remediation": "PasswordAuthentication no (keys only)",
+   "severity": "high",
+   "title": "SSH password authentication is enabled"
+  },
+  {
+   "asset": "host:win",
+   "check": "win.fw_profile_private",
+   "evidence": "raw/host/win.json",
+   "id": "c36dd9fb71a9",
+   "kind": "compliance",
+   "layer": "network",
+   "needs_human": false,
+   "observed_at": "T",
+   "owner": "platform",
+   "remediation": "enable it",
+   "severity": "high",
+   "title": "Windows firewall profile private is off"
+  },
+  {
+   "asset": "host:win",
+   "check": "win.fw_profile_public",
+   "evidence": "raw/host/win.json",
+   "id": "de1ab758420e",
+   "kind": "compliance",
+   "layer": "network",
+   "needs_human": false,
+   "observed_at": "T",
+   "owner": "platform",
+   "remediation": "enable it",
+   "severity": "high",
+   "title": "Windows firewall profile public is off"
+  },
+  {
+   "asset": "host:win",
+   "check": "win.av_realtime_off",
+   "evidence": "raw/host/win.json",
+   "id": "29919a62e1a9",
+   "kind": "compliance",
+   "layer": "host",
+   "needs_human": false,
+   "observed_at": "T",
+   "owner": "platform",
+   "remediation": "enable it",
+   "severity": "high",
+   "title": "Defender real-time protection off"
+  },
+  {
+   "asset": "host:win",
+   "check": "win.av_signatures_stale",
+   "evidence": "raw/host/win.json",
+   "id": "cea6e5f3ee49",
+   "kind": "compliance",
+   "layer": "host",
+   "needs_human": false,
+   "observed_at": "T",
+   "owner": "platform",
+   "remediation": "update",
+   "severity": "medium",
+   "title": "AV signatures 12 days old"
+  },
+  {
+   "asset": "host:win",
+   "check": "win.disk_unencrypted",
+   "evidence": "raw/host/win.json",
+   "id": "fcd7dca72afe",
+   "kind": "compliance",
+   "layer": "host",
+   "needs_human": true,
+   "observed_at": "T",
+   "owner": "human",
+   "remediation": "enable device encryption (keep the recovery key offline)",
+   "severity": "medium",
+   "title": "system drive not encrypted (BitLocker/device encryption off)"
+  },
+  {
+   "asset": "host:win",
+   "check": "win.smb1_enabled",
+   "evidence": "raw/host/win.json",
+   "id": "d10ad4013101",
+   "kind": "compliance",
+   "layer": "host",
+   "needs_human": false,
+   "observed_at": "T",
+   "owner": "platform",
+   "remediation": "disable SMB1",
+   "severity": "high",
+   "title": "SMBv1 server enabled"
+  },
+  {
+   "asset": "host:win",
+   "check": "patch.windows_stale",
+   "evidence": "raw/host/win.json",
+   "id": "336fdc92547f",
+   "kind": "compliance",
+   "layer": "host",
+   "needs_human": false,
+   "observed_at": "T",
+   "owner": "platform",
+   "remediation": "run Windows Update",
+   "severity": "medium",
+   "title": "last Windows update installed 2020-01-14"
+  },
+  {
+   "asset": "host:win",
+   "check": "listen.db_wildcard.3306",
+   "evidence": "raw/host/win.json",
+   "id": "1ff87af72754",
+   "kind": "compliance",
+   "layer": "network",
+   "needs_human": false,
+   "observed_at": "T",
+   "owner": "platform",
+   "remediation": "bind to localhost/bridge only",
+   "severity": "medium",
+   "title": "database-like port 3306 listens on all interfaces (0.0.0.0:3306 mysqld)"
+  }
+ ],
+ "metrics": [
+  {
+   "help": "Sockets listening on all interfaces",
+   "labels": {
+    "host": "win"
+   },
+   "name": "security_host_wildcard_listeners",
+   "value": 1.0
+  }
+ ],
+ "run": {
+  "finished_at": "T",
+  "instance": "conformance",
+  "started_at": "T"
+ },
+ "schema_version": "1.2"
+}

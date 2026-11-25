@@ -55,6 +55,13 @@ internal/runner/       `sp runner` (docs/runner.md): scheduling, locks, jobs, st
 internal/remediation/  track (`sp ledger track`): items, owners, SLO due dates, files and github-issues trackers
 internal/cloud/        the cloud adapter (adapters/cloud.py): AWS, GCP, Azure on the official SDKs; discovery gcp
 internal/collectors/cloud/  the cloud collector (`sp cloud collect`) and its engines, imports, controls, merge
+internal/collectors/host/, hostsbom/, secretsfiles/  the exec-adapter collectors (`sp collect host|host-sbom|secrets-files`)
+  collkit/             the collector frame: environment, instance (pyvalue), scope, exit statuses
+  spdoc/               the findings document, evidence, inventories and metrics text as sdk/spsdk writes them
+  execadapter/         adapters/exec.py: `local` and `ssh` (argument vectors, process groups, time limits, PowerShell)
+  pytext/              Python text rules the outputs depend on (decoding, splitlines/strip, shlex.quote, list2cmdline)
+  parity/              the test pinning their outputs to the Python reference's on the conformance fixtures
+collectors/scripts.go  the target-side scripts (host and inventory profiles, the secrets scan), embedded unchanged
 internal/<component>/  added per component as it moves (collectors/<name>, ...)
 ```
 

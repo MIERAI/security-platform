@@ -1,0 +1,19 @@
+{
+ "kv": {
+  "fw.iptables_input_policy": "ACCEPT",
+  "os.kernel": "6.6.0",
+  "os.name": "OpenWrt 24.10",
+  "probe.end": "1",
+  "sshd.passwordauthentication": "yes",
+  "sshd.permitrootlogin": "yes",
+  "telnetd": "1",
+  "uptime_days": "120"
+ },
+ "listen": [
+  "0.0.0.0:53",
+  "0.0.0.0:6379"
+ ],
+ "profile": "busybox",
+ "rc": 0,
+ "unread": {}
+}

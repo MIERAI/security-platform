@@ -1,0 +1,122 @@
+{
+ "collector": {
+  "name": "host-sbom",
+  "tools": {},
+  "version": "0.2.0"
+ },
+ "coverage": [
+  {
+   "asset": "host:deb",
+   "status": "ok"
+  },
+  {
+   "asset": "host:deb/fs-sbom",
+   "reason": "sbom_paths needs a local exec adapter (trivy runs on the hub)",
+   "status": "gap"
+  },
+  {
+   "asset": "host:mac",
+   "status": "ok"
+  },
+  {
+   "asset": "host:rtr",
+   "status": "ok"
+  },
+  {
+   "asset": "host:phone",
+   "status": "ok"
+  },
+  {
+   "asset": "host:win",
+   "status": "ok"
+  },
+  {
+   "asset": "host:broken",
+   "reason": "inventory failed rc=0: dpkg-query: permission denied",
+   "status": "gap"
+  },
+  {
+   "asset": "host:dormant",
+   "reason": "no exec adapter configured",
+   "status": "gap"
+  }
+ ],
+ "findings": [
+  {
+   "asset": "host:phone",
+   "check": "sbom.no_packages",
+   "evidence": "raw/host-sbom/phone.json",
+   "id": "061fcd06f10c",
+   "kind": "compliance",
+   "layer": "host",
+   "needs_human": false,
+   "observed_at": "T",
+   "owner": "platform",
+   "remediation": "check the profile / package manager",
+   "severity": "info",
+   "title": "no package inventory for termux host (package manager not found)"
+  }
+ ],
+ "metrics": [
+  {
+   "help": "Installed packages inventoried on hosts",
+   "labels": {
+    "kind": "brew"
+   },
+   "name": "security_sbom_host_packages",
+   "value": 1.0
+  },
+  {
+   "help": "Installed packages inventoried on hosts",
+   "labels": {
+    "kind": "brew-cask"
+   },
+   "name": "security_sbom_host_packages",
+   "value": 1.0
+  },
+  {
+   "help": "Installed packages inventoried on hosts",
+   "labels": {
+    "kind": "deb"
+   },
+   "name": "security_sbom_host_packages",
+   "value": 3.0
+  },
+  {
+   "help": "Installed packages inventoried on hosts",
+   "labels": {
+    "kind": "opkg"
+   },
+   "name": "security_sbom_host_packages",
+   "value": 1.0
+  },
+  {
+   "help": "Installed packages inventoried on hosts",
+   "labels": {
+    "kind": "windows-kb"
+   },
+   "name": "security_sbom_host_packages",
+   "value": 1.0
+  },
+  {
+   "help": "Installed packages inventoried on hosts",
+   "labels": {
+    "kind": "windows-program"
+   },
+   "name": "security_sbom_host_packages",
+   "value": 1.0
+  },
+  {
+   "help": "Hosts with a software inventory",
+   "labels": {},
+   "name": "security_sbom_hosts",
+   "value": 5.0
+  }
+ ],
+ "run": {
+  "finished_at": "T",
+  "instance": "conformance",
+  "started_at": "T"
+ },
+ "schema_version": "1.2"
+}

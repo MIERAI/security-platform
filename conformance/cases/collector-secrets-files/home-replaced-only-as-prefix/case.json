@@ -1,0 +1,93 @@
+{
+ "component": "collector-secrets-files",
+ "title": "The target's home directory becomes ~ only where a path starts with it (whole path components): a copy of the home elsewhere or a home whose name merely starts the same keeps its full path",
+ "contract": "collector-protocol/1.0 / findings/1.2",
+ "deviation": "COLLECTOR-D5",
+ "origin": "collectors/secrets-files/collector.py: str.replace(home, '~', 1) replaces the first occurrence anywhere",
+ "files": {
+  "bin/ssh": {
+   "raw": "fake_exec.sh",
+   "mode": "0755"
+  },
+  "instance.json": {
+   "json": {
+    "name": "conformance",
+    "secrets_files": [
+     {
+      "host": "h",
+      "exec": {
+       "type": "ssh",
+       "host": "h.test"
+      },
+      "roots": [
+       "/"
+      ]
+     }
+    ]
+   }
+  },
+  "replay/h.test.out": {
+   "text": "warning: one line of noise before the result\n{\"home\": \"/home/u\", \"items\": [{\"path\": \"/home/u/.ssh/id_rsa\", \"kind\": \"private-key\", \"mode\": \"0o644\", \"uid\": 1000, \"size\": 100, \"mtime\": {epoch:-86400}, \"format\": \"pem\", \"passphrase\": true}, {\"path\": \"/backup/home/u/.ssh/id_rsa\", \"kind\": \"private-key\", \"mode\": \"0o644\", \"uid\": 1000, \"size\": 100, \"mtime\": {epoch:-86400}, \"format\": \"pem\", \"passphrase\": true}, {\"path\": \"/home/u2/.env\", \"kind\": \"dotenv\", \"mode\": \"0o644\", \"uid\": 1000, \"size\": 100, \"mtime\": {epoch:-86400}, \"vars\": 1}]}\n"
+  }
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-secrets-files",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance",
+     "PATH": "{sandbox}/bin:/usr/bin:/bin",
+     "FAKE_EXEC": "{sandbox}"
+    },
+    "writes_only_under": [
+     "run",
+     "trace"
+    ]
+   },
+   "expect": [
+    {
+     "json": "run/secrets-files.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "secrets-files"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "json": "run/secrets-files.findings.json",
+     "subset": {
+      "findings": {
+       "$unordered": [
+        {
+         "asset": "secret-file:h:~/.ssh/id_rsa",
+         "check": "secret.permissions_too_open",
+         "severity": "high"
+        },
+        {
+         "asset": "secret-file:h:/backup/home/u/.ssh/id_rsa",
+         "check": "secret.permissions_too_open",
+         "severity": "high"
+        },
+        {
+         "asset": "secret-file:h:/home/u2/.env",
+         "check": "secret.permissions_too_open",
+         "severity": "high"
+        }
+       ]
+      }
+     }
+    }
+   ]
+  }
+ ]
+}

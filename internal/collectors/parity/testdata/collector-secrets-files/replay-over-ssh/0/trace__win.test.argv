@@ -1,0 +1,12 @@
+-o
+BatchMode=yes
+-o
+ConnectTimeout=10
+-o
+PasswordAuthentication=no
+-o
+KbdInteractiveAuthentication=no
+-o
+StrictHostKeyChecking=yes
+win.test
+C:\Python312\python.exe -c "import sys;exec(sys.stdin.buffer.read().decode('utf-8'))" "{\"roots\": [\"~\"], \"exclude\": [], \"maxdepth\": 5}"

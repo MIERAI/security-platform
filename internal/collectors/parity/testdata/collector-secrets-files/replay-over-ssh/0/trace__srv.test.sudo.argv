@@ -1,0 +1,12 @@
+-o
+BatchMode=yes
+-o
+ConnectTimeout=10
+-o
+PasswordAuthentication=no
+-o
+KbdInteractiveAuthentication=no
+-o
+StrictHostKeyChecking=yes
+srv.test
+sudo -n python3 -c 'import sys;exec(sys.stdin.buffer.read().decode('"'"'utf-8'"'"'))' '{"roots": ["~", "/etc/ssh"], "exclude": ["~/old"], "maxdepth": 5}'

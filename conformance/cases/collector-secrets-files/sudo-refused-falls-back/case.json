@@ -1,0 +1,114 @@
+{
+ "component": "collector-secrets-files",
+ "title": "sudo: true runs the scan through `sudo -n` (never a prompt); when sudo refuses, the scan runs again unprivileged and the privileged paths become a gap (host:<name>/privileged-paths); the scan settings go to the target as one JSON argument and the scan program on stdin",
+ "contract": "collector-protocol/1.0 / findings/1.2",
+ "origin": "collectors/secrets-files/collector.py (sudo fallback)",
+ "files": {
+  "bin/sudo": {
+   "raw": "fake_exec.sh",
+   "mode": "0755"
+  },
+  "instance.json": {
+   "json": {
+    "name": "conformance",
+    "secrets_files": [
+     {
+      "host": "lab",
+      "exec": {
+       "type": "local"
+      },
+      "roots": [
+       "~/work"
+      ],
+      "sudo": true,
+      "maxdepth": 3,
+      "python": "{python}"
+     }
+    ]
+   }
+  },
+  "home/work/.env": {
+   "text": "A=conformance-canary-value-02\n",
+   "mode": "0600"
+  },
+  "replay/local-sudo.err": {
+   "text": "sudo: a password is required\n"
+  },
+  "replay/local-sudo.rc": {
+   "text": "1\n"
+  }
+ },
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-secrets-files",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance",
+     "PATH": "{sandbox}/bin:/usr/bin:/bin",
+     "FAKE_EXEC": "{sandbox}"
+    },
+    "writes_only_under": [
+     "run",
+     "trace"
+    ]
+   },
+   "expect": [
+    {
+     "json": "run/secrets-files.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "secrets-files"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "no_secret": [
+      "conformance-canary-value-02"
+     ],
+     "in": "run"
+    },
+    {
+     "json": "run/secrets-files.findings.json",
+     "subset": {
+      "coverage": [
+       {
+        "asset": "host:lab/privileged-paths",
+        "status": "gap",
+        "reason": "sudo -n not available; privileged paths skipped"
+       },
+       {
+        "asset": "host:lab",
+        "status": "ok"
+       }
+      ],
+      "findings": []
+     }
+    },
+    {
+     "file": "trace/local-sudo.argv",
+     "regex": [
+      "\\A-n\\n",
+      "^-c\\nimport sys;exec\\(sys\\.stdin\\.buffer\\.read\\(\\)\\.decode\\('utf-8'\\)\\)\\n\\{\"roots\": \\[\"~/work\"\\], \"exclude\": \\[\\], \"maxdepth\": 3\\}\\n\\Z"
+     ]
+    },
+    {
+     "file": "trace/local-sudo.stdin",
+     "regex": [
+      "\\A\\\"\\\"\\\"Runs on the target host",
+      "^print\\(json\\.dumps"
+     ]
+    }
+   ]
+  }
+ ]
+}

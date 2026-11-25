@@ -1,0 +1,32 @@
+{
+ "kv": {
+  "audit.auditd": "inactive",
+  "disk.crypt_devices": "0",
+  "fw.iptables_input_policy": "ACCEPT",
+  "fw.nft_input_policy": "",
+  "fw.ufw": "inactive",
+  "os.kernel": "6.12.0",
+  "os.name": "Debian GNU/Linux 13 (trixie)",
+  "pkg.auto_updates": "no",
+  "pkg.cache_mtime": "{epoch:-864000}",
+  "pkg.count": "512",
+  "pkg.security_upgradable": "3",
+  "pkg.upgradable": "12",
+  "probe.end": "1",
+  "reboot_required": "yes",
+  "sshd.passwordauthentication": "yes",
+  "sshd.permitrootlogin": "yes",
+  "sshd.pubkeyauthentication": "yes",
+  "sshd.x11forwarding": "yes",
+  "uptime_days": "40"
+ },
+ "listen": [
+  "0.0.0.0:5432 postgres",
+  "127.0.0.1:6379 redis-server",
+  "[::]:22 sshd",
+  "*:9200 java"
+ ],
+ "profile": "linux",
+ "rc": 0,
+ "unread": {}
+}

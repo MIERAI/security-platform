@@ -1,7 +1,8 @@
 #!/bin/sh
 # Run the conformance suite against the Go implementation of the components that have one (docs/go.md):
-# ledger (`sp ledger merge`) and remediation (`sp ledger track`). No expected-failures list: the target-behaviour
-# cases of the known deviations (LEDGER-D1..D5) must pass.
+# ledger (`sp ledger merge`), remediation (`sp ledger track`) and the exec-adapter collectors (`sp collect host`,
+# `host-sbom`, `secrets-files`). No expected-failures list: the target-behaviour cases of the known deviations
+# (LEDGER-D1..D5, COLLECTOR-D2..D6) must pass.
 #   conformance/impl/go/run.sh [run.py options, e.g. -v]           builds cmd/sp with the go toolchain first
 #   SP_GO_BIN=/path/to/sp conformance/impl/go/run.sh               uses that binary
 # The harness needs Python 3.10+ ($SP_PYTHON, default python3); the Go implementation needs nothing else.
@@ -18,5 +19,8 @@ if [ -z "$BIN" ]; then
 fi
 status=0
 SP_IMPL_LEDGER="$BIN ledger merge" SP_IMPL_REMEDIATION="$BIN ledger track" \
-  "${SP_PYTHON:-python3}" "$ROOT/conformance/run.py" --require-all --component ledger --component remediation "$@" || status=$?
+  SP_IMPL_COLLECTOR_HOST="$BIN collect host" SP_IMPL_COLLECTOR_HOST_SBOM="$BIN collect host-sbom" \
+  SP_IMPL_COLLECTOR_SECRETS_FILES="$BIN collect secrets-files" \
+  "${SP_PYTHON:-python3}" "$ROOT/conformance/run.py" --require-all --component ledger --component remediation \
+  --component collector-host --component collector-host-sbom --component collector-secrets-files "$@" || status=$?
 exit "$status"

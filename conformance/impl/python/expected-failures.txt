@@ -13,3 +13,8 @@ runner/dst-catch-up-across-spring-forward RUNNER-D6 day jump assumes 24-hour day
 runner/job-environment-allow-list        RUNNER-D7  jobs inherit the runner's whole environment
 ledger/removed-exception-reopens         LEDGER-D5  an exception deleted by a human leaves the finding accepted
 scorecard/attestation-expiry-is-utc       SCORECARD-D1  dates parsed as local time: an expiry is an hour early under DST
+collector-host/one-host-never-fails-the-run          COLLECTOR-D2  unparsable date / missing exec program -> exception, exit 1
+collector-host-sbom/missing-tool-is-a-gap            COLLECTOR-D3  trivy / powershell not installed -> FileNotFoundError, exit 1
+collector-secrets-files/unreadable-scan-output-is-a-gap COLLECTOR-D4 scan output not JSON / missing interpreter -> exit 1
+collector-secrets-files/home-replaced-only-as-prefix COLLECTOR-D5  home replaced as a substring anywhere in the path
+collector-host-sbom/evidence-follows-collector-name COLLECTOR-D6  sbom.no_packages evidence hard-codes raw/host-sbom/
