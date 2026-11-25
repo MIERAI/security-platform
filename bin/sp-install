@@ -1,20 +1,53 @@
 #!/usr/bin/env bash
-# Install this product tree (the committed HEAD, never the working tree) as a versioned release on a host:
-#   <root>/releases/<describe>/  and  <root>/current -> releases/<describe>
-# usage: bin/sp-install <root>                      local
-#        bin/sp-install --ssh <ssh target> <root>   on another host (needs only sh + tar there)
-# Old releases are kept (rollback = point `current` back); prune them by hand.
+# Install a committed product tree (never the working tree) as a versioned release on a host:
+#   <root>/releases/<version>/  and  <root>/current -> releases/<version>
+# <version> is the PRODUCT tag of the commit (vX.Y.Z, cli/release.py), never a component tag (collectors/x/vY) and
+# never what `git describe` happens to prefer. A commit without a product tag is refused unless --dev names it
+# dev-<nearest vX.Y.Z>-<n>-g<commit>.
+# usage: bin/sp-install [--ref REF] [--dev] <root>                      local
+#        bin/sp-install [--ref REF] [--dev] --ssh <ssh target> <root>   on another host (needs only sh + tar there)
+#   --ref REF  install that commit or tag (default HEAD) with THIS installer, e.g. to reinstall an older release
+#   --dev      allow an untagged commit (a development build)
+# The release directory carries a RELEASE file (version=, commit=) that `sp --version` and the runner report.
+# Old releases are kept (rollback = point `current` back); prune them by hand. A release directory named after a
+# component tag by an older installer (releases/collectors/<x>/vY) is reported with the command to remove it, never
+# removed here: it may be the one a running tick uses.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-SSH=
-[[ ${1:-} == --ssh ]] && { SSH=$2; shift 2; }
-DEST=${1:?usage: sp-install [--ssh host] <root>}
-REL=$(git -C "$ROOT" describe --tags --match 'v[0-9]*' --always --dirty)
-[[ $REL == *-dirty ]] && echo "note: uncommitted changes are NOT installed (HEAD is)" >&2
-REL=${REL%-dirty}
-SCRIPT="set -e; umask 022; mkdir -p $DEST/releases/$REL; tar -x -C $DEST/releases/$REL; ln -sfn releases/$REL $DEST/current; echo installed $REL in $DEST"
+SSH='' REF=HEAD DEV=''
+while [[ $# -gt 1 ]]; do
+  case $1 in
+    --ssh) SSH=$2; shift 2;;
+    --ref) REF=$2; shift 2;;
+    --dev) DEV=--dev; shift;;
+    *) break;;
+  esac
+done
+DEST=${1:?usage: sp-install [--ref REF] [--dev] [--ssh host] <root>}
+REL=$(python3 "$ROOT/cli/release.py" --repo "$ROOT" --ref "$REF" $DEV) || exit $?
+SHA=$(git -C "$ROOT" rev-parse "$REF^{commit}")
+# a product version is one path segment by construction; refuse anything else rather than nest directories
+[[ $REL =~ ^[0-9A-Za-z][0-9A-Za-z.+-]*$ ]] || { echo "sp-install: refusing release name '$REL'" >&2; exit 1; }
+if [[ $REF == HEAD && -n $(git -C "$ROOT" status --porcelain --untracked-files=no) ]]; then
+  echo "note: uncommitted changes are NOT installed (HEAD is)" >&2
+fi
+q() { printf "'%s'" "${1//\'/\'\\\'\'}"; }
+# POSIX sh on the target. `current` is switched only after the tree is complete.
+SCRIPT="set -e; umask 022; D=$(q "$DEST"); R=$(q "$REL")
+mkdir -p \"\$D/releases\"; cd \"\$D\"
+old=\$(readlink current 2>/dev/null || true)
+mkdir -p \"releases/\$R\"; tar -x -C \"releases/\$R\"
+printf 'version=%s\ncommit=%s\n' \"\$R\" $(q "$SHA") > \"releases/\$R/RELEASE\"
+ln -sfn \"releases/\$R\" current
+echo \"installed \$R in \$D (current -> releases/\$R)\"
+[ -n \"\$old\" ] && [ \"\$old\" != \"releases/\$R\" ] && echo \"previous current -> \$old (kept; rollback: ln -sfn \$old \$D/current)\"
+for f in \$(find releases -mindepth 3 -maxdepth 5 -path 'releases/*/*/bin/sp-install' 2>/dev/null); do
+  d=\${f%/bin/sp-install}
+  echo \"note: \$d was named after a component tag by an older installer; current no longer points at it.\"
+  echo \"      kept (it may still be in use); once nothing runs from it: rm -rf '\$D/\$d'\"
+done"
 if [[ -n $SSH ]]; then
-  git -C "$ROOT" archive HEAD | ssh -o BatchMode=yes "$SSH" "$SCRIPT"
+  git -C "$ROOT" archive "$SHA" | ssh -o BatchMode=yes "$SSH" "$SCRIPT"
 else
-  git -C "$ROOT" archive HEAD | sh -c "$SCRIPT"
+  git -C "$ROOT" archive "$SHA" | sh -c "$SCRIPT"
 fi

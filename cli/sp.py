@@ -29,6 +29,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path[:0] = [HERE, ROOT, os.path.join(ROOT, "sdk")]
 import explanations  # noqa: E402
+import release  # noqa: E402
 from spsdk import load_config  # noqa: E402
 
 VERSION = open(os.path.join(HERE, "VERSION")).read().strip()
@@ -554,7 +555,8 @@ def cmd_notify(a):
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="sp", description="security-platform command line",
                                  formatter_class=argparse.RawDescriptionHelpFormatter, epilog=__doc__.split("\n\n")[1])
-    ap.add_argument("--version", action="version", version=f"sp {VERSION}")
+    ap.add_argument("--version", action="version",
+                    version=f"sp {VERSION} (security-platform {release.describe_tree(ROOT)})")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     def p(name, fn, help_):
