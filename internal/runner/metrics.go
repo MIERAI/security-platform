@@ -3,8 +3,6 @@
 package runner
 
 import (
-	"encoding/json"
-	"strings"
 	"time"
 
 	"github.com/MIERAI/security-platform/internal/runner/config"
@@ -125,12 +123,6 @@ func collectorIntervals(in seriesInput) []promtext.Series {
 // value converts a JSON number to a sample value (integers stay integers, as Python prints them).
 func value(v any) (promtext.Value, bool) {
 	switch x := v.(type) {
-	case json.Number:
-		if i, err := x.Int64(); err == nil && !strings.ContainsAny(x.String(), ".eE") {
-			return promtext.Int(i), true
-		}
-		f, err := x.Float64()
-		return promtext.Float(f), err == nil
 	case int64:
 		return promtext.Int(x), true
 	case int:

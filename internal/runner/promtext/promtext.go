@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/MIERAI/security-platform/internal/runner/pyfmt"
+	"github.com/MIERAI/security-platform/internal/scorecard/pyvalue"
 )
 
 // Value is a sample value: an integer is written as is, a float with six significant digits (Python's {v:g}).
@@ -25,7 +25,7 @@ func Float(v float64) Value { return Value{Float: v, IsFloat: true} }
 
 func (v Value) String() string {
 	if v.IsFloat {
-		return pyfmt.FormatG(v.Float)
+		return pyvalue.FormatG(v.Float)
 	}
 	return strconv.FormatInt(v.Int, 10)
 }

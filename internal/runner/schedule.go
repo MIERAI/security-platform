@@ -81,7 +81,7 @@ func Due(j *config.Job, st State, now float64, loc *time.Location) Decision {
 
 // retryCount is the attempts field as the reference prints it in "retry <n>" (Python's str of the value).
 func retryCount(st State) string {
-	return config.Str(fromJSON(st["attempts"]))
+	return config.Str(st["attempts"])
 }
 
 // pending reports the slot that is due and not done yet (RUNNER-D2 / CLI-D1): due, a retry, or waiting to retry.

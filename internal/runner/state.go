@@ -3,7 +3,6 @@
 package runner
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -12,7 +11,7 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/MIERAI/security-platform/internal/runner/pyfmt"
+	"github.com/MIERAI/security-platform/internal/scorecard/pyvalue"
 )
 
 // StateSchema is the schema of state/runner/<job>.json.
@@ -52,13 +51,10 @@ func (s State) Float(key string) (float64, bool) {
 
 func num(v any) (float64, bool) {
 	switch x := v.(type) {
-	case json.Number:
-		f, err := x.Float64()
-		return f, err == nil && !math.IsInf(f, 0) && !math.IsNaN(f)
 	case int64:
 		return float64(x), true
 	case float64:
-		return x, true
+		return x, !math.IsInf(x, 0) && !math.IsNaN(x)
 	case int:
 		return float64(x), true
 	default:
@@ -93,18 +89,18 @@ func readJSONObject(path string) (map[string]any, bool) {
 	if err != nil {
 		return nil, false
 	}
-	v, err := pyfmt.Decode(data)
+	v, err := pyvalue.DecodeJSON(data)
 	if err != nil {
 		return nil, false
 	}
-	m, ok := v.(map[string]any)
+	m, ok := fromPy(v).(map[string]any)
 	return m, ok
 }
 
 // writeJSON writes v atomically (a temporary file in the same directory, then rename) as Python's
 // json.dump(v, indent=1, sort_keys=True).
 func writeJSON(path string, v any) error {
-	data, err := pyfmt.JSONIndent1(v)
+	data, err := pyvalue.EncodeJSON(toPy(v), true)
 	if err != nil {
 		return fmt.Errorf("encode %s: %w", filepath.Base(path), err)
 	}
@@ -172,4 +168,47 @@ func glob(pattern string) []string {
 	}
 	sort.Strings(m)
 	return m
+}
+
+// toPy converts plain Go maps and integers to the document model of pyvalue (whose encoder writes exactly what
+// Python's json.dump(v, indent=1, sort_keys=True) writes).
+func toPy(v any) any {
+	switch x := v.(type) {
+	case map[string]any:
+		m := pyvalue.NewMap()
+		for k, e := range x {
+			m.Set(k, toPy(e))
+		}
+		return m
+	case []any:
+		out := make([]any, len(x))
+		for i, e := range x {
+			out[i] = toPy(e)
+		}
+		return out
+	case int:
+		return int64(x)
+	default:
+		return v
+	}
+}
+
+// fromPy converts decoded mappings to plain Go maps (key order does not matter: files are written sorted).
+func fromPy(v any) any {
+	switch x := v.(type) {
+	case *pyvalue.Map:
+		out := make(map[string]any, x.Len())
+		for _, k := range x.Keys() {
+			out[k] = fromPy(x.Value(k))
+		}
+		return out
+	case []any:
+		out := make([]any, len(x))
+		for i, e := range x {
+			out[i] = fromPy(e)
+		}
+		return out
+	default:
+		return v
+	}
 }

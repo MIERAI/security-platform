@@ -44,8 +44,8 @@ internal/scorecard/    the scorecard (`sp scorecard compute|lint|list|version`; 
 internal/scorecard/pyvalue/  documents as the contract reads them: YAML 1.1 typing, ordered JSON, the reference's
                        number printing, rounding and sums (contracts/scorecard/SPEC.md §6)
 internal/runner/       `sp runner` (docs/runner.md): scheduling, locks, jobs, state, metrics; subpackages cron (schedules,
-                       DST), config (the runner block of the instance, read with pyvalue), pyfmt (files byte-identical
-                       to Python's), promtext (metrics text)
+                       DST), config (the runner block of the instance), promtext (metrics text); YAML, JSON files
+                       and number printing through internal/scorecard/pyvalue
 internal/<component>/  added per component as it moves (core, runner, collectors/<name>, ...)
 ```
 

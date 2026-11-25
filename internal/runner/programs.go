@@ -264,28 +264,13 @@ func eventsNote(summary string) string {
 	parts := make([]string, 0, len(srcs))
 	for _, k := range sortedKeys(srcs) {
 		v, _ := srcs[k].(map[string]any) // not an object: reported as failed
-		if config.Truthy(fromJSON(v["ok"])) {
-			parts = append(parts, k+": "+config.Str(fromJSON(v["shipped"])))
+		if config.Truthy(v["ok"]) {
+			parts = append(parts, k+": "+config.Str(v["shipped"]))
 		} else {
 			parts = append(parts, k+": FAILED")
 		}
 	}
 	return strings.Join(parts, ", ")
-}
-
-// fromJSON turns a json.Number into int64 or float64 for Python-style printing.
-func fromJSON(v any) any {
-	n, ok := v.(json.Number)
-	if !ok {
-		return v
-	}
-	if i, err := n.Int64(); err == nil {
-		return i
-	}
-	if f, err := n.Float64(); err == nil {
-		return f
-	}
-	return n.String()
 }
 
 // sortedKeys returns the keys of a map, sorted.

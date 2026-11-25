@@ -48,7 +48,7 @@ func TestDue(t *testing.T) {
 		{"done", job(t, "a", "30 3 * * *", nil), State{"done_slot": int64(slot)}, now, ReasonDone, false, slot},
 		{"waiting to retry", job(t, "a", "30 3 * * *", retry), State{"slot": int64(slot), "attempts": int64(1),
 			"last_attempt": int64(now)}, now + 600, ReasonWaiting, false, slot},
-		{"retry", job(t, "a", "30 3 * * *", retry), State{"slot": json.Number("1767583800"), "attempts": json.Number("1"),
+		{"retry", job(t, "a", "30 3 * * *", retry), State{"slot": int64(1767583800), "attempts": int64(1),
 			"last_attempt": int64(now)}, now + 1300, "retry 1", true, slot},
 		{"retries exhausted", job(t, "a", "30 3 * * *", retry), State{"slot": int64(slot), "attempts": int64(2),
 			"last_attempt": int64(now)}, now + 1300, ReasonExhausted, false, slot},

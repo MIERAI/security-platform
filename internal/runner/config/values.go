@@ -1,14 +1,13 @@
 package config
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
 	"strconv"
 	"strings"
 
-	"github.com/MIERAI/security-platform/internal/runner/pyfmt"
+	"github.com/MIERAI/security-platform/internal/scorecard/pyvalue"
 )
 
 // ErrValue is the error class of a configuration value of the wrong kind.
@@ -31,12 +30,6 @@ func Duration(v any) (int64, error) {
 		return bounded(float64(x), v)
 	case float64:
 		return bounded(x, v)
-	case json.Number:
-		f, err := x.Float64()
-		if err != nil {
-			return 0, fmt.Errorf("%w: duration %q", ErrValue, x.String())
-		}
-		return bounded(f, v)
 	case string:
 		return durationText(x)
 	default:
@@ -92,15 +85,6 @@ func Int(v any, def int64) (int64, error) {
 		return x, nil
 	case float64:
 		return floatInt(x)
-	case json.Number:
-		if n, err := x.Int64(); err == nil {
-			return n, nil
-		}
-		f, err := x.Float64()
-		if err != nil {
-			return 0, fmt.Errorf("%w: integer %q", ErrValue, x.String())
-		}
-		return floatInt(f)
 	case string:
 		n, err := strconv.ParseInt(strings.TrimSpace(x), 10, 64)
 		if err != nil {
@@ -170,7 +154,7 @@ func Str(v any) string {
 	case int64:
 		return strconv.FormatInt(x, 10)
 	case float64:
-		return pyfmt.FloatRepr(x)
+		return pyvalue.FloatRepr(x)
 	default:
 		return fmt.Sprint(x)
 	}
