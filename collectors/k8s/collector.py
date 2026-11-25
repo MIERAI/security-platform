@@ -10,7 +10,8 @@ Checks: privileged / host namespaces / hostPath / added capabilities, NetworkPol
 (cluster-admin bindings, wildcard roles, secret readers), Secret metadata (names/types/ages only, never data),
 Kyverno/wgpolicy PolicyReports summary, the operator credential itself, CIS via kube-bench run on the node
 (read-only; extracted to a temp dir and removed). Also writes the software inventory of running images
-(inventory/v1) that the vuln-intel collector matches against advisories.
+(inventory/v1) that the vuln-intel collector matches against advisories; `complete: true` only when the pods of every
+configured cluster were listed (`sources` says which cluster was listed, skipped or failed).
 Pod specs carry env values: they are parsed in memory and only filtered fields are stored.
 """
 import json
@@ -85,7 +86,7 @@ def np_selects(np, labels):
     return True
 
 
-def cluster(c, k, inventory):
+def cluster(c, k, inventory, sources):
     name, kc, prod = k["name"], k.get("kubeconfig", ""), k.get("role") == "prod"
     A = f"k8s-cluster:{name}"
     parts = set(k.get("parts") or ALL_PARTS)
@@ -172,6 +173,7 @@ def cluster(c, k, inventory):
         for img, e in images.items():
             e["namespaces"], e["workloads"] = sorted(e["namespaces"]), sorted(e["workloads"])
             inventory.append(e)
+        sources[A] = "complete"   # every running pod of the cluster was listed
     if "rbac" in parts:
         # --- RBAC ------------------------------------------------------------------------------------
         crbs, crs = kget(kc, "clusterrolebindings"), {r["metadata"]["name"]: r for r in kget(kc, "clusterroles")}
@@ -316,14 +318,22 @@ def _run_with_tar(e, script, tar):
 def main():
     inst = spsdk.load_instance()
     c = spsdk.Collector("k8s", VERSION)
-    inventory = []
+    inventory, sources = [], {}
     for k in inst.get("kubernetes", []):
+        A = f"k8s-cluster:{k['name']}"
+        sources[A] = "not inventoried (parts without workloads)"
         try:
-            cluster(c, k, inventory)
+            cluster(c, k, inventory, sources)
         except Exception as err:  # noqa: BLE001
-            c.gap(f"k8s-cluster:{k['name']}", f"{type(err).__name__}: {str(err)[:200]}")
+            c.gap(A, f"{type(err).__name__}: {str(err)[:200]}")
+            if sources[A] != "complete":
+                sources[A] = f"failed: {type(err).__name__}"
+    # `complete`: every configured cluster's pods were listed, so an image missing from `items` is no longer running
+    # (consumers may retire its findings). Any failed or skipped cluster makes the whole inventory partial.
     with open(os.path.join(c.out, f"inventory.{c.name}-images.json"), "w") as f:   # one per collector instance
-        json.dump({"schema": "security-platform/inventory/v1", "kind": "container-image", "items": inventory}, f, indent=1)
+        json.dump({"schema": "security-platform/inventory/v1", "kind": "container-image", "items": inventory,
+                   "complete": bool(sources) and all(v == "complete" for v in sources.values()), "sources": sources},
+                  f, indent=1)
     c.metric("security_inventory_images", len(inventory), "Running images (cluster x image)")
     c.write()
 

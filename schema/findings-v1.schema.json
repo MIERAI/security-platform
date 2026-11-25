@@ -32,7 +32,8 @@
         "properties": {
           "asset": {"type": "string"},
           "status": {"enum": ["ok", "gap"]},
-          "reason": {"type": "string"}
+          "reason": {"type": "string"},
+          "complete_scope": {"type": "string", "pattern": "^[a-z0-9-]+:"}
         }
       }
     },
