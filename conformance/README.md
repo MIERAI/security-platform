@@ -8,6 +8,8 @@ JSON Schemas in `contracts/`. Python ≥ 3.10, standard library only (it is a te
 ```sh
 # the reference (Python) implementation, with its known deviations allowed to fail:
 SP_PYTHON=~/.venvs/security-platform/bin/python3 conformance/impl/python/run.sh
+# the Go implementation (sp ledger merge / track), with NO expected failures:
+SP_PYTHON=~/.venvs/security-platform/bin/python3 conformance/impl/go/run.sh
 # your implementation of one component:
 SP_IMPL_LEDGER="/opt/sp-go/bin/sp-ledger merge" python3 conformance/run.py --component ledger
 python3 conformance/run.py --impl runner="/opt/sp-go/bin/sp-runner" --component runner -v

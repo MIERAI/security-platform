@@ -30,7 +30,7 @@ pull request that makes its conformance suite run against the Go implementation.
 ## Layout
 
 ```
-go.mod                 module github.com/MIERAI/security-platform (no third-party dependencies)
+go.mod                 module github.com/MIERAI/security-platform (one dependency: go.yaml.in/yaml/v3, below)
 cmd/sp/                the sp binary: wiring only (environment, streams, exit); end-to-end tests build it
 internal/shim/         dispatch: Go subcommands, delegation to Python, `sp version`
 internal/delegate/     running cli/sp.py: argument vector, execve on Unix, child process elsewhere
@@ -40,7 +40,14 @@ internal/components/   the product's components (<dir>/VERSION) and their implem
 internal/buildinfo/    the binary's release (link time), commit and toolchain
 internal/textsafe/     printing text read from files without terminal control characters
 internal/fakepython/   a stand-in interpreter for tests
-internal/<component>/  added per component as it moves (core, runner, collectors/<name>, ...)
+internal/ledger/       the ledger component (contracts/ledger): merge (`sp ledger merge`); VERSION
+  cli/                 `sp ledger merge|track|version`
+  pyjson/              JSON as the reference sees it: key order, int vs float, json.dumps output, Python semantics
+  yamlcfg/             YAML 1.2 files (exceptions.yaml, catalog-review.yaml, instance config) to pyjson values
+  findings/            findings document validation (embedded copy of schema/findings-v1.schema.json)
+  instant/ prom/ fileio/  UTC timestamps, Prometheus text, bounded reads and atomic writes
+internal/remediation/  track (`sp ledger track`): items, owners, SLO due dates, files and github-issues trackers
+internal/<component>/  added per component as it moves (runner, scorecard, collectors/<name>, ...)
 ```
 
 Everything is under `internal/`: the Go packages are not a public library API, the contracts (`schema/`,
@@ -74,7 +81,15 @@ Enforced by CI (`.github/workflows/go.yml`, `.golangci.yml`) where a tool can ch
   **Every parser of external input has a fuzz test** (`FuzzXxx`) — product tags, RELEASE and VERSION files so
   far — and CI runs each one briefly on every change.
 - **Dependencies**: standard library only unless a dependency is justified in its pull request (what it
-  replaces, its maintenance, its own dependencies); depguard enforces the allow-list. Tools are pinned by
+  replaces, its maintenance, its own dependencies); depguard enforces the allow-list, govulncheck checks it. Today:
+  - `go.yaml.in/yaml/v3` v3.0.5 (pinned in go.mod/go.sum; released 2026-07): the YAML parser for operator-written
+    files (`exceptions.yaml`, `catalog-review.yaml`, the instance config) and the bundled SLI catalog. Operators
+    write block and flow style with anchors and merge keys; a hand-written subset parser would misread some of it
+    — for exceptions, silently, which is worse than failing. It replaces nothing in this module. It is the YAML
+    organisation's maintained continuation of `gopkg.in/yaml.v3` (the parser most Go projects, Kubernetes
+    included, depend on), pure Go, with no dependencies of its own. It is used through one package
+    (`internal/ledger/yamlcfg`) at the node level: YAML 1.2 core-schema scalars (timestamps stay text), mapping keys
+    as text, alias expansion bounded (`yamlcfg.MaxNodes`), one document per file; fuzzed there. Tools are pinned by
   version and checksum; GitHub Actions by commit SHA. New tool and action versions wait about two weeks after
   their release before they are adopted.
 - **Toolchain**: the `toolchain` line of `go.mod` (currently go1.27.4) is the version CI and releases build with;
@@ -86,6 +101,7 @@ Enforced by CI (`.github/workflows/go.yml`, `.golangci.yml`) where a tool can ch
 gofmt -l . && go vet ./... && go test -race -cover ./...
 golangci-lint run ./...                         # the version in .github/workflows/go.yml
 go test -run='^$' -fuzz='^FuzzParseFile$' -fuzztime=30s ./internal/release
+conformance/impl/go/run.sh                      # the conformance suite against `sp ledger` (no expected failures)
 go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
 scripts/build-release.sh v0.0.0-local dist-go   # the release build, see docs/install.md
 ```

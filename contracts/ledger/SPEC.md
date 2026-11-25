@@ -142,7 +142,34 @@ inside `DATA/tracker/`). `now` = `--now` or the wall clock. Pure function of (pr
 - `history`: `{at, status}` on every status change, last 20 kept.
 - An advisor (instance `remediation.advisor`) MAY draft text into `tracker/drafts/<id>.md`; it never changes a status.
 
-## 8. Examples
+## 8. Implementations
+
+| implementation | merge | track | conformance |
+|---|---|---|---|
+| reference (Python) | `core/ledger.py` | `core/remediation.py` | known deviations LEDGER-D1..D5 expected to fail |
+| Go (`internal/ledger`, `sp ledger`) | `sp ledger merge` | `sp ledger track` | every case, no expected failures (`conformance/impl/go/run.sh`) |
+
+The Go implementation writes the same files byte for byte (JSON as the reference's `json.dump(indent=1,
+sort_keys=True)`, the same metric text, OCSF lines and tracker files) and implements the TARGET of LEDGER-D1..D5. Its
+additions, all optional:
+
+- `merge --instance F`: the instance's `remediation.slo` for the LEDGER-D2 due date (default table without it);
+  `--now EPOCH` (§1).
+- `track --no-external-sync`: only the local `files` tracker is written; an external tracker (github-issues) is never
+  called. For shadow runs.
+- `merge --reference-behaviour LEDGER-D2,LEDGER-D3,LEDGER-D5` (diagnostic, never in production): reproduces the
+  reference's behaviour for those deviations, so that a shadow comparison can attribute each difference
+  ([runner §7](../runner/SPEC.md)). With all three, the Go merge's outputs are identical to the reference's except
+  `runs[].core` (the Go component version) and the added `runs[].implementation: "go"` — in UTC, and with every
+  finding carrying `kind` (LEDGER-D1 and D4 cannot be switched back).
+- Inputs the reference cannot process are handled instead of stopping the merge: a document that is not JSON is
+  recorded in `runs[-1].invalid` like any invalid document; `format: date-time` of the findings schema is checked
+  (the reference skips it and fails later on an undatable timestamp); an exception whose `expires` is not a date is
+  ignored with a warning; mapping keys of `exceptions.yaml` are their text (an unquoted id made only of digits is
+  still that id); YAML is read as YAML 1.2 (`yes`/`no` and unquoted dates are strings: an exception's `expires` is
+  recorded as written).
+
+## 9. Examples
 
 [`examples/`](examples/): `ledger.json` (after a regression), `tracker-items.json`, `exceptions.yaml`.
 
@@ -164,3 +191,4 @@ Each has a conformance case that specifies the TARGET; the reference implementat
 | version | change |
 |---|---|
 | 1.0 | first formal version (documents core 0.9.0) |
+| 1.0 | §8: the Go implementation (`sp ledger`, internal/ledger 0.1.0) passes every case including the TARGET of LEDGER-D1..D5; the reference keeps its known deviations (no contract change) |
