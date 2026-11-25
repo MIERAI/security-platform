@@ -136,7 +136,7 @@ class WindowsExec(unittest.TestCase):
         calls = []
         e = ex.executor({"type": "ssh", "host": "h", "shell": "windows"})
         orig = ex._run
-        ex._run = lambda cmd, stdin=None, timeout=120: calls.append(cmd) or (0, "", "")
+        ex._run = lambda cmd, stdin=None, timeout=120, partial=False: calls.append(cmd) or (0, "", "")
         try:
             e.run(["python", "-c", "import sys;exec(sys.stdin.read())", '{"roots": ["C:\\\\Users\\\\x"]}'])
             ex.powershell(e, "x" * 20000)

@@ -37,6 +37,12 @@ sp run             # runs every configured job once, now
 sp status          # one screen: what is open, what is overdue, what could not be checked
 ```
 
+On macOS the first `sp run` can take a few minutes: the software-update check asks Apple's servers and may need
+over a minute. If it (or any other single check) does not finish in time, the other checks still report, and that
+one shows under "Could not check" (e.g. `os-updates: could not check`) — that means *unknown*, not safe. The next run
+tries again; `slow_probe_timeout` in `instance.yaml` ([instance-reference.md](instance-reference.md#hosts)) gives it
+more time.
+
 Example:
 
 ```
