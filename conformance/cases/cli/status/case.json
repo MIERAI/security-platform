@@ -1,7 +1,7 @@
 {
  "component": "cli",
  "title": "`sp status` before any scan says so; with data it shows open findings, overdue fixes and every job",
- "contract": "cli/1.0",
+ "contract": "cli/1.1",
  "origin": "tests/test_cli.py::test_status",
  "files": {
   "empty/instance.json": "instance.json"

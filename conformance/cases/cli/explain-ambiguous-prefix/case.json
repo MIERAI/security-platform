@@ -1,0 +1,65 @@
+{
+ "component": "cli",
+ "title": "`sp explain PREFIX` needs a unique prefix: one that matches several findings exits 2 and names them, instead of explaining whichever comes first",
+ "contract": "cli/1.1",
+ "deviation": "CLI-D4",
+ "origin": "cli/sp.py cmd_explain: next() over the ledger's order",
+ "files": {
+  "data/ledger.json": "ledger.json"
+ },
+ "steps": [
+  {
+   "name": "sp explain 3 --data {sandbox}/data",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "explain",
+     "3",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 2,
+   "expect": [
+    {
+     "stderr": {
+      "regex": [
+       "^sp: .*3.*",
+       "3594b15d6a9f",
+       "3fa0149142d2"
+      ]
+     }
+    },
+    {
+     "stdout": {
+      "not_regex": [
+       "."
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "the whole id",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "explain",
+     "3594b15d6a9f",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "regex": [
+       "^id 3594b15d6a9f "
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}

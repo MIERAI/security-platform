@@ -1,6 +1,7 @@
-// Package shim is the sp command line during the move from Python to Go: a subcommand with a Go implementation
-// runs here, every other one is handed to the Python implementation (cli/sp.py) with its arguments, standard
-// streams, environment and exit code unchanged.
+// Package shim is the sp command line: every subcommand runs its Go implementation (the day-to-day commands in
+// internal/cli, the components in their packages). With SP_CLI=python the day-to-day commands are handed to the
+// Python implementation (cli/sp.py) with their arguments, standard streams, environment and exit code unchanged,
+// as before the move.
 package shim
 
 import (
@@ -10,6 +11,7 @@ import (
 	"sort"
 
 	"github.com/MIERAI/security-platform/internal/buildinfo"
+	"github.com/MIERAI/security-platform/internal/cli"
 	"github.com/MIERAI/security-platform/internal/delegate"
 	"github.com/MIERAI/security-platform/internal/pyhome"
 )
@@ -33,6 +35,8 @@ type Env struct {
 	Environ    []string
 	Executable string // os.Executable(); "" when unknown
 	Build      buildinfo.Info
+	StdoutTTY  bool   // standard output is a terminal (colors)
+	Hostname   string // this machine's name; "" when unknown
 	// Exec runs a delegated command; delegate.Replace in production. It returns the exit status.
 	Exec func(context.Context, delegate.Spec) (int, error)
 }
@@ -65,6 +69,7 @@ func GoSubcommands() []string {
 	for n := range goCommands() {
 		names = append(names, n)
 	}
+	names = append(names, cli.Commands()...)
 	sort.Strings(names)
 	return names
 }
@@ -79,7 +84,10 @@ func Main(ctx context.Context, env Env) int {
 			return cmd(ctx, env, env.Args[1:])
 		}
 	}
-	return toPython(ctx, env)
+	if pythonCLI(env) || !isCLI(env.Args) {
+		return toPython(ctx, env)
+	}
+	return runCLI(ctx, env, env.Args)
 }
 
 // toPython hands the whole invocation to cli/sp.py.

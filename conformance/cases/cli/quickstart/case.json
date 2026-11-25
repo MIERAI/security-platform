@@ -1,0 +1,222 @@
+{
+ "component": "cli",
+ "title": "The documented first steps (docs/quickstart.md): init -> doctor -> run -> status -> findings -> explain, each with the output a new user is told to look for",
+ "contract": "cli/1.1",
+ "origin": "docs/quickstart.md; tests/test_cli.py::test_init_and_doctor",
+ "steps": [
+  {
+   "name": "sp init {sandbox}/data --name quick",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "init",
+     "{sandbox}/data",
+     "--name",
+     "quick"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "regex": [
+       "^wrote \\S*/data/instance\\.yaml$",
+       "sp doctor --data \\S*data",
+       "sp run --data \\S*data"
+      ]
+     }
+    },
+    {
+     "mode": "data",
+     "is": "0700"
+    },
+    {
+     "mode": "data/instance.yaml",
+     "is": "0600"
+    },
+    {
+     "file": "data/instance.yaml",
+     "regex": [
+      "^name: quick$",
+      "exec: \\{type: local\\}, profile: (linux|macos|windows|termux)\\}"
+     ]
+    },
+    {
+     "file": "data/exceptions.yaml",
+     "regex": [
+      "^exceptions: \\{\\}$"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "doctor on the starter config",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "doctor",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "regex": [
+       "^config \\S*/data/instance\\.yaml$",
+       "^  ok    loads \\(\\d+ sections, name=quick\\)$",
+       "^  ok    data directory is private \\(0700\\)$",
+       "^ready: sp run$"
+      ],
+      "not_regex": [
+       "FIX"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "sp run --data {sandbox}/data",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "run",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "regex": [
+       "^running 2 job\\(s\\): emit, remediation  \\(each job's log: \\S*/data/runs/<date>/\\)$",
+       "^  ok  emit\\s+\\d+s",
+       "^  ok  remediation\\s+\\d+s",
+       "^next: sp status"
+      ]
+     }
+    },
+    {
+     "json": "data/ledger.json",
+     "schema": "ledger",
+     "subset": {
+      "entries": {
+       "$len": 2
+      }
+     }
+    }
+   ],
+   "files": {
+    "data/instance.yaml": "instance.json"
+   }
+  },
+  {
+   "name": "sp status --data {sandbox}/data",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "status",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "regex": [
+       "^security-platform status - quick$",
+       "^Open findings: critical 1, low 1$",
+       "^  ok  emit\\s+last good run (just now|\\dm ago)$",
+       "^Could not check 1 thing\\(s\\) \\(no finding there does NOT mean safe\\):$",
+       "^  emit: ssh: connection refused$",
+       "^  742c647510fc  critical ",
+       "^Top risks \\(sp explain <id>\\):$"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "sp findings --open --ids --data {sandbox}/data",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "findings",
+     "--open",
+     "--ids",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "lines": [
+       "742c647510fc",
+       "d52dae73c0e0"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "sp findings --json --data {sandbox}/data",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "findings",
+     "--json",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "schema": "cli-findings",
+      "json": [
+       {
+        "id": "742c647510fc",
+        "status": "open",
+        "asset": "host:lab-1"
+       },
+       {
+        "id": "d52dae73c0e0"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "sp explain 742c6 --data {sandbox}/data",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "explain",
+     "742c6",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "regex": [
+       "^id 742c647510fc   check host.ssh_password_auth   critical",
+       "^How to fix$",
+       "^How to verify$",
+       "^    742c647510fc:$"
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}

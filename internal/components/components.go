@@ -37,6 +37,7 @@ type Component struct {
 // conformance suite first). A fresh map on every call: nothing can change the answer at run time.
 func GoImplemented() map[string]bool {
 	return map[string]bool{
+		"cli":             true, // sp init|doctor|run|status|findings|explain|digest|notify (internal/cli); SP_CLI=python goes back
 		"internal/ledger": true,
 		"runner":          true, // sp runner (internal/runner); the trigger chooses which runner ticks (docs/runner.md)
 	}

@@ -1,0 +1,178 @@
+{
+ "component": "cli",
+ "title": "The `sp findings` table has fixed column widths (ID 13, SEVERITY 10, STATUS 9, DUE 12, LAYER 13, ASSET 38 = the first 37 characters, WHAT = the first 70), DUE in local time, then a count line; `--severity S` means S or worse, so `low` leaves out info",
+ "contract": "cli/1.1",
+ "origin": "cli/sp.py cmd_findings",
+ "files": {
+  "data/ledger.json": "ledger.json",
+  "data/tracker/items.json": "items.json"
+ },
+ "steps": [
+  {
+   "name": "sp findings --severity low --data {sandbox}/data",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "findings",
+     "--severity",
+     "low",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "text": "ID           SEVERITY  STATUS   DUE         LAYER        ASSET                                 WHAT\n7eafa19e3d35 critical  open     OVERDUE     host         host:web-1                            host.ssh_password_auth on host:web-1\n0f896522a761 high      fixed    -           host         host:web-2                            host.firewall_off on host:web-2\nd610b9b1761d high      open     2099-12-01  supply-chain image:registry.example/app:1.0        vuln.cve-2099-0001 on image:registry.example/app:1.0\n67ab1c3cff5e medium    open     2030-01-31  host         host:ääääääääääääääääääääääääääääääää host.title_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\ne68dbe52f93c low       open     -           host         host:web-1                            host.motd_missing on host:web-1\n\n5 finding(s). Details and how to fix: sp explain <ID>\n"
+     }
+    }
+   ]
+  },
+  {
+   "name": "sp findings --severity medium --ids --data {sandbox}/data",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "findings",
+     "--severity",
+     "medium",
+     "--ids",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "lines": [
+       "7eafa19e3d35",
+       "0f896522a761",
+       "d610b9b1761d",
+       "67ab1c3cff5e"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "sp findings --ids --data {sandbox}/data",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "findings",
+     "--ids",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "lines": [
+       "7eafa19e3d35",
+       "0f896522a761",
+       "d610b9b1761d",
+       "67ab1c3cff5e",
+       "e68dbe52f93c",
+       "5c62f324f903"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "--json is the whole entry",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "findings",
+     "--json",
+     "--check",
+     "host.title_",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "schema": "cli-findings",
+      "json": [
+       {
+        "id": "67ab1c3cff5e",
+        "check": "host.title_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "layer": "host",
+        "asset": "host:ääääääääääääääääääääääääääääääääääääääääääääääääää",
+        "title": "host.title_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx on host:ääääääääääääääääääääääääääääääääääääääääääääääääää",
+        "severity": "medium",
+        "evidence": "raw/x/host.title_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.json",
+        "remediation": "fix host.title_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "needs_human": false,
+        "owner": "platform",
+        "kind": "compliance",
+        "status": "open",
+        "first_seen": "2026-11-01T08:00:00Z",
+        "last_seen": "2026-11-01T08:00:00Z",
+        "fixed_at": null,
+        "reopened_count": 0,
+        "collector": "host",
+        "collector_version": "1.0.0",
+        "refs": [],
+        "attributes": {},
+        "ttk_counted": false
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "no ledger yet: an empty array",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "findings",
+     "--json",
+     "--data",
+     "{sandbox}/empty"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "json": []
+     }
+    }
+   ],
+   "files": {
+    "empty/.keep": {
+     "text": ""
+    }
+   }
+  },
+  {
+   "name": "sp findings --data {sandbox}/empty",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "findings",
+     "--data",
+     "{sandbox}/empty"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "text": "no matching findings\n"
+     }
+    }
+   ]
+  }
+ ]
+}

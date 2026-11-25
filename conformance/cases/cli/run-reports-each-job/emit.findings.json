@@ -1,0 +1,34 @@
+{
+ "collector": {
+  "name": "good",
+  "version": "1.0.0"
+ },
+ "coverage": [
+  {
+   "asset": "host:r1",
+   "status": "ok"
+  }
+ ],
+ "findings": [
+  {
+   "asset": "host:r1",
+   "check": "conformance.run_check",
+   "evidence": "raw/x/conformance.run_check.json",
+   "id": "c25d2d86dadd",
+   "kind": "compliance",
+   "layer": "host",
+   "needs_human": false,
+   "observed_at": "2026-11-01T08:00:00Z",
+   "owner": "platform",
+   "remediation": "fix conformance.run_check",
+   "severity": "medium",
+   "title": "conformance.run_check on host:r1"
+  }
+ ],
+ "run": {
+  "finished_at": "2026-11-01T09:00:00Z",
+  "instance": "conformance",
+  "started_at": "2026-11-01T09:00:00Z"
+ },
+ "schema_version": "1.2"
+}

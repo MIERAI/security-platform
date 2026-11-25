@@ -24,6 +24,10 @@ collector-codehost-gitea/token-not-sent-to-another-host    GITEA-D2   the token 
 collector-exposure/target-is-never-an-nmap-option  EXPOSURE-D1  a discovered address is passed to nmap unchecked
 collector-exposure/timed-out-host-is-a-gap         EXPOSURE-D2  a partial (timed-out) nmap result covers the address
 events/credentials-not-sent-to-another-host           EVENTS-D1  the API token follows a redirect to another host
+cli/bad-input-is-one-line                CLI-D2  unreadable input escapes as a Python traceback, exit 1
+cli/due-date-in-local-time               CLI-D3  mktime - timezone: an hour off under daylight saving time
+cli/explain-ambiguous-prefix             CLI-D4  an ambiguous id prefix explains whichever finding comes first
+cli/init-files-are-private               CLI-D5  exceptions.yaml and .gitignore created with the umask
 
 # ---- collector k8s (contracts/collector-protocol/SPEC.md, "Collector k8s") ----
 collector-k8s/failing-part-is-a-gap-of-that-part       K8S-D1  one unreadable part gaps the whole cluster, skips the rest; Secrets: zero

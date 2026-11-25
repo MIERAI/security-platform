@@ -26,6 +26,29 @@ Components are versioned independently (docs/design.md §5). Entries name the co
   with fakes for nmap, gh, kubectl and the GitHub, Gitea, Loki, Prometheus and Alertmanager APIs
   (`conformance/tools/cases_net.py`); credential-shaped canaries built at run time (`{canary_*}`), `exec.path_prepend`
   for fake programs, and `tools/compare_impls.py` (byte comparison of two implementations on the fixtures).
+- **cli 0.4.0 — the `sp` commands in Go** (`sp init|doctor|run|status|findings|explain|digest|notify`, `internal/cli`):
+  every subcommand of `sp` now runs in Go; nothing a user types reaches `cli/sp.py` any more. Output is byte for byte
+  the reference's, plain and on a terminal (colors), including argparse's usage and help layout
+  (`tests/test_cli_go.py` compares every command on the same data); exit statuses unchanged. It passes all 25 cli
+  conformance cases with no expected failure. Targets of new known deviations (contract cli 1.1): unreadable input is
+  one line `sp: <path>: <why>` with exit 2, not a traceback (CLI-D2); due dates are UTC instants shown as local dates
+  (CLI-D3, an hour off under daylight saving time before); `sp explain` with an ambiguous id prefix exits 2 naming the
+  matches instead of picking the first (CLI-D4); every file `sp init` creates is 0600 whatever the umask (CLI-D5).
+  `sp init` never follows a symbolic link in place of `instance.yaml`; text read from files is made terminal-safe.
+  `sp run` still runs the jobs through the reference runner (`runner/runner.py run`, the default trigger).
+  **Switching back**: `SP_CLI=python` hands the day-to-day commands to `cli/sp.py` exactly as before. It is
+  **deprecated**: kept through v0.4.x, removed after that.
+- **notifier**: a Go implementation (`internal/notifier`) for `sp notify`: stdout, file, webhook (slack/json/text),
+  telegram, exec (local or ssh); same configuration and payloads; secrets from 0600 files, errors name an HTTP status or
+  a connection failure class, never a URL; only http(s) webhook URLs. The runner's `notify` job still runs `cli/sp.py
+  notify`.
+- **cli texts as data**: the plain-language explanations moved from `cli/explanations.py` (code) to
+  `internal/cli/explain/explanations.json`, read by the Python module and embedded in `sp`: one place for every wording.
+  The runner image copies that file.
+- **contracts**: cli 1.1 (parse-stable human lines, error behaviour, CLI-D2…D5); 16 more cli conformance cases (25):
+  the quickstart flow, doctor, run, notify adapters (a mock webhook/bot receiver), status overview, digest content, init
+  file modes, locating data, argument errors. The harness gained exact-text (`"text"`), file-mode (`{"mode": ..}`) and
+  `{date:+N}` assertions and a per-step `umask`.
 - **collectors/k8s 0.4.0 — a Go implementation** (`sp k8s collect`, `internal/collectors/k8s`): Kubernetes posture
   through the operator's kubectl with read verbs only (`get`, `auth whoami`; every other verb is refused in one place
   and the conformance cases assert it on a fake kubectl's call log), and the image inventory with `complete` /

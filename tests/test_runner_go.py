@@ -50,10 +50,12 @@ class GoRunner(unittest.TestCase):
         shutil.rmtree(cls.tmp, ignore_errors=True)
 
     def test_conformance_without_expected_failures(self):
-        for component, impl in (("runner", f"{self.sp} runner"), ("cli", os.path.join(ROOT, "conformance", "impl", "python", "cli"))):
+        # cli: `sp status` reads the state files the runner writes (LATE); the Go cli, with no expected failure either
+        for component, impl in (("runner", f"{self.sp} runner"), ("cli", os.path.join(ROOT, "conformance", "impl", "go", "cli"))):
             with self.subTest(component=component):
                 p = subprocess.run([sys.executable, os.path.join(ROOT, "conformance", "run.py"), "--impl", f"{component}={impl}",
-                                    "--component", component, "--require-all"], env=self.env, capture_output=True, text=True,
+                                    "--component", component, "--require-all"], env=dict(self.env, SP_GO_SP=self.sp),
+                                   capture_output=True, text=True,
                                    timeout=900)
                 self.assertEqual(p.returncode, 0, p.stdout[-4000:] + p.stderr[-2000:])
                 self.assertIn("fail=0", p.stdout)

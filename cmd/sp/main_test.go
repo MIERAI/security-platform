@@ -85,7 +85,7 @@ func fakeEnv(t *testing.T) []string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return append(fakepython.Environ(t.TempDir()), "SP_PY_HOME="+tree, "SP_PYTHON="+exe)
+	return append(fakepython.Environ(t.TempDir()), "SP_PY_HOME="+tree, "SP_PYTHON="+exe, "SP_CLI=python")
 }
 
 func TestBinaryPassthrough(t *testing.T) {
@@ -131,8 +131,9 @@ func TestBinaryVersionJSON(t *testing.T) {
 	}
 }
 
-// TestSameAsPython runs the real cli/sp.py of this checkout directly and through the binary: output and exit
-// status must be identical.
+// TestSameAsPython runs the real cli/sp.py of this checkout directly and through the binary with SP_CLI=python (the
+// way back to the Python commands): output and exit status must be identical. The Go commands are compared with the
+// Python ones by tests/test_cli_go.py.
 func TestSameAsPython(t *testing.T) {
 	t.Parallel()
 	python, err := exec.LookPath("python3")
@@ -140,7 +141,7 @@ func TestSameAsPython(t *testing.T) {
 		t.Skip("python3 not installed")
 	}
 	bin, root := buildSP(t), repoRoot(t)
-	env := append(os.Environ(), "SP_PY_HOME="+root, "SP_PYTHON="+python, "SP_DATA=", "NO_COLOR=1")
+	env := append(os.Environ(), "SP_PY_HOME="+root, "SP_PYTHON="+python, "SP_DATA=", "NO_COLOR=1", "SP_CLI=python")
 	for _, args := range [][]string{
 		{"--help"},
 		{},

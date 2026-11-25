@@ -1,0 +1,97 @@
+{
+ "component": "cli",
+ "title": "`sp digest`: the date and instance name, open counts above info, new / fixed / came back in the period, overdue fixes, the scorecard, failing jobs, then the serious new findings once per check family with a count and an id for `sp explain`; `All clear.` when there is nothing; never an asset",
+ "contract": "cli/1.1",
+ "origin": "cli/sp.py digest; tests/test_cli.py::test_digest_has_no_asset_details",
+ "files": {
+  "data/ledger.json": "ledger.json",
+  "data/tracker/items.json": "items.json",
+  "data/instance.json": "instance.json",
+  "data/state/runner/broken.json": "state.json",
+  "data/scorecard.json": {
+   "json": {
+    "overall": 70,
+    "dimensions": [
+     {
+      "id": "people",
+      "score": 70
+     }
+    ]
+   }
+  }
+ },
+ "steps": [
+  {
+   "name": "sp digest --daily --data {sandbox}/data",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "digest",
+     "--daily",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "text": "Security {date:+0} (conf)\nOpen: 2 critical, 1 high, 2 low\ntoday: 3 new, 1 fixed, 1 came back\nOverdue fixes: 1\nScorecard: 70/100   weakest: people 70\nJobs failing: 1 (sp status)\nNew and serious:\n- critical: conformance.same_check (x2)  [sp explain d81372f14fba]\n- high: conformance.other_check  [sp explain 329e1f42139e]\n",
+      "not_contains": [
+       "secret-"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "sp digest --days 400 --data {sandbox}/data",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "digest",
+     "--days",
+     "400",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "regex": [
+       "^last 400 days: 5 new, 1 fixed, 1 came back$"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "nothing to report",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "digest",
+     "--data",
+     "{sandbox}/clear"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "text": "Security {date:+0} (calm)\nOpen: nothing above info\ntoday: 0 new, 0 fixed\nAll clear.\n"
+     }
+    }
+   ],
+   "files": {
+    "clear/instance.json": {
+     "json": {
+      "name": "calm"
+     }
+    }
+   }
+  }
+ ]
+}

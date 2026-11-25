@@ -1,7 +1,7 @@
 {
  "component": "cli",
  "title": "`sp explain ID` (or a unique prefix) explains one finding and prints the exception snippet; an unknown id exits 2",
- "contract": "cli/1.0",
+ "contract": "cli/1.1",
  "origin": "tests/test_cli.py::test_explain_plain_language_and_exception_snippet",
  "files": {
   "data/ledger.json": "ledger.json",

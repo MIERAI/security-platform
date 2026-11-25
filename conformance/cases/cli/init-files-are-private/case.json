@@ -1,0 +1,39 @@
+{
+ "component": "cli",
+ "title": "Every file `sp init` creates is private to the user (0600), whatever the umask: the data directory holds attacker-relevant information",
+ "contract": "cli/1.1",
+ "deviation": "CLI-D5",
+ "origin": "cli/sp.py cmd_init: exceptions.yaml and .gitignore are created with the process umask (0644 under 022)",
+ "steps": [
+  {
+   "name": "sp init {sandbox}/d",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "init",
+     "{sandbox}/d"
+    ],
+    "umask": "022"
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "mode": "d",
+     "is": "0700"
+    },
+    {
+     "mode": "d/instance.yaml",
+     "is": "0600"
+    },
+    {
+     "mode": "d/exceptions.yaml",
+     "is": "0600"
+    },
+    {
+     "mode": "d/.gitignore",
+     "is": "0600"
+    }
+   ]
+  }
+ ]
+}

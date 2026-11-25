@@ -1,7 +1,7 @@
 {
  "component": "cli",
  "title": "`sp digest` (what notifiers send) carries aggregates only: never an asset name",
- "contract": "cli/1.0",
+ "contract": "cli/1.1",
  "origin": "tests/test_cli.py::test_digest_has_no_asset_details",
  "files": {
   "data/ledger.json": "ledger.json",

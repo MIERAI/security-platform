@@ -72,7 +72,7 @@
    ]
   },
   "cli": {
-   "version": "1.0",
+   "version": "1.1",
    "spec": "cli/SPEC.md",
    "schemas": [
     "cli/findings-json-v1.schema.json"
@@ -130,6 +130,10 @@
   "IDENTITY-D2": "collector-identity/unreadable-listings-are-gaps",
   "IDENTITY-D3": "collector-identity/rate-limit-is-a-gap-until-reset",
   "IDENTITY-D4": "collector-identity/org-members-without-2fa",
-  "IDENTITY-D5": "collector-identity/overlay-network-api"
+  "IDENTITY-D5": "collector-identity/overlay-network-api",
+  "CLI-D2": "cli/bad-input-is-one-line",
+  "CLI-D3": "cli/due-date-in-local-time",
+  "CLI-D4": "cli/explain-ambiguous-prefix",
+  "CLI-D5": "cli/init-files-are-private"
  }
 }

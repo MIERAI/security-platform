@@ -1,0 +1,251 @@
+{
+ "component": "cli",
+ "title": "Command-line mistakes exit 2 with a message on stderr and nothing on stdout; -h/--help print usage and exit 0; long options may be abbreviated and written --opt=value",
+ "contract": "cli/1.1",
+ "origin": "cli/sp.py main (argparse)",
+ "files": {
+  "data/instance.json": {
+   "json": {
+    "name": "x"
+   }
+  },
+  "data/ledger.json": {
+   "json": {
+    "entries": {}
+   }
+  }
+ },
+ "steps": [
+  {
+   "name": "no command",
+   "exec": {
+    "impl": "cli",
+    "args": []
+   },
+   "exit": 2,
+   "expect": [
+    {
+     "stderr": {
+      "regex": [
+       "."
+      ]
+     }
+    },
+    {
+     "stdout": {
+      "not_regex": [
+       "."
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "sp frobnicate",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "frobnicate"
+    ]
+   },
+   "exit": 2,
+   "expect": [
+    {
+     "stderr": {
+      "regex": [
+       "frobnicate"
+      ]
+     }
+    },
+    {
+     "stdout": {
+      "not_regex": [
+       "."
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "sp findings --severity bogus --data {sandbox}/data",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "findings",
+     "--severity",
+     "bogus",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 2,
+   "expect": [
+    {
+     "stderr": {
+      "regex": [
+       "bogus"
+      ]
+     }
+    },
+    {
+     "stdout": {
+      "not_regex": [
+       "."
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "sp findings --no-such-option --data {sandbox}/data",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "findings",
+     "--no-such-option",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 2,
+   "expect": [
+    {
+     "stderr": {
+      "regex": [
+       "--no-such-option"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "explain without an id",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "explain",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 2,
+   "expect": [
+    {
+     "stderr": {
+      "regex": [
+       "."
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "sp digest --days x --data {sandbox}/data",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "digest",
+     "--days",
+     "x",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 2,
+   "expect": [
+    {
+     "stderr": {
+      "regex": [
+       "."
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "init without a directory",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "init"
+    ]
+   },
+   "exit": 2,
+   "expect": [
+    {
+     "stderr": {
+      "regex": [
+       "."
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "sp --help",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "--help"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "regex": [
+       "init",
+       "doctor",
+       "findings",
+       "explain",
+       "digest",
+       "notify"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "sp findings -h",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "findings",
+     "-h"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "regex": [
+       "--severity",
+       "--overdue",
+       "--ids"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "abbreviated --opt=value",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "findings",
+     "--sev=critical",
+     "--data={sandbox}/data",
+     "--js"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "json": []
+     }
+    }
+   ]
+  }
+ ]
+}

@@ -18,6 +18,7 @@ expected failure that now passes (remove it from the list: the deviation is fixe
 Python >= 3.10, stdlib only. Case format: conformance/README.md.
 """
 import argparse
+import difflib
 import fnmatch
 import json
 import os
@@ -25,6 +26,7 @@ import re
 import shlex
 import shutil
 import signal
+import stat
 import subprocess
 import sys
 import tempfile
@@ -257,8 +259,9 @@ class CaseError(Exception):
 
 
 PROTOCOL_ENV = {"SP_DATA", "SP_INSTANCE", "SP_RUN_DIR", "SP_INPUT_DIR", "SP_INSTANCE_NAME", "SP_COLLECTOR_NAME"}
-# {sandbox} {case} {python} {path} {now_epoch} {fake_jwt} {fake_key} {canary_*} {svc_<name>} {epoch:+-N} {utc:+-N}; anything else in braces is left alone
-TEMPLATE = re.compile(r"\{(sandbox|case|python|path|now_epoch|fake_jwt|fake_key|canary_[a-z]+|svc_[a-z0-9_]+|epoch:[+-]?\d+|utc:[+-]?\d+)\}")
+# {sandbox} {case} {python} {path} {now_epoch} {fake_jwt} {fake_key} {canary_*} {svc_<name>} {epoch:+-N} {utc:+-N}
+# {date:+-N}; anything else in braces is left alone
+TEMPLATE = re.compile(r"\{(sandbox|case|python|path|now_epoch|fake_jwt|fake_key|canary_[a-z]+|svc_[a-z0-9_]+|epoch:[+-]?\d+|utc:[+-]?\d+|date:[+-]?\d+)\}")
 
 
 def fake_jwt():
@@ -297,6 +300,8 @@ class Sandbox:
                 return str(int(time.time()) + int(k[6:]))
             if k.startswith("utc:"):            # {utc:-3600} = ISO time, real clock now + offset
                 return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() + int(k[4:])))
+            if k.startswith("date:"):           # {date:+7776000} = the UTC date (YYYY-MM-DD), real clock now + offset
+                return time.strftime("%Y-%m-%d", time.gmtime(time.time() + int(k[5:])))
             if k in self.vars:
                 return self.vars[k]
             raise CaseError(f"unknown template variable {{{k}}}")
@@ -438,10 +443,10 @@ def check(sb, exp, res):
     if "stdout" in exp or "stderr" in exp:
         key = "stdout" if "stdout" in exp else "stderr"
         text, spec = res[key], exp[key]
-        for r in spec.get("regex", []):
+        for r in sb.render_obj(spec.get("regex", [])):
             if not re.search(r, text, re.M | (re.I if spec.get("ignore_case") else 0)):
                 errs.append(f"{key}: no match for /{r}/ in:\n{text[-1500:]}")
-        for r in spec.get("not_regex", []):
+        for r in sb.render_obj(spec.get("not_regex", [])):
             m = re.search(r, text, re.M | (re.I if spec.get("ignore_case") else 0))
             if m:
                 errs.append(f"{key}: unexpected match /{r}/: {m.group(0)[:200]}")
@@ -457,6 +462,10 @@ def check(sb, exp, res):
                 errs += [f"{key} schema {spec['schema']}: {x}" for x in schema_errors(doc, load_schema(spec["schema"]))][:10]
             if "json" in spec:
                 errs += [f"{key}: {x}" for x in subset_errors(doc, sb.render_obj(spec["json"]))][:15]
+        if "text" in spec and text != sb.render(spec["text"]):
+            want = sb.render(spec["text"])
+            diff = "".join(difflib.unified_diff(want.splitlines(True), text.splitlines(True), "want", "got"))
+            errs.append(f"{key}: not the exact text:\n{diff[-2500:]}")
         if "lines" in spec:
             got = [x for x in text.splitlines() if x.strip()]
             want = sb.render_obj(spec["lines"])
@@ -471,6 +480,8 @@ def check(sb, exp, res):
         for r in sb.render_obj(exp.get("regex", [])):
             if not re.search(r, text, re.M):
                 errs.append(f"{exp['file']}: no match for /{r}/ in:\n{text[-1500:]}")
+        if "text" in exp and text != sb.render(exp["text"]):
+            errs.append(f"{exp['file']}: not the exact text: {text[-1500:]!r}")
         for r in sb.render_obj(exp.get("not_regex", [])):
             m = re.search(r, text, re.M)
             if m:
@@ -478,6 +489,12 @@ def check(sb, exp, res):
         if "lines" in exp and len([x for x in text.splitlines() if x.strip()]) != exp["lines"]:
             errs.append(f"{exp['file']}: {len(text.splitlines())} lines, want {exp['lines']}")
         return errs
+    if "mode" in exp:                       # {"mode": path, "is": "0600"}: the permission bits (not on Windows)
+        p = sb.path(exp["mode"])
+        if not os.path.exists(p):
+            return [f"{exp['mode']}: missing"]
+        got = stat.S_IMODE(os.stat(p).st_mode)
+        return [] if got == int(exp["is"], 8) else [f"{exp['mode']}: mode {got:04o}, want {exp['is']}"]
     if "exists" in exp:
         return [] if os.path.exists(sb.path(exp["exists"])) else [f"{exp['exists']}: missing"]
     if "absent" in exp:
@@ -557,7 +574,8 @@ def run_case(case_dir, case, impls, keep, verbose):
                 before = snapshot(sb.root, [sb.render(w) for w in watch]) if watch is not None else None
                 t0 = time.time()
                 p = subprocess.Popen(argv, cwd=cwd, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                                     stderr=subprocess.PIPE, text=True, start_new_session=True)
+                                     stderr=subprocess.PIPE, text=True, start_new_session=True,
+                                     umask=int(ex["umask"], 8) if "umask" in ex else -1)
                 if ex.get("background"):
                     sb.background[name] = {"proc": p, "t0": t0}
                     continue
