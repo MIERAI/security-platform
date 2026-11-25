@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/MIERAI/security-platform/internal/ledger/pyjson"
 )
 
 // ErrTooLarge is returned by ReadLimited for a file over its limit.
@@ -75,4 +77,13 @@ func ExpandUser(p, home string) string {
 		}
 	}
 	return h + p[1:]
+}
+
+// WriteJSON writes v into path as Python's json.dump(v, f, ...) with opt would (private, in one step).
+func WriteJSON(path string, v pyjson.Value, opt pyjson.Options) error {
+	data, err := pyjson.Marshal(v, opt)
+	if err != nil {
+		return fmt.Errorf("encode %s: %w", filepath.Base(path), err)
+	}
+	return WriteFile(path, data)
 }

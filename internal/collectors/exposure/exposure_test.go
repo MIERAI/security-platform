@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/MIERAI/security-platform/internal/collectors/execad"
+	"github.com/MIERAI/security-platform/internal/collectors/execadapter"
 	"github.com/MIERAI/security-platform/internal/collectors/rundoc"
 	"github.com/MIERAI/security-platform/internal/pyvalue"
 )
@@ -227,14 +227,14 @@ type fakeNmap struct {
 	port  int
 }
 
-func (f *fakeNmap) run(_ context.Context, argv []string, _ time.Duration) execad.Result {
+func (f *fakeNmap) run(_ context.Context, argv []string, _ time.Duration) execadapter.Result {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.argvs = append(f.argvs, argv)
 	if slices.Contains(argv, "--version") {
-		return execad.Result{Out: "Nmap version 7.95\nmore"}
+		return execadapter.Result{Out: "Nmap version 7.95\nmore"}
 	}
-	return execad.Result{Out: `<nmaprun><host><address addr="127.0.0.1"/><ports><port portid="` + strconv.Itoa(f.port) +
+	return execadapter.Result{Out: `<nmaprun><host><address addr="127.0.0.1"/><ports><port portid="` + strconv.Itoa(f.port) +
 		`"><state state="open"/><service name="http"/></port></ports></host></nmaprun>`}
 }
 

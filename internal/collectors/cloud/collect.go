@@ -9,6 +9,7 @@ import (
 
 	"github.com/MIERAI/security-platform/internal/cloud"
 	"github.com/MIERAI/security-platform/internal/cloud/dyn"
+	"github.com/MIERAI/security-platform/internal/collectors/rundoc"
 )
 
 // Version is the collector's version (collectors/cloud/VERSION; TestVersionMatchesTree keeps them equal).
@@ -44,7 +45,7 @@ type collector struct {
 	tmpBase  string
 	environ  []string
 	stderr   io.Writer
-	doc      *Document
+	doc      *rundoc.Document
 	pool     *Pool
 	evidence map[evKey]*evidence
 	stats    stats
@@ -67,21 +68,21 @@ func (c *collector) scanAccount(ctx context.Context, acct cloud.Account, cfg *in
 		if v, ok := acct["provider"]; ok {
 			kind = pyStrOrNone(v)
 		}
-		c.doc.Gap("cloud:"+kind+"/"+ident, cloud.Reason(err))
+		c.doc.Gap("cloud:"+kind+"/"+ident, cloud.Reason(err), nil)
 		c.stats.gap++
 		return
 	}
 	ev := c.ev(prov.Kind(), prov.Account())
 	tmp, err := os.MkdirTemp(c.tmpBase, "sp-cloud-")
 	if err != nil {
-		c.doc.Gap(prov.Asset(), "no private temporary directory: "+err.Error())
+		c.doc.Gap(prov.Asset(), "no private temporary directory: "+err.Error(), nil)
 		c.stats.gap++
 		return
 	}
 	defer removeAll(tmp, c.stderr)
 	id, err := prov.Identity(ctx)
 	if err != nil {
-		c.doc.Gap(prov.Asset(), "authentication failed: "+cloud.Reason(err))
+		c.doc.Gap(prov.Asset(), "authentication failed: "+cloud.Reason(err), nil)
 		c.stats.gap++
 		return
 	}
@@ -107,7 +108,7 @@ func (c *collector) selfCheck(ctx context.Context, prov cloud.Provider, acct clo
 	if err != nil {
 		reason := cloud.Reason(err)
 		if strings.Contains(reason, "does not exist") {
-			c.doc.Gap(prov.Asset(), reason)
+			c.doc.Gap(prov.Asset(), reason, nil)
 			c.stats.gap++
 			return false
 		}
@@ -119,14 +120,14 @@ func (c *collector) selfCheck(ctx context.Context, prov cloud.Provider, acct clo
 		return true
 	}
 	ctl := Controls()["cloud.platform_credential_over_privileged"]
-	c.doc.AddFinding(&Finding{Layer: "identity", Asset: prov.Asset(), Check: "cloud.platform_credential_over_privileged",
+	c.doc.AddFinding(finding(&Finding{Layer: "identity", Asset: prov.Asset(), Check: "cloud.platform_credential_over_privileged",
 		Title: "the platform's credential for " + prov.Kind() + " " + prov.Account() + " can write: " +
 			dyn.Cut(strings.Join(perm.WriteCapable, ", "), 200),
 		Severity: "high", Evidence: "raw/" + c.doc.Name + "/" + prov.Kind() + "-" + prov.Account() + ".json#self_check",
 		Remediation: ctl.Remediation, NeedsHuman: true,
-		Attributes: map[string]any{"pillar": "people", "provider": prov.Kind(), "account": prov.Account()}})
+		Attributes: map[string]any{"pillar": "people", "provider": prov.Kind(), "account": prov.Account()}}))
 	if acct.Bool("refuse_over_privileged", defaultRefuse) {
-		c.doc.Gap(prov.Asset(), "refused to scan: the platform's credential is over-privileged (read-only expected)")
+		c.doc.Gap(prov.Asset(), "refused to scan: the platform's credential is over-privileged (read-only expected)", nil)
 		c.stats.refused++
 		return false
 	}
@@ -137,7 +138,7 @@ func (c *collector) selfCheck(ctx context.Context, prov cloud.Provider, acct clo
 func (c *collector) runEngines(ctx context.Context, prov cloud.Provider, names []string, ecfgs map[string]any, tmp string) {
 	envAdd, args, err := prov.EngineEnv(ctx, tmp)
 	if err != nil {
-		c.doc.Gap(prov.Asset(), "engine credentials: "+cloud.Reason(err))
+		c.doc.Gap(prov.Asset(), "engine credentials: "+cloud.Reason(err), nil)
 		c.stats.gap++
 		return
 	}
@@ -151,7 +152,7 @@ func (c *collector) runEngines(ctx context.Context, prov cloud.Provider, names [
 	for _, name := range names {
 		fn := engines()[name]
 		if fn == nil {
-			c.doc.Gap(prov.Asset()+"/engine:"+name, "unknown engine "+name+" ("+engineNames()+")")
+			c.doc.Gap(prov.Asset()+"/engine:"+name, "unknown engine "+name+" ("+engineNames()+")", nil)
 			continue
 		}
 		e := &engineCall{prov: prov, env: env, args: args, ecfg: cloud.Account(dyn.Map(ecfgs[name])), workdir: tmp,
@@ -159,7 +160,7 @@ func (c *collector) runEngines(ctx context.Context, prov cloud.Provider, names [
 		run := fn(ctx, e)
 		c.recordRun(prov, ev, name, run)
 		if !run.OK {
-			c.doc.Gap(prov.Asset()+"/engine:"+name, dyn.Or(run.Reason, name+" failed"))
+			c.doc.Gap(prov.Asset()+"/engine:"+name, dyn.Or(run.Reason, name+" failed"), nil)
 			continue
 		}
 		ok = append(ok, name)
@@ -167,7 +168,7 @@ func (c *collector) runEngines(ctx context.Context, prov cloud.Provider, names [
 	}
 	c.serviceGaps(prov, runs)
 	if len(ok) > 0 {
-		c.doc.OK(prov.Asset())
+		c.doc.OK(prov.Asset(), "")
 		c.stats.scanned++
 		return
 	}
@@ -179,7 +180,7 @@ func (c *collector) runEngines(ctx context.Context, prov cloud.Provider, names [
 		}
 		parts[i] = n + ": " + reason
 	}
-	c.doc.Gap(prov.Asset(), "no engine ran: "+dyn.Cut(strings.Join(parts, "; "), 250))
+	c.doc.Gap(prov.Asset(), "no engine ran: "+dyn.Cut(strings.Join(parts, "; "), 250), nil)
 	c.stats.gap++
 }
 
@@ -207,7 +208,7 @@ func (c *collector) recordRun(prov cloud.Provider, ev *evidence, name string, ru
 		return
 	}
 	if run.Version != "" {
-		c.doc.Tools[name] = run.Version
+		c.doc.Tools.Set(name, run.Version)
 	}
 	for i := range run.Results {
 		r := &run.Results[i]
@@ -236,7 +237,7 @@ func (c *collector) serviceGaps(prov cloud.Provider, runs []*Run) {
 		for _, svc := range svcs {
 			if !clean[svc] {
 				c.doc.Gap(prov.Asset()+"/"+ServiceNorm(prov.Kind(), svc),
-					dyn.Cut(run.Engine+" could not list "+svc+": "+gaps[svc][0], 300))
+					dyn.Cut(run.Engine+" could not list "+svc+": "+gaps[svc][0], 300), nil)
 			}
 		}
 	}

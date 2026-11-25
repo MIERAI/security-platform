@@ -42,6 +42,20 @@ linters:
   settings:
     depguard:
       rules:
+        # One document package (rundoc) and one exec adapter (execadapter) for every Go collector: the packages folded
+        # into them must not come back.
+        retired:
+          list-mode: lax
+          files: ["$all"]
+          deny:
+            - pkg: github.com/MIERAI/security-platform/internal/collectors/spdoc$
+              desc: folded into internal/collectors/rundoc
+            - pkg: github.com/MIERAI/security-platform/internal/collectors/collkit$
+              desc: folded into internal/collectors/rundoc
+            - pkg: github.com/MIERAI/security-platform/internal/collectors/cloud/pyjson$
+              desc: use internal/ledger/pyjson through internal/collectors/rundoc
+            - pkg: github.com/MIERAI/security-platform/internal/collectors/execad$
+              desc: folded into internal/collectors/execadapter
         main:
           list-mode: strict
           files: ["$all", "!**/internal/cloud/**"]

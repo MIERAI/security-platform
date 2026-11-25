@@ -3,6 +3,8 @@ package cloud
 import (
 	"sort"
 	"strings"
+
+	"github.com/MIERAI/security-platform/internal/collectors/rundoc"
 )
 
 // emit turns the merged pool into findings, in (asset, check) order.
@@ -21,11 +23,11 @@ func (c *collector) emit() {
 			engs = append(engs, e)
 		}
 		sort.Strings(engs)
-		c.doc.AddFinding(&Finding{Layer: f.Layer, Asset: f.Asset, Check: f.Check, Title: f.Title + ": " + short,
+		c.doc.AddFinding(finding(&Finding{Layer: f.Layer, Asset: f.Asset, Check: f.Check, Title: f.Title + ": " + short,
 			Severity: f.Severity, Evidence: "raw/" + c.doc.Name + "/" + f.Provider + "-" + f.Account + ".json#" + f.Asset,
 			Remediation: f.Remediation, Refs: f.Refs, Attributes: map[string]any{"pillar": f.Pillar, "provider": f.Provider,
 				"account": f.Account, "sources": sourcesJSON(f.Sources), "engines": engs, "source_count": len(engs),
-				"cis_benchmark": f.CISBenchmark}})
+				"cis_benchmark": f.CISBenchmark}}))
 	}
 }
 
@@ -50,12 +52,12 @@ func (c *collector) write(runDir string) error {
 		return keys[i].account < keys[j].account
 	})
 	for _, k := range keys {
-		if err := c.doc.WriteRaw(runDir, k.provider+"-"+k.account+".json", c.evidenceJSON(k)); err != nil {
+		if _, err := c.doc.Raw(runDir, k.provider+"-"+k.account+".json", rundoc.JSON(c.evidenceJSON(k))); err != nil {
 			return err
 		}
 	}
 	c.metrics()
-	return c.doc.Write(runDir)
+	return c.doc.Write(runDir, c.stderr)
 }
 
 func (c *collector) evidenceJSON(k evKey) map[string]any {

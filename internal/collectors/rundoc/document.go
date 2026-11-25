@@ -161,6 +161,23 @@ func (d *Document) Metric(name string, value float64, help string, labels map[st
 	d.metrics = append(d.metrics, metric{name: name, value: value, help: help, labels: labels})
 }
 
+// Mark is the number of findings so far, for DropSince.
+func (d *Document) Mark() int { return len(d.findings) }
+
+// DropSince removes the findings added after mark whose check matches drop (a finding of a part that turned out
+// not to be checkable is a guess, not an observation); a dropped finding may be added again later.
+func (d *Document) DropSince(mark int, drop func(check string) bool) {
+	kept := d.findings[:mark]
+	for _, f := range d.findings[mark:] {
+		if drop(f.Str("check")) {
+			delete(d.ids, f.Str("id"))
+			continue
+		}
+		kept = append(kept, f)
+	}
+	d.findings = kept
+}
+
 // Findings returns the findings added so far (shared, do not modify).
 func (d *Document) Findings() []*pyjson.Object { return d.findings }
 

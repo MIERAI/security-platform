@@ -61,21 +61,22 @@ internal/runner/       `sp runner` (docs/runner.md): scheduling, locks, jobs, st
 internal/remediation/  track (`sp ledger track`): items, owners, SLO due dates, files and github-issues trackers
 internal/cloud/        the cloud adapter (adapters/cloud.py): AWS, GCP, Azure on the official SDKs; discovery gcp
 internal/collectors/cloud/  the cloud collector (`sp cloud collect`) and its engines, imports, controls, merge
-internal/collectors/rundoc/  what sdk/spsdk is for Python collectors: the findings document, evidence and metrics byte for
-                       byte as the SDK writes them, the protocol environment, private writes, child processes
+internal/collectors/rundoc/  what sdk/spsdk is for Python collectors, for every Go collector (cloud included): the
+                       findings document (narrow gaps too), evidence, inventories and metrics byte for byte as the SDK
+                       writes them, the protocol environment and `sp <name> collect|version`, scope, private writes,
+                       child processes
 internal/collectors/credential/  secrets from 0600 files or named environment variables only, never in errors
 internal/collectors/roclient/  the collectors' HTTP client: GET/HEAD only (anything else refused before it is sent),
                        no redirect to another origin, bounded bodies, a deadline on every request
-internal/collectors/execad/  the exec adapter (adapters/exec.py): local or ssh, argument vectors, process-group kill
+internal/collectors/execadapter/  the one exec adapter (adapters/exec.py) of every collector and the events shipper:
+                       `local` and `ssh` (argument vectors, process groups, time limits, partial output, PowerShell),
+                       processes run by rundoc.Exec
 internal/collectors/{exposure,codehostgithub,codehostgitea,agentclaude,detection}/  `sp <collector> collect`
 internal/events/       the events shipper (`sp events ship`, contracts/events)
 internal/collectors/k8s/    the k8s collector (`sp k8s collect`): kubectl, read verbs only; image inventory
 internal/collectors/vulnintel/  the vuln-intel collector (`sp vuln-intel collect`): feeds, trivy, image/host matching
 internal/collectors/identity/   the identity collector (`sp identity collect`): code host, overlay network, local credentials
 internal/collectors/host/, hostsbom/, secretsfiles/  the exec-adapter collectors (`sp host|host-sbom|secrets-files collect`)
-  collkit/             the collector frame: environment, instance (pyvalue), scope, exit statuses
-  spdoc/               the findings document, evidence, inventories and metrics text as sdk/spsdk writes them
-  execadapter/         adapters/exec.py: `local` and `ssh` (argument vectors, process groups, time limits, PowerShell)
   pytext/              Python text rules the outputs depend on (decoding, splitlines/strip, shlex.quote, list2cmdline)
   parity/              the test pinning their outputs to the Python reference's on the conformance fixtures
 collectors/scripts.go  the target-side scripts (host and inventory profiles, the secrets scan), embedded unchanged

@@ -10,14 +10,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"strconv"
 	"time"
 
 	"github.com/MIERAI/security-platform/collectors"
-	"github.com/MIERAI/security-platform/internal/collectors/collkit"
 	"github.com/MIERAI/security-platform/internal/collectors/execadapter"
 	"github.com/MIERAI/security-platform/internal/collectors/pytext"
-	"github.com/MIERAI/security-platform/internal/collectors/spdoc"
+	"github.com/MIERAI/security-platform/internal/collectors/rundoc"
+	"github.com/MIERAI/security-platform/internal/ledger/pyjson"
 	"github.com/MIERAI/security-platform/internal/pyvalue"
 )
 
@@ -31,13 +32,26 @@ const (
 	loader = "import sys;exec(sys.stdin.buffer.read().decode('utf-8'))"
 )
 
-// Main runs the collector and returns its exit status.
-func Main(ctx context.Context, env collkit.Env) int {
-	return collkit.Main(ctx, env, "secrets-files", Version, collect)
+// Collector is the collector behind `sp secrets-files collect|version`.
+func Collector() *rundoc.Collector {
+	return &rundoc.Collector{Name: "secrets-files", Version: Version, Collect: func(ctx context.Context, run *rundoc.Run, env *rundoc.Env) error {
+		return collect(ctx, &job{Run: run, env: env})
+	}}
 }
 
-func collect(ctx context.Context, r *collkit.Run) error {
-	targets, err := collkit.Targets(r.Inst, "secrets_files", "host")
+// Main is `sp secrets-files collect|version`; it returns the exit status.
+func Main(ctx context.Context, args []string, env *rundoc.Env, stdout io.Writer) int {
+	return rundoc.Main(ctx, Collector(), args, env, stdout)
+}
+
+// job is one run: the collector-protocol context and the process environment.
+type job struct {
+	*rundoc.Run
+	env *rundoc.Env
+}
+
+func collect(ctx context.Context, r *job) error {
+	targets, err := rundoc.Targets(r.Instance, "secrets_files", "host")
 	if err != nil {
 		return err
 	}
@@ -63,7 +77,7 @@ func scanArgv(t *pyvalue.Map, sudo bool) ([]string, error) {
 	conf.Set("roots", roots)
 	conf.Set("exclude", t.GetOr("exclude", []any{}))
 	conf.Set("maxdepth", t.GetOr("maxdepth", int64(5)))
-	js, err := spdoc.Marshal(conf, spdoc.Compact, false)
+	js, err := pyjson.Marshal(rundoc.JSON(conf), pyjson.Compact())
 	if err != nil {
 		return nil, fmt.Errorf("scan settings: %w", err)
 	}
@@ -74,10 +88,10 @@ func scanArgv(t *pyvalue.Map, sudo bool) ([]string, error) {
 	return argv, nil
 }
 
-func collectTarget(ctx context.Context, r *collkit.Run, t *pyvalue.Map, script string) error {
+func collectTarget(ctx context.Context, r *job, t *pyvalue.Map, script string) error {
 	host := pyvalue.Str(t.Value("host"))
 	asset := "host:" + host
-	if !collkit.InScope(r.Inst, t.Value("host"), "secrets-files") {
+	if !rundoc.InScope(r.Instance, t.Value("host"), "secrets-files") {
 		return nil // instance scope: another collector covers this asset (not a gap)
 	}
 	if !pyvalue.Truthy(t.Value("exec")) {
@@ -88,10 +102,10 @@ func collectTarget(ctx context.Context, r *collkit.Run, t *pyvalue.Map, script s
 	var sr scanResult
 	if err == nil {
 		if sr, err = parseScan(res.Out); err != nil {
-			err = collkit.Gap(pytext.Head("scan output unreadable: "+err.Error(), 300))
+			err = rundoc.Gap(pytext.Head("scan output unreadable: "+err.Error(), 300))
 		}
 	}
-	if why, ok := collkit.AsGap(err); ok {
+	if why, ok := rundoc.AsGap(err); ok {
 		r.Doc.Gap(asset, why, nil)
 		return nil
 	}
@@ -103,18 +117,18 @@ func collectTarget(ctx context.Context, r *collkit.Run, t *pyvalue.Map, script s
 
 // scan runs the scan on one target (through sudo -n first when configured, then unprivileged if sudo refuses);
 // a target that cannot be scanned returns a gap reason.
-func scan(ctx context.Context, r *collkit.Run, t *pyvalue.Map, host, script string) (execadapter.Result, error) {
-	if !collkit.SafeFileName(host) {
-		return execadapter.Result{}, collkit.Gap("invalid host name for an evidence file: " + pyvalue.Repr(host))
+func scan(ctx context.Context, r *job, t *pyvalue.Map, host, script string) (execadapter.Result, error) {
+	if !rundoc.SafeFileName(host) {
+		return execadapter.Result{}, rundoc.Gap("invalid host name for an evidence file: " + pyvalue.Repr(host))
 	}
-	e, err := execadapter.New(t.Value("exec"), r.Environ)
+	e, err := execadapter.New(t.Value("exec"), r.env.Environ)
 	if err != nil {
-		return execadapter.Result{}, collkit.Gap("invalid configuration: " + err.Error())
+		return execadapter.Result{}, rundoc.Gap("invalid configuration: " + err.Error())
 	}
 	sudo := pyvalue.Truthy(t.Value("sudo"))
 	argv, err := scanArgv(t, sudo)
 	if err != nil {
-		return execadapter.Result{}, collkit.Gap("invalid configuration: " + err.Error())
+		return execadapter.Result{}, rundoc.Gap("invalid configuration: " + err.Error())
 	}
 	res, err := e.Run(ctx, argv, script, scanTimeout, false)
 	if err == nil && res.RC != 0 && sudo {
@@ -124,13 +138,13 @@ func scan(ctx context.Context, r *collkit.Run, t *pyvalue.Map, host, script stri
 		}
 	}
 	if errors.Is(err, execadapter.ErrOutputTooLarge) {
-		return res, collkit.Gap("scan failed: " + err.Error())
+		return res, rundoc.Gap("scan failed: " + err.Error())
 	}
 	if err != nil {
 		return res, err
 	}
 	if res.RC != 0 {
-		return res, collkit.Gap("scan failed rc=" + strconv.Itoa(res.RC) + ": " + pytext.Tail(pytext.Strip(res.Err), maxErrorTail))
+		return res, rundoc.Gap("scan failed rc=" + strconv.Itoa(res.RC) + ": " + pytext.Tail(pytext.Strip(res.Err), maxErrorTail))
 	}
 	return res, nil
 }

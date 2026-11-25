@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/MIERAI/security-platform/internal/collectors/execad"
+	"github.com/MIERAI/security-platform/internal/collectors/execadapter"
 	"github.com/MIERAI/security-platform/internal/collectors/rundoc"
 )
 
@@ -140,8 +140,8 @@ func noCanary(t *testing.T, res result, canary string) {
 
 func canaryToken() string { return "detection-canary-" + strings.Repeat("7q", 8) }
 
-func noKube(context.Context, string, []string) execad.Result {
-	return execad.Result{RC: 1, Err: "no cluster"}
+func noKube(context.Context, string, []string) execadapter.Result {
+	return execadapter.Result{RC: 1, Err: "no cluster"}
 }
 
 // TestTokenSentOnlyFromPrivateFile: a 0600 token file is used and never written anywhere; a group-readable one is
@@ -181,18 +181,18 @@ func TestTokenSentOnlyFromPrivateFile(t *testing.T) {
 func TestSensorsThroughKubectl(t *testing.T) {
 	t.Parallel()
 	var calls atomic.Int64
-	kube := func(_ context.Context, kc string, args []string) execad.Result {
+	kube := func(_ context.Context, kc string, args []string) execadapter.Result {
 		calls.Add(1)
 		if args[0] != "get" || args[len(args)-1] != "json" {
 			t.Errorf("kubectl %v: not a read", args)
 		}
 		if kc != "" {
-			return execad.Result{RC: 1, Err: "  denied \n"}
+			return execadapter.Result{RC: 1, Err: "  denied \n"}
 		}
 		if args[1] == "daemonsets" {
-			return execad.Result{Out: `{"items": [{"metadata": {"name": "falco"}, "status": {"desiredNumberScheduled": 2, "numberReady": 2}}]}`}
+			return execadapter.Result{Out: `{"items": [{"metadata": {"name": "falco"}, "status": {"desiredNumberScheduled": 2, "numberReady": 2}}]}`}
 		}
-		return execad.Result{Out: `{"items": []}`}
+		return execadapter.Result{Out: `{"items": []}`}
 	}
 	res := run(t, t.TempDir(), map[string]any{"clusters": []any{map[string]any{"name": "lab"},
 		map[string]any{"name": "prod", "kubeconfig": "~/p.yaml"}}, "expected": map[string]any{"k8s-audit": []any{"lab"}}}, kube)

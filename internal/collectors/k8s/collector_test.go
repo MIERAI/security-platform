@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/MIERAI/security-platform/internal/collectors/pytext"
 	"github.com/MIERAI/security-platform/internal/collectors/rundoc"
 	"github.com/MIERAI/security-platform/internal/ledger/pyjson"
 	"github.com/MIERAI/security-platform/internal/pyvalue"
@@ -328,7 +329,7 @@ func TestShellQuoteIsShlexQuote(t *testing.T) {
 	// shlex.quote in CPython 3.12
 	for in, want := range map[string]string{"": "''", "abc-1.2/x:y@z%+=,": "abc-1.2/x:y@z%+=,", "a b": "'a b'",
 		"it's": `'it'"'"'s'`, "$D": "'$D'", "é": "'é'"} {
-		if got := shellQuote(in); got != want {
+		if got := pytext.ShellQuote(in); got != want {
 			t.Errorf("shellQuote(%q) = %q, want %q", in, got, want)
 		}
 	}
@@ -361,7 +362,9 @@ func TestExecutorConfig(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		e.run(context.Background(), []string{"sh", "-c", "a b"}, "", time.Second)
+		if _, err := e.Run(context.Background(), []string{"sh", "-c", "a b"}, "", time.Second, false); err != nil {
+			t.Fatal(err)
+		}
 		if strings.Join(got, " ") != tc.want {
 			t.Errorf("%s: argv %q", tc.cfg, strings.Join(got, " "))
 		}

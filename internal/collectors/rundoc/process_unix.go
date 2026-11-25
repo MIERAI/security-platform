@@ -4,6 +4,7 @@ package rundoc
 
 import (
 	"io/fs"
+	"os"
 	"os/exec"
 	"syscall"
 )
@@ -17,6 +18,14 @@ func setGroup(cmd *exec.Cmd) {
 		}
 		return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 	}
+}
+
+// signalOf is the signal that ended a process (0 when it exited).
+func signalOf(ps *os.ProcessState) int {
+	if ws, ok := ps.Sys().(syscall.WaitStatus); ok && ws.Signaled() {
+		return int(ws.Signal())
+	}
+	return 0
 }
 
 func candidates(p string) []string { return []string{p} }

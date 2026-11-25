@@ -42,11 +42,7 @@ func TestSSHCommand(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			s, ok := e.(sshExec)
-			if !ok {
-				t.Fatalf("%T", e)
-			}
-			if got := s.Command(tt.argv); !reflect.DeepEqual(got, tt.want) {
+			if got := e.Command(tt.argv); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Command = %q\nwant      %q", got, tt.want)
 			}
 		})
@@ -60,6 +56,7 @@ func TestNewRejects(t *testing.T) {
 		{"{type: telnet}", "unknown exec adapter type 'telnet'"},
 		{"{type: ssm}", "documented future adapter"},
 		{"{type: ssh}", "needs host"},
+		{"{type: ssh, host: 7}", "needs host"},
 		{"{type: ssh, host: -oProxyCommand=x}", "read as an option"},
 		{"{type: ssh, host: h, options: -v}", "list of arguments"},
 		{"{type: ssh, host: h, options: [1]}", "not text"},
@@ -69,12 +66,14 @@ func TestNewRejects(t *testing.T) {
 			t.Errorf("New(%s) = %v, want an error with %q", tt.cfg, err, tt.want)
 		}
 	}
-	e, err := New(cfg(t, "{}"), nil)
-	if err != nil {
-		t.Fatalf("default type: %v", err)
+	for _, c := range []any{nil, cfg(t, "{}"), cfg(t, "{type: local}")} {
+		e, err := New(c, nil)
+		if err != nil || !e.Local() {
+			t.Errorf("New(%v): local %v, %v", c, e != nil && e.Local(), err)
+		}
 	}
-	if _, ok := e.(local); !ok {
-		t.Errorf("default type is %T, want local", e)
+	if e, err := New(cfg(t, "{type: ssh, host: h}"), nil); err != nil || e.Local() {
+		t.Errorf("ssh: %v", err)
 	}
 }
 
@@ -85,25 +84,5 @@ func TestPowerShellArgv(t *testing.T) {
 		"WwBDAG8AbgBzAG8AbABlAF0AOgA6AE8AdQB0AHAAdQB0AEUAbgBjAG8AZABpAG4AZwA9AFsAVABlAHgAdAAuAEUAbgBjAG8AZABpAG4AZwBdADoAOgBVAFQARgA4ADsAJABQAHIAbwBnAHIAZQBzAHMAUAByAGUAZgBlAHIAZQBuAGMAZQA9ACcAUwBpAGwAZQBuAHQAbAB5AEMAbwBuAHQAaQBuAHUAZQAnADsAJABzAD0AQAAoACQAaQBuAHAAdQB0ACkAIAAtAGoAbwBpAG4AIABbAGMAaABhAHIAXQAxADAAOwBJAG4AdgBvAGsAZQAtAEUAeABwAHIAZQBzAHMAaQBvAG4AIAAkAHMA"}
 	if got := PowerShellArgv(); !reflect.DeepEqual(got, want) {
 		t.Fatalf("PowerShellArgv = %q", got)
-	}
-}
-
-func TestCapBuffer(t *testing.T) {
-	t.Parallel()
-	head := &capBuffer{limit: 4}
-	for _, s := range []string{"ab", "cde", "f"} {
-		if n, err := head.Write([]byte(s)); n != len(s) || err != nil {
-			t.Fatal(n, err)
-		}
-	}
-	if string(head.Bytes()) != "abcd" || !head.overflow {
-		t.Errorf("head %q overflow %v", head.Bytes(), head.overflow)
-	}
-	tail := &capBuffer{limit: 4, keepTail: true}
-	for _, s := range []string{"ab", "cde", "f"} {
-		_, _ = tail.Write([]byte(s)) // never fails
-	}
-	if string(tail.Bytes()) != "cdef" || tail.overflow {
-		t.Errorf("tail %q", tail.Bytes())
 	}
 }

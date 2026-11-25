@@ -18,8 +18,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/MIERAI/security-platform/internal/collectors/cloud/pyjson"
 	"github.com/MIERAI/security-platform/internal/collectors/rundoc"
+	"github.com/MIERAI/security-platform/internal/ledger/pyjson"
 	"github.com/MIERAI/security-platform/internal/pyvalue"
 	"github.com/MIERAI/security-platform/internal/textsafe"
 )
@@ -171,7 +171,8 @@ func ship(ctx context.Context, env Env, o options) (int, error) {
 		}
 	}
 	if o.summary != "" {
-		data, err := pyjson.Marshal(map[string]any{"version": Version, "sources": r.summary}, 1)
+		data, err := pyjson.Marshal(rundoc.JSON(map[string]any{"version": Version, "sources": r.summary}),
+			pyjson.Options{Indent: 1, SortKeys: true, EnsureASCII: true})
 		if err != nil {
 			return 1, fmt.Errorf("encode the summary: %w", err)
 		}

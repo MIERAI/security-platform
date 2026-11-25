@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/MIERAI/security-platform/internal/collectors/execad"
+	"github.com/MIERAI/security-platform/internal/collectors/execadapter"
 	"github.com/MIERAI/security-platform/internal/collectors/rundoc"
 	"github.com/MIERAI/security-platform/internal/pyvalue"
 )
@@ -15,7 +15,7 @@ import (
 const kubectlTimeout = 60 * time.Second
 
 // kubectlFunc runs `kubectl [--kubeconfig=K] ARGS` (read-only `get` only) and returns its result.
-type kubectlFunc func(ctx context.Context, kubeconfig string, args []string) execad.Result
+type kubectlFunc func(ctx context.Context, kubeconfig string, args []string) execadapter.Result
 
 var errKubeconfig = errors.New("kubeconfig is not a path")
 
@@ -32,18 +32,18 @@ func KubectlArgv(kubeconfig string, args []string) ([]string, error) {
 	return append(argv, args...), nil
 }
 
-func runKubectl(ctx context.Context, kubeconfig string, args []string) execad.Result {
+func runKubectl(ctx context.Context, kubeconfig string, args []string) execadapter.Result {
 	argv, err := KubectlArgv(kubeconfig, args)
 	if err != nil {
-		return execad.Result{RC: 1, Err: err.Error()}
+		return execadapter.Result{RC: 1, Err: err.Error()}
 	}
-	ex, err := execad.FromConfig(nil)
+	ex, err := execadapter.New(nil, nil)
 	if err != nil {
-		return execad.Result{RC: 1, Err: err.Error()}
+		return execadapter.Result{RC: 1, Err: err.Error()}
 	}
-	res := ex.Run(ctx, argv, nil, kubectlTimeout, false)
-	if res.RC == execad.RCNotFound && res.Out == "" && strings.Contains(res.Err, "executable file not found") {
-		res = execad.Result{RC: 1, Err: "[Errno 2] No such file or directory: 'kubectl'"} // as subprocess reports it
+	res := ex.Output(ctx, argv, kubectlTimeout)
+	if execadapter.NotInstalled(res) {
+		res = execadapter.Result{RC: 1, Err: "[Errno 2] No such file or directory: 'kubectl'"} // as subprocess reports it
 	}
 	return res
 }

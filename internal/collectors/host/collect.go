@@ -11,13 +11,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"strconv"
 	"time"
 
 	"github.com/MIERAI/security-platform/collectors"
-	"github.com/MIERAI/security-platform/internal/collectors/collkit"
 	"github.com/MIERAI/security-platform/internal/collectors/execadapter"
 	"github.com/MIERAI/security-platform/internal/collectors/pytext"
+	"github.com/MIERAI/security-platform/internal/collectors/rundoc"
 	"github.com/MIERAI/security-platform/internal/pyvalue"
 	"github.com/MIERAI/security-platform/internal/textsafe"
 )
@@ -30,13 +31,26 @@ const (
 	slowProbeTimeout = 90 // network-dependent probes (update servers), run last
 )
 
-// Main runs the collector and returns its exit status.
-func Main(ctx context.Context, env collkit.Env) int {
-	return collkit.Main(ctx, env, "host", Version, collect)
+// Collector is the collector behind `sp host collect|version`.
+func Collector() *rundoc.Collector {
+	return &rundoc.Collector{Name: "host", Version: Version, Collect: func(ctx context.Context, run *rundoc.Run, env *rundoc.Env) error {
+		return collect(ctx, &job{Run: run, env: env})
+	}}
 }
 
-func collect(ctx context.Context, r *collkit.Run) error {
-	hosts, err := collkit.Targets(r.Inst, "hosts", "name")
+// Main is `sp host collect|version`; it returns the exit status.
+func Main(ctx context.Context, args []string, env *rundoc.Env, stdout io.Writer) int {
+	return rundoc.Main(ctx, Collector(), args, env, stdout)
+}
+
+// job is one run: the collector-protocol context and the process environment.
+type job struct {
+	*rundoc.Run
+	env *rundoc.Env
+}
+
+func collect(ctx context.Context, r *job) error {
+	hosts, err := rundoc.Targets(r.Instance, "hosts", "name")
 	if err != nil {
 		return err
 	}
@@ -68,7 +82,7 @@ func limits(h *pyvalue.Map) (timeLimits, error) {
 
 // scriptFor is the profile with its probe helper in front, the limits from the instance config and the end marker.
 func scriptFor(profile string, probe, slow int64) (string, error) {
-	if profile == "probe" || !collkit.SafeFileName(profile) {
+	if profile == "probe" || !rundoc.SafeFileName(profile) {
 		return "", fmt.Errorf("unknown profile %s", pyvalue.Repr(profile))
 	}
 	ext := ".sh"
@@ -93,16 +107,16 @@ func scriptFor(profile string, probe, slow int64) (string, error) {
 // target is one configured host, ready to run.
 type target struct {
 	name, asset, profile string
-	exec                 execadapter.Executor
+	exec                 *execadapter.Executor
 	script               string
 	total                time.Duration
 }
 
 // prepare reads a host's configuration; a host that cannot run is a gap (reason returned), not an error.
-func prepare(r *collkit.Run, h *pyvalue.Map) (*target, string) {
+func prepare(r *job, h *pyvalue.Map) (*target, string) {
 	t := &target{name: pyvalue.Str(h.Value("name"))}
 	t.asset = "host:" + t.name
-	if !collkit.SafeFileName(t.name) {
+	if !rundoc.SafeFileName(t.name) {
 		return t, "invalid host name for an evidence file: " + pyvalue.Repr(t.name)
 	}
 	profile, _ := h.Value("profile").(string) // not text: an unknown profile below
@@ -112,7 +126,7 @@ func prepare(r *collkit.Run, h *pyvalue.Map) (*target, string) {
 		t.script, err = scriptFor(profile, lim.probe, lim.slow)
 	}
 	if err == nil {
-		t.exec, err = execadapter.New(h.Value("exec"), r.Environ)
+		t.exec, err = execadapter.New(h.Value("exec"), r.env.Environ)
 	}
 	if err != nil {
 		return t, "invalid configuration: " + err.Error()
@@ -121,8 +135,8 @@ func prepare(r *collkit.Run, h *pyvalue.Map) (*target, string) {
 	return t, ""
 }
 
-func collectHost(ctx context.Context, r *collkit.Run, h *pyvalue.Map) error {
-	if !collkit.InScope(r.Inst, h.Value("name"), "host") {
+func collectHost(ctx context.Context, r *job, h *pyvalue.Map) error {
+	if !rundoc.InScope(r.Instance, h.Value("name"), "host") {
 		return nil // instance scope: another collector covers this asset (not a gap)
 	}
 	asset := "host:" + pyvalue.Str(h.Value("name"))
@@ -153,7 +167,7 @@ func collectHost(ctx context.Context, r *collkit.Run, h *pyvalue.Map) error {
 }
 
 // evaluate turns one host's output into its coverage, evidence, findings and metric.
-func evaluate(r *collkit.Run, t *target, res execadapter.Result) error {
+func evaluate(r *job, t *target, res execadapter.Result) error {
 	o := parse(res.Out)
 	if res.RC != 0 && !printedAnything(o.kv) {
 		r.Doc.Gap(t.asset, "exec failed rc="+strconv.Itoa(res.RC)+": "+pytext.Tail(pytext.Strip(res.Err), maxErrorTail), nil)
@@ -168,18 +182,15 @@ func evaluate(r *collkit.Run, t *target, res execadapter.Result) error {
 		o.kv.delete(k) // "unknown" is not a value: no check may read it
 	}
 	gaps := narrowGaps(miss)
-	ev, err := r.Doc.Raw(r.Dir, t.name+".json", evidence(t.profile, o, res.RC, miss))
+	ev, err := r.Doc.Raw(r.Dir, t.name+".json", rundoc.JSON(evidence(t.profile, o, res.RC, miss)))
 	if err != nil {
 		return err
 	}
-	r.Doc.OK(t.asset)
-	c := &checker{doc: r.Doc, asset: t.asset, ev: ev, kv: o.kv, now: r.Now()}
-	mark := r.Doc.Count()
+	r.Doc.OK(t.asset, "")
+	c := &checker{doc: r.Doc, asset: t.asset, ev: ev, kv: o.kv, now: r.env.Clock()()}
+	mark := r.Doc.Mark()
 	c.all()
 	wild := c.listeners(o.listen)
-	if c.err != nil {
-		return c.err
-	}
 	if !hasPart(gaps, "listeners") {
 		r.Doc.Metric("security_host_wildcard_listeners", float64(wild), "Sockets listening on all interfaces",
 			map[string]string{"host": t.name})
@@ -193,7 +204,7 @@ func evaluate(r *collkit.Run, t *target, res execadapter.Result) error {
 	r.Doc.DropSince(mark, func(check string) bool { return matchAny(check, blocked) })
 	for _, g := range gaps {
 		r.Doc.Gap(t.asset+"/"+g.part, pytext.Head(t.name+" "+g.part+": could not check ("+g.why+")", 300), g.checks)
-		_, _ = fmt.Fprintln(r.Stderr, textsafe.Line("[host] "+t.name+": "+g.part+" could not be checked: "+g.why)) // informational
+		_, _ = fmt.Fprintln(r.env.Errout(), textsafe.Line("[host] "+t.name+": "+g.part+" could not be checked: "+g.why)) // informational
 	}
 	return nil
 }

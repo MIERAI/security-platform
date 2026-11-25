@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/MIERAI/security-platform/internal/collectors/execad"
+	"github.com/MIERAI/security-platform/internal/collectors/execadapter"
 )
 
 const ghTimeout = 30 * time.Second
@@ -21,12 +21,12 @@ type Account struct {
 // ghStatus runs `gh auth status` (read-only, no shell) and returns its stdout and stderr; ok is false when gh is not
 // installed (there are then no local gh tokens to assess).
 func ghStatus(ctx context.Context) (text string, ok bool) {
-	ex, err := execad.FromConfig(nil)
+	ex, err := execadapter.New(nil, nil)
 	if err != nil {
 		return "", false
 	}
-	res := ex.Run(ctx, []string{"gh", "auth", "status"}, nil, ghTimeout, false)
-	if res.RC == execad.RCNotFound && res.Out == "" {
+	res := ex.Output(ctx, []string{"gh", "auth", "status"}, ghTimeout)
+	if res.RC == execadapter.StatusNotFound && res.Out == "" {
 		return "", false
 	}
 	return res.Out + res.Err, true
