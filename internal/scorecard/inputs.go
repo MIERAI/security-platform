@@ -8,7 +8,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	pv "github.com/MIERAI/security-platform/internal/scorecard/pyvalue"
+	pv "github.com/MIERAI/security-platform/internal/pyvalue"
 )
 
 // coverage is one coverage entry of a collector's newest document.

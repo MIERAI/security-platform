@@ -7,7 +7,7 @@ import (
 
 	"github.com/MIERAI/security-platform/internal/cloud/dyn"
 	"github.com/MIERAI/security-platform/internal/collectors/cloud/pyjson"
-	"github.com/MIERAI/security-platform/internal/scorecard/pyvalue"
+	"github.com/MIERAI/security-platform/internal/pyvalue"
 )
 
 const maxInstanceFile = 16 << 20

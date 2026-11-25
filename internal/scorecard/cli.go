@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	pv "github.com/MIERAI/security-platform/internal/scorecard/pyvalue"
+	pv "github.com/MIERAI/security-platform/internal/pyvalue"
 	"github.com/MIERAI/security-platform/internal/textsafe"
 )
 

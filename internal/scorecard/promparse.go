@@ -6,7 +6,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	pv "github.com/MIERAI/security-platform/internal/scorecard/pyvalue"
+	pv "github.com/MIERAI/security-platform/internal/pyvalue"
 )
 
 // A line of the Prometheus text format and its labels, as the `metric` evaluator reads the published metrics

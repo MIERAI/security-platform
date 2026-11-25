@@ -12,7 +12,7 @@ Components are versioned independently (docs/design.md §5). Entries name the co
   parity tests pin the parsers, the merge and the control tables to the Python answers on the shared fixtures
   (`internal/collectors/cloud/testdata/golden.json`, kept current by tests/test_cloud.py). The Python collector is
   unchanged and stays the default; a `command` job selects the Go one (docs/cloud.md). The instance config is read
-  with the YAML 1.1 rules of the reference (internal/scorecard/pyvalue, go.yaml.in/yaml/v3).
+  with the YAML 1.1 rules of the reference (internal/pyvalue, go.yaml.in/yaml/v3).
 - **adapters/cloud.py 0.3.0, adapters/discovery.py 0.6.0**: their Go implementation, internal/cloud, on the providers'
   official SDKs instead of our own protocol code: aws-sdk-go-v2 (STS web identity + `AssumeRole` chain, IAM policy
   inspection with paging, SSO/shared-config profiles without the AWS CLI), golang.org/x/oauth2/google (STS token
@@ -37,6 +37,27 @@ Components are versioned independently (docs/design.md §5). Entries name the co
   (site job states in directory order). 9 more conformance cases (13): not applicable by id, glob, tag and
   unconfigured collector, weights and rounding, weakest link, pillars and CSF functions, attestation states, SLI
   objectives, regression counters over several computes, the cloud dimension, every evaluator type, catalog errors.
+- **internal/ledger 0.1.0** (new, Go): the ledger merge and remediation tracking in Go — `sp ledger merge` and
+  `sp ledger track` (contracts/ledger 1.0). Passes the whole ledger and remediation conformance suite with no expected
+  failures, i.e. with the TARGET behaviour of the known deviations: a finding without `kind` is merged as
+  `compliance` instead of failing the merge (LEDGER-D1); an entry gets its remediation `due_at` when first recorded
+  or reopened (LEDGER-D2); a coverage gap protects only the assets it would cover, not every asset whose name contains
+  it (LEDGER-D3); all time arithmetic on UTC instants (LEDGER-D4); an accepted finding whose exception was removed from
+  `exceptions.yaml` is open again (LEDGER-D5). It reads and writes the same files as the reference, byte for byte
+  (checked on the conformance fixtures and on 10k findings over six runs with `--reference-behaviour`). YAML
+  is read through `internal/pyvalue` (moved from the scorecard, shared). Not used unless selected below.
+- **runner 0.10.0**: `runner.implementations.<component>: python | go | shadow` (default `python`) and
+  `runner.go_binary` select the implementation of `ledger` and `remediation`. `go` falls back to Python (logged once)
+  when no Go `sp` binary is found; `shadow` keeps Python as the source of truth, runs Go on a temporary copy of the
+  same inputs, writes `<run>/shadow-<component>.json` with every difference attributed to a known deviation or marked
+  unexplained, and exports `security_impl_shadow_diffs{component}`, `security_impl_shadow_explained_diffs` and
+  `security_impl_shadow_last_run_timestamp_seconds`. `bench/shadow.py` runs it end to end on a realistic estate.
+- **core 0.10.0**: ships the Go implementation of merge and track next to the Python one (the Python files are
+  unchanged; which one runs is the runner's `implementations` setting).
+- **contracts**: runner 1.1 (§7 implementation switch, shadow report `security-platform/shadow-diff/v1`); ledger §8
+  (implementations); metrics registry: the three shadow series, label key `component`. `conformance/impl/go/run.sh`
+  runs the suite against the Go implementation (`tests/test_conformance_go.py` when a Go toolchain is present).
+- **sp**: `sp ledger ...` runs in Go; `sp version` lists `internal/ledger` as a Go component.
 - **contracts 1.x** (new, documentation of existing behaviour; no component changed): `contracts/` defines every
   component boundary language-neutrally — findings 1.2 (incl. OCSF mapping), collector-protocol 1.0, ledger 1.0
   (merge + remediation tracking), scorecard 1.0, runner 1.0, metrics 1.0 (`registry.json`), cli 1.0 — each with JSON

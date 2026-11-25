@@ -39,6 +39,10 @@
     "type": "remediation",
     "schedule": "50 * * * *"
    }
+  },
+  "implementations": {
+   "ledger": "shadow",
+   "remediation": "python"
   }
  }
 }

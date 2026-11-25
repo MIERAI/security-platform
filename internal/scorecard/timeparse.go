@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	pv "github.com/MIERAI/security-platform/internal/scorecard/pyvalue"
+	pv "github.com/MIERAI/security-platform/internal/pyvalue"
 )
 
 const day = 86400.0
