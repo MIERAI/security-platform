@@ -1,8 +1,8 @@
-# Contract: runner — version 1.0
+# Contract: runner — version 1.1
 
 | | |
 |---|---|
-| contract | `runner`, version **1.0** (files: `security-platform/runner-state/v1`, `control/v1`, `snapshot/v1`) |
+| contract | `runner`, version **1.1** (files: `security-platform/runner-state/v1`, `control/v1`, `snapshot/v1`) |
 | schemas | [`runner-config-v1.schema.json`](runner-config-v1.schema.json) (the `runner:` block), [`runner-state-v1.schema.json`](runner-state-v1.schema.json), [`runner-status-v1.schema.json`](runner-status-v1.schema.json) |
 | executable | reference `runner/runner.py`, impl `SP_IMPL_RUNNER` |
 | conformance | `conformance/cases/runner/*` (a fake clock: `--now`) |
@@ -39,6 +39,7 @@ The runner keeps everything going: any trigger (cron, launchd, systemd timer, Te
 1h), `jobs`. Per job: `type` (default `collector`), `collector` (default the job name), `as`, `argv` (command),
 `schedule` (5-field cron, required), `jitter`, `timeout`, `retries` (default 0), `retry_delay` (default 15m),
 `max_delay`, `env`, plus type-specific keys (`docs/runner.md`). Durations: `<n>s|m|h|d|w` or seconds.
+Since 1.1: `implementations` and `go_binary` (§7).
 
 | type | what it runs | success |
 |---|---|---|
@@ -108,6 +109,37 @@ The runner's series (all with label `site`; job series also `job`; sink series a
 in the [metrics registry](../metrics/registry.json) with producer `runner`. Heartbeats: `security_runner_tick_timestamp_seconds`
 with its threshold `security_runner_tick_max_gap_seconds` (`tick_stale_after`) drive the stale-runner alert.
 
+## 7. Implementation switch (1.1)
+
+A component with more than one implementation (today `ledger` = [ledger merge](../ledger/SPEC.md) and `remediation` =
+[ledger track](../ledger/SPEC.md)) runs the implementation `runner.implementations.<component>` selects:
+
+| value | what runs | what is used |
+|---|---|---|
+| `python` (default) | the reference (`core/ledger.py`, `core/remediation.py`) | its outputs |
+| `go` | the Go `sp` binary: `sp ledger merge --run R --data D --latest L --instance F`, `sp ledger track --data D --instance F` | its outputs; when no Go binary is found the reference runs instead (logged once per runner process) |
+| `shadow` | the reference exactly as with `python`, then the Go binary on a **copy** of the inputs in a temporary directory (same relative layout, `--now` = the start of the reference run; track: the same `--now` for both and `--no-external-sync`) | the reference's outputs only: the Go implementation never writes the real data directory or run directory |
+
+- `go_binary` (optional): path of the Go `sp` binary. Unset: `/usr/local/bin/sp`, then `sp` on `PATH`. A candidate is
+  used only when `<binary> version --json` prints schema `security-platform/version/v1` whose `go_subcommands` contains
+  the component's subcommand (`ledger`); anything else (e.g. the Python `bin/sp`) is never run as a component.
+- An unknown component or value is logged and ignored (the reference runs); it never fails a tick.
+- **Shadow comparison**: the outputs are compared after normalization (ledger: `ledger.json` without `updated_at`,
+  `runs[].at`, `runs[].core` and run keys only one side writes; `metrics/ledger.prom`, `<run>/sli.prom` by series
+  without the heartbeat; `<run>/ocsf.jsonl` by `finding_info.uid`. track: `tracker/items.json` without `updated_at`,
+  `core`; `metrics/remediation.prom` without the heartbeat; the `files` tracker's `tracker/*.md`), plus the exit status.
+  A difference that is the TARGET behaviour of a known deviation is **explained**, every other one **unexplained**.
+  Attribution: a rule of the component (`entries.<id>.due_at` only on the Go side: LEDGER-D2; the reference failed
+  with the signature of LEDGER-D1: every difference of that run), else further Go runs on their own copies with
+  `--reference-behaviour` (ledger: LEDGER-D5, LEDGER-D3, then both together) — a difference that disappears when a
+  deviation is switched back to the reference behaviour is that deviation's target. The report is
+  `<run>/shadow-<component>.json` (schema `security-platform/shadow-diff/v1`: `at`, `component`, `go_binary`,
+  `python_rc`, `go_rc`, `unexplained`, `explained`, `explained_by` (reason → count), `differences` (first 200: `file`,
+  `path`, `python`, `go`, `explained`), `truncated`); the last summary is
+  kept in `<data>/state/runner/shadow/<component>.json` and exported as `security_impl_shadow_diffs`,
+  `security_impl_shadow_explained_diffs` and `security_impl_shadow_last_run_timestamp_seconds` (labels `site`,
+  `component`). A failure of the shadow side is logged and never changes the job's result.
+
 ## Known deviations
 
 | id | current behaviour (reference) | target | case |
@@ -121,3 +153,4 @@ with its threshold `security_runner_tick_max_gap_seconds` (`tick_stale_after`) d
 | version | change |
 |---|---|
 | 1.0 | first formal version (documents runner 0.9.0) |
+| 1.1 | `implementations` (python / go / shadow per component) and `go_binary`; shadow diff report and metrics (runner 0.10.0) |

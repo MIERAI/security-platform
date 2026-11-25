@@ -11,7 +11,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	pv "github.com/MIERAI/security-platform/internal/scorecard/pyvalue"
+	pv "github.com/MIERAI/security-platform/internal/pyvalue"
 )
 
 // gitTimeout bounds the git call that finds when an evidence file was last reviewed.

@@ -1,7 +1,7 @@
 package scorecard
 
 import (
-	pv "github.com/MIERAI/security-platform/internal/scorecard/pyvalue"
+	pv "github.com/MIERAI/security-platform/internal/pyvalue"
 )
 
 // expiringSoon: an attestation that expires within 14 days counts as expiring.

@@ -1,4 +1,4 @@
-// Package pyvalue is the document model of the scorecard: the values a YAML or JSON input decodes to, with the
+// Package pyvalue is the document model of the Go components (scorecard, ledger): the values a YAML or JSON input decodes to, with the
 // semantics the reference implementation gives them (contracts/scorecard/SPEC.md §6, "Values"). Inputs are
 // typed only loosely by their schemas (a control's `source` is free-form evaluator parameters, an override may
 // patch any key), so the Go implementation keeps them as values and interprets them the way the contract says:

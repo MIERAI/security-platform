@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	pv "github.com/MIERAI/security-platform/internal/scorecard/pyvalue"
+	pv "github.com/MIERAI/security-platform/internal/pyvalue"
 )
 
 // readFile reads a whole input file, at most maxInputFile bytes.

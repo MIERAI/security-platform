@@ -6,7 +6,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	pv "github.com/MIERAI/security-platform/internal/scorecard/pyvalue"
+	pv "github.com/MIERAI/security-platform/internal/pyvalue"
 )
 
 // controlID is the form of a control id: <dimension>.<name>, lowercase. Compiled once, never written.
