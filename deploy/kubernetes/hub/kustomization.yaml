@@ -5,6 +5,8 @@
 # The instance supplies the ConfigMap `security-platform-hub` (key instance.json; hub.example.json) and, per site,
 # a ServiceAccount `security-platform-site-<site>` bound to the Role `security-platform-inbox-writer`
 # (site-identity.example.yaml). Use together with ../ (the exporter) in the same namespace.
+# Several hubs in one cluster: add the component ../unique-names (cluster-scoped names get the installation's name;
+# docs/runner.md "Several hubs in one cluster").
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 labels:
