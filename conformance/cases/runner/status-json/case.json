@@ -1,0 +1,96 @@
+{
+ "component": "runner",
+ "title": "`status` prints one JSON object: per job its state, `due` (why it would or would not run now) and schedule",
+ "contract": "runner/1.0",
+ "origin": "runner.py status; docs/runner.md",
+ "files": {
+  "instance.json": "instance.json"
+ },
+ "steps": [
+  {
+   "name": "status at 2030-01-07T12:30:00Z",
+   "exec": {
+    "impl": "runner",
+    "args": [
+     "status",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1894019400"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "schema": "runner-status",
+      "json": {
+       "a": {
+        "due": "due",
+        "schedule": "0 * * * *",
+        "runs_total": 0
+       },
+       "b": {
+        "due": "due"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "tick at 2030-01-07T12:30:00Z",
+   "exec": {
+    "impl": "runner",
+    "args": [
+     "tick",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1894019400",
+     "a"
+    ]
+   },
+   "exit": 0,
+   "expect": []
+  },
+  {
+   "name": "status at 2030-01-07T12:31:00Z",
+   "exec": {
+    "impl": "runner",
+    "args": [
+     "status",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1894019460"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "schema": "runner-status",
+      "json": {
+       "a": {
+        "due": "done",
+        "runs_total": 1,
+        "last_rc": 0
+       },
+       "b": {
+        "due": "due",
+        "runs_total": 0
+       }
+      }
+     }
+    }
+   ]
+  }
+ ]
+}

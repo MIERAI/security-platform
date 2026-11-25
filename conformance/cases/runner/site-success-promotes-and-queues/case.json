@@ -1,0 +1,53 @@
+{
+ "component": "runner",
+ "title": "Role site: a valid document is promoted to latest/ and queued in the outbox; no ledger is kept",
+ "contract": "runner/1.0",
+ "origin": "tests/test_runner.py::test_site_role_fills_outbox_and_hub_ingests",
+ "files": {
+  "instance.json": "instance.json"
+ },
+ "steps": [
+  {
+   "name": "tick at 2030-01-07T12:30:00Z",
+   "exec": {
+    "impl": "runner",
+    "args": [
+     "tick",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1894019400"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/state/runner/host.json",
+     "schema": "runner-state",
+     "subset": {
+      "last_rc": 0,
+      "last_success": {
+       "$type": "integer"
+      },
+      "last_run_dir": {
+       "$regex": "^runs/"
+      }
+     }
+    },
+    {
+     "json": "data/latest/host.findings.json",
+     "schema": "findings"
+    },
+    {
+     "glob": "outbox/*.findings.json",
+     "count": 1
+    },
+    {
+     "absent": "data/ledger.json"
+    }
+   ]
+  }
+ ]
+}

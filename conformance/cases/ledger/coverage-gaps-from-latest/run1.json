@@ -1,0 +1,19 @@
+{
+ "collector": {
+  "name": "exposure",
+  "version": "1.0.0"
+ },
+ "coverage": [
+  {
+   "asset": "net-endpoint:h@192.0.2.1",
+   "status": "ok"
+  }
+ ],
+ "findings": [],
+ "run": {
+  "finished_at": "2026-11-01T09:00:00Z",
+  "instance": "conformance",
+  "started_at": "2026-11-01T09:00:00Z"
+ },
+ "schema_version": "1.2"
+}

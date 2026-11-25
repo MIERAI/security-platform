@@ -1,0 +1,27 @@
+{
+ "component": "cli",
+ "title": "`sp --version` prints `sp <cli version> (security-platform <release>)`",
+ "contract": "cli/1.0",
+ "origin": "cli/sp.py; docs/upgrade.md",
+ "steps": [
+  {
+   "name": "sp --version",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "--version"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "regex": [
+       "^sp \\d+\\.\\d+\\.\\d+ \\(security-platform \\S+\\)$"
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,177 @@
+{
+ "component": "cli",
+ "title": "`sp findings --json` prints the matching ledger entries as a JSON array, worst first; filters combine",
+ "contract": "cli/1.0",
+ "origin": "tests/test_cli.py::test_findings_filters",
+ "files": {
+  "data/ledger.json": "ledger.json",
+  "data/tracker/items.json": "items.json",
+  "data/instance.json": "instance.json"
+ },
+ "steps": [
+  {
+   "name": "sp findings --json --data {sandbox}/data",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "findings",
+     "--json",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "schema": "cli-findings",
+      "json": {
+       "$len": 4
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "sp findings --open --json --data {sandbox}/data",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "findings",
+     "--open",
+     "--json",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "json": [
+       {
+        "id": "7eafa19e3d35",
+        "severity": "critical"
+       },
+       {
+        "id": "d610b9b1761d"
+       },
+       {
+        "id": "e68dbe52f93c"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "sp findings --open --severity high --json --data {sandbox}/data",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "findings",
+     "--open",
+     "--severity",
+     "high",
+     "--json",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "json": {
+       "$unordered": [
+        {
+         "id": "7eafa19e3d35"
+        },
+        {
+         "id": "d610b9b1761d"
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "sp findings --layer supply-chain --json --data {sandbox}/data",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "findings",
+     "--layer",
+     "supply-chain",
+     "--json",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "json": [
+       {
+        "id": "d610b9b1761d"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "sp findings --check host.ssh --json --data {sandbox}/data",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "findings",
+     "--check",
+     "host.ssh",
+     "--json",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "json": [
+       {
+        "id": "7eafa19e3d35"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "sp findings --overdue --json --data {sandbox}/data",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "findings",
+     "--overdue",
+     "--json",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "json": [
+       {
+        "id": "7eafa19e3d35"
+       }
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}

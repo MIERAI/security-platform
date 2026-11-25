@@ -1,0 +1,14 @@
+{
+ "name": "conformance",
+ "scorecard": {
+  "catalog_dirs": [
+   "{sandbox}/catalog"
+  ],
+  "not_applicable": {
+   "beta.miss*": "not ours",
+   "tag:people": "no staff"
+  },
+  "replace_catalog": true,
+  "threshold": 50
+ }
+}

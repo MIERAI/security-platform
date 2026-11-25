@@ -1,0 +1,88 @@
+{
+ "component": "scorecard",
+ "title": "An automated `findings` control passes with no matching open entry and fails with one",
+ "contract": "scorecard/1.0",
+ "origin": "tests/test_scorecard.py::test_evaluators",
+ "files": {
+  "catalog/01-alpha.yaml": "catalog/01-alpha.yaml",
+  "catalog/02-beta.yaml": "catalog/02-beta.yaml",
+  "catalog/03-gamma.yaml": "catalog/03-gamma.yaml",
+  "instance.json": "instance.json",
+  "data/attestations.yaml": "attestations.yaml",
+  "data/ledger.json": "ledger.json"
+ },
+ "steps": [
+  {
+   "name": "compute at 2030-01-10T00:00:00Z",
+   "exec": {
+    "impl": "scorecard",
+    "args": [
+     "compute",
+     "--data",
+     "{sandbox}/data",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--now",
+     "1894233600"
+    ]
+   },
+   "expect": [
+    {
+     "json": "data/reports/scorecard.json",
+     "schema": "scorecard",
+     "subset": {
+      "controls": {
+       "$contains": [
+        {
+         "id": "alpha.no-critical",
+         "status": "pass"
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "an open critical appears",
+   "exec": {
+    "impl": "scorecard",
+    "args": [
+     "compute",
+     "--data",
+     "{sandbox}/data",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--now",
+     "1894233600"
+    ]
+   },
+   "expect": [
+    {
+     "json": "data/reports/scorecard.json",
+     "schema": "scorecard",
+     "subset": {
+      "controls": {
+       "$contains": [
+        {
+         "id": "alpha.no-critical",
+         "status": "fail"
+        }
+       ]
+      },
+      "dimensions": {
+       "alpha": {
+        "score": 66.7,
+        "status": "FAIL"
+       }
+      },
+      "overall": 50.0
+     }
+    }
+   ],
+   "files": {
+    "data/ledger.json": "ledger-open.json"
+   }
+  }
+ ]
+}

@@ -1,0 +1,84 @@
+{
+ "component": "scorecard",
+ "title": "The instance may declare controls not applicable (by id glob or tag:, with a reason) and set the threshold; a reason is mandatory",
+ "contract": "scorecard/1.0",
+ "origin": "tests/test_scorecard.py::test_opt_outs_are_not_applicable, test_instance_keys_need_reasons",
+ "files": {
+  "catalog/01-alpha.yaml": "catalog/01-alpha.yaml",
+  "catalog/02-beta.yaml": "catalog/02-beta.yaml",
+  "catalog/03-gamma.yaml": "catalog/03-gamma.yaml",
+  "instance.json": "instance-na.json",
+  "data/attestations.yaml": "attestations.yaml",
+  "data/ledger.json": "ledger.json"
+ },
+ "steps": [
+  {
+   "name": "compute at 2030-01-10T00:00:00Z",
+   "exec": {
+    "impl": "scorecard",
+    "args": [
+     "compute",
+     "--data",
+     "{sandbox}/data",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--now",
+     "1894233600"
+    ]
+   },
+   "expect": [
+    {
+     "json": "data/reports/scorecard.json",
+     "schema": "scorecard",
+     "subset": {
+      "threshold": 50.0,
+      "dimensions": {
+       "beta": {
+        "score": 0.0,
+        "status": "FAIL",
+        "weight_total": 1
+       }
+      },
+      "controls": {
+       "$contains": [
+        {
+         "id": "beta.trained",
+         "status": "na",
+         "detail": {
+          "$regex": "no staff"
+         }
+        },
+        {
+         "id": "beta.missing",
+         "status": "na"
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "a not_applicable entry without a reason is refused",
+   "exec": {
+    "impl": "scorecard",
+    "args": [
+     "compute",
+     "--data",
+     "{sandbox}/data",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--now",
+     "1894233600"
+    ]
+   },
+   "expect": [],
+   "files": {
+    "instance.json": "instance-noreason.json"
+   },
+   "exit": {
+    "not": 0
+   }
+  }
+ ]
+}

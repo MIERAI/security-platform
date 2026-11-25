@@ -1,0 +1,87 @@
+{
+ "component": "ledger",
+ "title": "An expired exception makes the finding open again, marked expired (counted)",
+ "contract": "ledger/1.0",
+ "origin": "tests/test_ledger.py::test_exceptions_need_human_and_expiry; design §1",
+ "files": {
+  "data/exceptions.yaml": "valid.yaml"
+ },
+ "steps": [
+  {
+   "name": "merge run1",
+   "files": {
+    "run1/host.findings.json": "run1.json"
+   },
+   "exec": {
+    "impl": "ledger",
+    "args": [
+     "--run",
+     "{sandbox}/run1",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/ledger.json",
+     "subset": {
+      "entries": {
+       "6bad575931fc": {
+        "status": "accepted"
+       }
+      }
+     },
+     "schema": "ledger"
+    }
+   ]
+  },
+  {
+   "name": "exception now expired",
+   "files": {
+    "run2/host.findings.json": "run1.json",
+    "data/exceptions.yaml": "expired.yaml"
+   },
+   "exec": {
+    "impl": "ledger",
+    "args": [
+     "--run",
+     "{sandbox}/run2",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/ledger.json",
+     "subset": {
+      "entries": {
+       "6bad575931fc": {
+        "status": "open",
+        "exception": {
+         "expired": true,
+         "approved_by": "alice"
+        }
+       }
+      }
+     },
+     "schema": "ledger"
+    },
+    {
+     "prom": "data/metrics/ledger.prom",
+     "has": [
+      {
+       "name": "security_exceptions_expired",
+       "value": 1
+      },
+      {
+       "name": "security_exceptions_active",
+       "value": 0
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,44 @@
+{
+ "name": "example",
+ "runner": {
+  "site": "hub",
+  "role": "hub",
+  "tick_stale_after": "1h",
+  "retention": "14d",
+  "sinks": [
+   {
+    "type": "textfile",
+    "path": "/var/lib/node_exporter/textfile/security-platform.prom"
+   }
+  ],
+  "jobs": {
+   "host": {
+    "schedule": "15 2 * * *",
+    "timeout": "30m",
+    "retries": 2,
+    "retry_delay": "20m"
+   },
+   "exposure": {
+    "schedule": "30 3 * * *",
+    "jitter": "20m",
+    "timeout": "2h",
+    "max_delay": "3h"
+   },
+   "scanner-x": {
+    "type": "command",
+    "collector": "scanner-x",
+    "argv": [
+     "/opt/scanner-x/bin/sp-collector"
+    ],
+    "schedule": "0 */6 * * *",
+    "env": {
+     "SCANNER_X_MODE": "fast"
+    }
+   },
+   "remediation": {
+    "type": "remediation",
+    "schedule": "50 * * * *"
+   }
+  }
+ }
+}

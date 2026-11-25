@@ -1,0 +1,3 @@
+schema: security-platform/attestations/v1
+attestations:
+  example.offboarding-reviewed: {attested_by: alice, at: '2026-11-01', expires: '2027-01-30', value: true, note: HR list checked}

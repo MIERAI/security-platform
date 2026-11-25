@@ -1,0 +1,40 @@
+{
+ "component": "runner",
+ "title": "A job that exceeds `timeout` is killed (its process group) and recorded as exit 124",
+ "contract": "runner/1.0",
+ "origin": "tests/test_runner.py::test_failure_timeout_and_contract",
+ "files": {
+  "instance.json": "instance.json"
+ },
+ "steps": [
+  {
+   "name": "tick at 2030-01-07T12:30:00Z",
+   "exec": {
+    "impl": "runner",
+    "args": [
+     "tick",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1894019400"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/state/runner/slow.json",
+     "schema": "runner-state",
+     "subset": {
+      "last_rc": 124,
+      "failures_total": 1
+     }
+    },
+    {
+     "duration_max": 40
+    }
+   ]
+  }
+ ]
+}

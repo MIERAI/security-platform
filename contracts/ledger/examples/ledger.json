@@ -1,0 +1,151 @@
+{
+ "collectors": {
+  "host": {
+   "last_good_run": "2026-11-05T09:00:00Z",
+   "last_run": "2026-11-05T09:00:00Z"
+  }
+ },
+ "coverage_seen": {
+  "host": [
+   "host:h1"
+  ]
+ },
+ "entries": {
+  "4a8faf0efd8f": {
+   "asset": "host:h1",
+   "attributes": {},
+   "check": "host.ssh_password_auth",
+   "collector": "host",
+   "collector_version": "1.0.0",
+   "evidence": "raw/x/host.ssh_password_auth.json",
+   "first_seen": "2026-11-01T08:00:00Z",
+   "fixed_at": null,
+   "fixed_reason": null,
+   "id": "4a8faf0efd8f",
+   "kind": "compliance",
+   "last_seen": "2026-11-05T08:00:00Z",
+   "layer": "host",
+   "needs_human": false,
+   "owner": "platform",
+   "refs": [],
+   "remediation": "fix host.ssh_password_auth",
+   "reopened_count": 1,
+   "severity": "high",
+   "status": "open",
+   "time_to_fix_days": null,
+   "title": "host.ssh_password_auth on host:h1",
+   "ttk_counted": false
+  }
+ },
+ "runs": [
+  {
+   "at": "2026-11-25T08:36:45Z",
+   "collectors": {
+    "host": "1.0.0"
+   },
+   "core": "0.9.0",
+   "invalid": {},
+   "run_dir": "../run3"
+  }
+ ],
+ "schema": "security-platform/ledger/v1",
+ "sli": {
+  "check_catalog_age_days": {
+   "description": "Days since the check catalog / benchmarks were last reviewed against upstream (CIS, ATT&CK, Sigma/Falco)",
+   "ok": true,
+   "target": 90,
+   "value": -1
+  },
+  "collector_coverage_gaps": {
+   "description": "Assets in scope that a collector could not cover (platform health, inner loop)",
+   "ok": true,
+   "target": 0,
+   "value": 0
+  },
+  "critical_config_findings": {
+   "description": "Open critical findings that are not vulnerabilities (configuration, exposure, identity, secrets, agents)",
+   "ok": true,
+   "target": 0,
+   "value": 0
+  },
+  "critical_open_findings": {
+   "description": "Open findings of severity critical (any layer)",
+   "ok": true,
+   "target": 0,
+   "value": 0
+  },
+  "kev_affecting_assets": {
+   "description": "Open findings whose CVE is in CISA KEV (known exploited)",
+   "ok": true,
+   "target": 0,
+   "value": 0
+  },
+  "kev_or_critical_exposed": {
+   "description": "Vulnerability findings prioritized critical (KEV or CRITICAL, weighted by exposure and EPSS)",
+   "ok": true,
+   "target": 0,
+   "value": 0
+  },
+  "oldest_fixable_critical_cve_days": {
+   "description": "Days since publication of the oldest CRITICAL CVE that has a fix, in running images / repos",
+   "ok": true,
+   "target": 30,
+   "value": 0
+  },
+  "public_repos_without_protection": {
+   "description": "Public repositories whose default branch has no protection / ruleset",
+   "ok": true,
+   "target": 0,
+   "value": 0
+  },
+  "secrets_older_than_90d": {
+   "description": "Secrets (files, cluster Secrets, CI secrets) not changed for more than 90 days",
+   "ok": true,
+   "target": 0,
+   "value": 0
+  },
+  "ssh_password_auth_hosts": {
+   "description": "Hosts whose SSH server accepts passwords",
+   "ok": true,
+   "target": 0,
+   "value": 0
+  },
+  "time_to_know_hours": {
+   "description": "Longest time-to-know (last 30 days) for KEV / critical / high detections on already-covered assets - advisory or KEV publication (date granularity: an upper bound) to the first finding; images, repos, hosts and firmware",
+   "ok": true,
+   "target": 24,
+   "value": 0
+  },
+  "unauth_network_services": {
+   "description": "Sensitive services that answer without authentication from the external vantage point",
+   "ok": true,
+   "target": 0,
+   "value": 0
+  },
+  "vuln_alertable": {
+   "description": "Vulnerabilities that affect our assets AND (are in CISA KEV OR are critical on an exposed asset) - the only vulnerability class that pages",
+   "ok": true,
+   "target": 0,
+   "value": 0
+  }
+ },
+ "sli_members": {
+  "critical_config_findings": [],
+  "critical_open_findings": [],
+  "kev_affecting_assets": [],
+  "kev_or_critical_exposed": [],
+  "ssh_password_auth_hosts": [],
+  "unauth_network_services": [],
+  "vuln_alertable": []
+ },
+ "sli_new_total": {
+  "critical_config_findings": 0,
+  "critical_open_findings": 0,
+  "kev_affecting_assets": 0,
+  "kev_or_critical_exposed": 0,
+  "ssh_password_auth_hosts": 0,
+  "unauth_network_services": 0,
+  "vuln_alertable": 0
+ },
+ "updated_at": "2026-11-25T08:36:45Z"
+}

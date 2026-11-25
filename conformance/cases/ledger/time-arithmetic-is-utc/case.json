@@ -1,0 +1,62 @@
+{
+ "component": "ledger",
+ "title": "TARGET: durations are computed on UTC instants whatever the process time zone (a DST change between first_seen and fixed_at does not change time_to_fix_days)",
+ "contract": "ledger/1.0",
+ "deviation": "LEDGER-D4",
+ "origin": "found while writing the contracts: timestamps are parsed with mktime (local time, DST) minus the standard offset",
+ "steps": [
+  {
+   "name": "merge run1",
+   "files": {
+    "run1/host.findings.json": "run1.json"
+   },
+   "exec": {
+    "impl": "ledger",
+    "args": [
+     "--run",
+     "{sandbox}/run1",
+     "--data",
+     "{sandbox}/data"
+    ],
+    "env": {
+     "TZ": "Europe/Berlin"
+    }
+   },
+   "exit": 0,
+   "expect": []
+  },
+  {
+   "name": "merge run2",
+   "files": {
+    "run2/host.findings.json": "run2.json"
+   },
+   "exec": {
+    "impl": "ledger",
+    "args": [
+     "--run",
+     "{sandbox}/run2",
+     "--data",
+     "{sandbox}/data"
+    ],
+    "env": {
+     "TZ": "Europe/Berlin"
+    }
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/ledger.json",
+     "subset": {
+      "entries": {
+       "4a8faf0efd8f": {
+        "status": "fixed",
+        "time_to_fix_days": 14.0
+       }
+      }
+     },
+     "schema": "ledger"
+    }
+   ]
+  }
+ ]
+}

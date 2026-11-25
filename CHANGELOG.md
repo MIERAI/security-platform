@@ -2,6 +2,21 @@
 
 Components are versioned independently (docs/design.md §5). Entries name the component and its new version.
 
+## Unreleased
+
+- **contracts 1.x** (new, documentation of existing behaviour; no component changed): `contracts/` defines every
+  component boundary language-neutrally — findings 1.2 (incl. OCSF mapping), collector-protocol 1.0, ledger 1.0
+  (merge + remediation tracking), scorecard 1.0, runner 1.0, metrics 1.0 (`registry.json`), cli 1.0 — each with JSON
+  Schemas (2020-12), examples and a "Known deviations" table (LEDGER-D1…D5, RUNNER-D1…D3, CLI-D1, METRICS-D1,
+  COLLECTOR-D1) that states the target behaviour.
+- **conformance suite** (new): `conformance/run.py` runs any implementation of a component as a process
+  (`SP_IMPL_<COMPONENT>`) against fixtures and golden subsets; `conformance/impl/python/run.sh` runs it against this
+  implementation (in CI through `tests/test_conformance_reference.py`); the reference's known deviations are expected
+  failures. How to implement a component in another language and replace it without stopping the platform:
+  docs/contracts.md.
+- **docs/quickstart.md**: the cron install line works under `set -e` when there is no crontab yet (it installed an empty
+  crontab silently) and does not add a second tick line when run again.
+
 ## v0.3.0 — 2026-11-25
 
 Everything between v0.2.0 and this heading, tested together: unit, contract and output tests, `bin/check-residue

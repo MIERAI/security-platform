@@ -1,0 +1,37 @@
+{
+ "component": "cli",
+ "title": "TARGET: `sp status` marks a job whose newest scheduled slot has passed without a run (machine was off) as late/missed, not just `ok, last good run 47m ago`",
+ "contract": "cli/1.0",
+ "deviation": "CLI-D1",
+ "origin": "continuity test: remediation due 07:50, machine off 07:46-08:06; status before the catch-up tick said ok",
+ "files": {
+  "data/ledger.json": "ledger.json",
+  "data/tracker/items.json": "items.json",
+  "data/instance.json": "instance-every-10m.json",
+  "data/state/runner/remediation.json": "state.json"
+ },
+ "steps": [
+  {
+   "name": "sp status --data {sandbox}/data",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "status",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "regex": [
+       "^\\s*\\S+\\s+remediation\\b.*(missed|late|overdue|pending)"
+      ],
+      "ignore_case": true
+     }
+    }
+   ]
+  }
+ ]
+}

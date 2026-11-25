@@ -1,0 +1,320 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "security-platform/ledger/v1",
+ "title": "ledger.json: the lifecycle of every finding ever seen (contracts/ledger/SPEC.md)",
+ "description": "Written atomically, mode 0600, by the ledger merge. Readers ignore unknown fields.",
+ "type": "object",
+ "required": [
+  "schema",
+  "entries",
+  "runs"
+ ],
+ "properties": {
+  "schema": {
+   "const": "security-platform/ledger/v1"
+  },
+  "updated_at": {
+   "type": "string",
+   "format": "date-time"
+  },
+  "entries": {
+   "type": "object",
+   "description": "Keyed by finding id.",
+   "patternProperties": {
+    "^[0-9a-f]{12}$": {
+     "$ref": "#/$defs/entry"
+    }
+   },
+   "additionalProperties": false
+  },
+  "runs": {
+   "type": "array",
+   "description": "One record per merge, oldest first.",
+   "items": {
+    "type": "object",
+    "required": [
+     "at",
+     "run_dir",
+     "collectors",
+     "invalid"
+    ],
+    "properties": {
+     "at": {
+      "type": "string",
+      "format": "date-time"
+     },
+     "run_dir": {
+      "type": "string",
+      "description": "The run directory, relative to the data directory."
+     },
+     "core": {
+      "type": "string"
+     },
+     "collectors": {
+      "type": "object",
+      "additionalProperties": {
+       "type": "string"
+      },
+      "description": "collector name -> version merged"
+     },
+     "invalid": {
+      "type": "object",
+      "description": "document file name -> first schema errors (not merged)",
+      "additionalProperties": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   }
+  },
+  "collectors": {
+   "type": "object",
+   "description": "Per collector: last_run (finished_at of its newest merged document) and last_good_run (newest one with at least one ok coverage entry).",
+   "additionalProperties": {
+    "type": "object",
+    "properties": {
+     "last_run": {
+      "type": "string",
+      "format": "date-time"
+     },
+     "last_good_run": {
+      "type": "string",
+      "format": "date-time"
+     }
+    }
+   }
+  },
+  "coverage_seen": {
+   "type": "object",
+   "description": "collector -> sorted assets it has ever covered (ok). Baseline for time-to-know.",
+   "additionalProperties": {
+    "type": "array",
+    "items": {
+     "type": "string"
+    }
+   }
+  },
+  "sli": {
+   "type": "object",
+   "additionalProperties": {
+    "type": "object",
+    "required": [
+     "value",
+     "target",
+     "ok"
+    ],
+    "properties": {
+     "value": {
+      "type": "number"
+     },
+     "target": {
+      "type": "number"
+     },
+     "ok": {
+      "type": "boolean"
+     },
+     "description": {
+      "type": "string"
+     }
+    }
+   }
+  },
+  "sli_members": {
+   "type": "object",
+   "additionalProperties": {
+    "type": "array",
+    "items": {
+     "type": "string"
+    }
+   }
+  },
+  "sli_new_total": {
+   "type": "object",
+   "additionalProperties": {
+    "type": "integer",
+    "minimum": 0
+   }
+  }
+ },
+ "$defs": {
+  "entry": {
+   "type": "object",
+   "required": [
+    "id",
+    "check",
+    "layer",
+    "asset",
+    "title",
+    "severity",
+    "evidence",
+    "remediation",
+    "needs_human",
+    "owner",
+    "kind",
+    "collector",
+    "collector_version",
+    "first_seen",
+    "last_seen",
+    "status",
+    "fixed_at",
+    "reopened_count"
+   ],
+   "properties": {
+    "id": {
+     "type": "string",
+     "pattern": "^[0-9a-f]{12}$"
+    },
+    "check": {
+     "type": "string"
+    },
+    "layer": {
+     "enum": [
+      "identity",
+      "network",
+      "host",
+      "workload",
+      "supply-chain",
+      "data-secrets",
+      "ai-agents",
+      "detection"
+     ]
+    },
+    "asset": {
+     "type": "string",
+     "pattern": "^[a-z0-9-]+:.+$"
+    },
+    "title": {
+     "type": "string"
+    },
+    "severity": {
+     "enum": [
+      "critical",
+      "high",
+      "medium",
+      "low",
+      "info"
+     ]
+    },
+    "evidence": {
+     "type": "string"
+    },
+    "remediation": {
+     "type": "string"
+    },
+    "needs_human": {
+     "type": "boolean"
+    },
+    "owner": {
+     "type": "string"
+    },
+    "kind": {
+     "enum": [
+      "detection",
+      "vulnerability",
+      "compliance"
+     ]
+    },
+    "refs": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "attributes": {
+     "type": "object"
+    },
+    "collector": {
+     "type": "string",
+     "description": "Name of the collector that reported it; only that collector's runs can fix it."
+    },
+    "collector_version": {
+     "type": "string"
+    },
+    "first_seen": {
+     "type": "string",
+     "format": "date-time",
+     "description": "observed_at of the first sighting; never changes (also not on reopen)."
+    },
+    "last_seen": {
+     "type": "string",
+     "format": "date-time",
+     "description": "observed_at of the newest sighting."
+    },
+    "status": {
+     "enum": [
+      "open",
+      "fixed",
+      "accepted"
+     ],
+     "description": "open | fixed (a covering run no longer saw it, or its asset retired) | accepted (a valid human exception)."
+    },
+    "fixed_at": {
+     "type": [
+      "string",
+      "null"
+     ],
+     "description": "finished_at of the run that fixed it; null while not fixed."
+    },
+    "fixed_reason": {
+     "enum": [
+      "not_observed",
+      "asset_retired",
+      null
+     ],
+     "description": "Absent on entries never fixed."
+    },
+    "time_to_fix_days": {
+     "type": [
+      "number",
+      "null"
+     ],
+     "description": "(fixed_at - first_seen) in days, 2 decimals; null after a reopen."
+    },
+    "reopened_count": {
+     "type": "integer",
+     "minimum": 0
+    },
+    "ttk_counted": {
+     "type": "boolean",
+     "description": "true when first seen on an asset this collector had already covered (counts for time-to-know)."
+    },
+    "disclosed_at": {
+     "type": "string",
+     "description": "max(attributes.published_at, attributes.kev_added) for advisories."
+    },
+    "time_to_know_hours": {
+     "type": "number",
+     "minimum": 0
+    },
+    "due_at": {
+     "type": [
+      "string",
+      "null"
+     ],
+     "description": "TARGET (LEDGER-D2): remediation due date, set when the entry is first recorded or reopened."
+    },
+    "exception": {
+     "type": "object",
+     "description": "The human exception applied (values as strings); expired: true once past expiry.",
+     "properties": {
+      "approved_by": {
+       "type": "string"
+      },
+      "expires": {
+       "type": "string"
+      },
+      "reason": {
+       "type": "string"
+      },
+      "expired": {
+       "type": "boolean"
+      }
+     }
+    }
+   }
+  }
+ }
+}

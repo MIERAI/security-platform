@@ -1,0 +1,78 @@
+{
+ "collector": {
+  "name": "vuln-intel",
+  "version": "1.0.0"
+ },
+ "coverage": [
+  {
+   "asset": "image:a",
+   "status": "ok"
+  },
+  {
+   "asset": "image:b",
+   "status": "ok"
+  }
+ ],
+ "findings": [
+  {
+   "asset": "image:a",
+   "attributes": {
+    "cve": "CVE-2099-1111",
+    "published_at": "2026-10-01T00:00:00Z"
+   },
+   "check": "vuln.cve-2099-1111",
+   "evidence": "raw/x/vuln.cve-2099-1111.json",
+   "id": "5019cea0153d",
+   "kind": "vulnerability",
+   "layer": "supply-chain",
+   "needs_human": false,
+   "observed_at": "2026-11-11T08:00:00Z",
+   "owner": "platform",
+   "remediation": "fix vuln.cve-2099-1111",
+   "severity": "critical",
+   "title": "vuln.cve-2099-1111 on image:a"
+  },
+  {
+   "asset": "image:a",
+   "attributes": {
+    "cve": "CVE-2099-2222",
+    "published_at": "2026-11-11T02:00:00Z"
+   },
+   "check": "vuln.cve-2099-2222",
+   "evidence": "raw/x/vuln.cve-2099-2222.json",
+   "id": "3a837ce415d0",
+   "kind": "vulnerability",
+   "layer": "supply-chain",
+   "needs_human": false,
+   "observed_at": "2026-11-11T08:00:00Z",
+   "owner": "platform",
+   "remediation": "fix vuln.cve-2099-2222",
+   "severity": "critical",
+   "title": "vuln.cve-2099-2222 on image:a"
+  },
+  {
+   "asset": "image:b",
+   "attributes": {
+    "cve": "CVE-2099-1111",
+    "published_at": "2026-10-01T00:00:00Z"
+   },
+   "check": "vuln.cve-2099-1111",
+   "evidence": "raw/x/vuln.cve-2099-1111.json",
+   "id": "e84a0ee352cc",
+   "kind": "vulnerability",
+   "layer": "supply-chain",
+   "needs_human": false,
+   "observed_at": "2026-11-11T08:00:00Z",
+   "owner": "platform",
+   "remediation": "fix vuln.cve-2099-1111",
+   "severity": "critical",
+   "title": "vuln.cve-2099-1111 on image:b"
+  }
+ ],
+ "run": {
+  "finished_at": "2026-11-11T09:00:00Z",
+  "instance": "conformance",
+  "started_at": "2026-11-11T09:00:00Z"
+ },
+ "schema_version": "1.2"
+}

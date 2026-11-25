@@ -1,0 +1,90 @@
+{
+ "component": "remediation",
+ "title": "owner: first matching rule, else the finding's own team owner (role hints platform/human do not count), else default_owner, else unassigned (counted)",
+ "contract": "ledger/1.0 (tracker)",
+ "origin": "tests/test_remediation.py::test_owner_rules; fix 9116aae",
+ "files": {
+  "data/ledger.json": "ledger.json",
+  "instance.json": "instance.json"
+ },
+ "steps": [
+  {
+   "name": "track at 2026-11-02T00:00:00Z",
+   "exec": {
+    "impl": "remediation",
+    "args": [
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1793577600",
+     "--instance",
+     "{sandbox}/instance.json"
+    ]
+   },
+   "expect": [
+    {
+     "json": "data/tracker/items.json",
+     "schema": "tracker",
+     "subset": {
+      "items": {
+       "b1e11137d753": {
+        "owner": "platform-team",
+        "owner_source": "rule"
+       },
+       "dfad8241f31d": {
+        "owner": "dev-team",
+        "owner_source": "rule"
+       },
+       "c2c14785694e": {
+        "owner": "network-team",
+        "owner_source": "finding"
+       },
+       "1b5ebbf8e356": {
+        "owner": "security-oncall",
+        "owner_source": "default"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "no instance: no default owner",
+   "exec": {
+    "impl": "remediation",
+    "args": [
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1793577600"
+    ]
+   },
+   "expect": [
+    {
+     "json": "data/tracker/items.json",
+     "schema": "tracker",
+     "subset": {
+      "items": {
+       "1b5ebbf8e356": {
+        "owner": "unassigned",
+        "owner_source": "none"
+       }
+      }
+     }
+    },
+    {
+     "prom": "data/metrics/remediation.prom",
+     "has": [
+      {
+       "name": "security_remediation_unassigned",
+       "value": 3
+      }
+     ]
+    }
+   ],
+   "remove": [
+    "data/tracker"
+   ]
+  }
+ ]
+}

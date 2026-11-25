@@ -1,0 +1,117 @@
+{
+ "component": "remediation",
+ "title": "due_at = opened + SLO of the class (default critical 7d, high 30d); overdue only past it; info has no SLO",
+ "contract": "ledger/1.0 (tracker)",
+ "origin": "tests/test_remediation.py::test_lifecycle_due_overdue_close_reopen",
+ "files": {
+  "data/ledger.json": "ledger.json",
+  "instance.json": "instance.json"
+ },
+ "steps": [
+  {
+   "name": "track at 2026-11-05T00:00:00Z",
+   "exec": {
+    "impl": "remediation",
+    "args": [
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1793836800",
+     "--instance",
+     "{sandbox}/instance.json"
+    ]
+   },
+   "expect": [
+    {
+     "json": "data/tracker/items.json",
+     "schema": "tracker",
+     "subset": {
+      "schema": "security-platform/tracker/v1",
+      "items": {
+       "233790a18561": {
+        "status": "open",
+        "opened_at": "2026-11-01T08:00:00Z",
+        "due_at": "2026-11-08T08:00:00Z",
+        "overdue": false,
+        "slo_class": "critical",
+        "owner": "security-oncall",
+        "owner_source": "default"
+       },
+       "edefb75bf946": {
+        "due_at": "2026-12-01T08:00:00Z",
+        "overdue": false
+       },
+       "9774753ccaa5": {
+        "due_at": null,
+        "overdue": false
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "track at 2026-11-09T00:00:00Z",
+   "exec": {
+    "impl": "remediation",
+    "args": [
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1794182400",
+     "--instance",
+     "{sandbox}/instance.json"
+    ]
+   },
+   "expect": [
+    {
+     "json": "data/tracker/items.json",
+     "schema": "tracker",
+     "subset": {
+      "items": {
+       "233790a18561": {
+        "overdue": true
+       },
+       "edefb75bf946": {
+        "overdue": false
+       }
+      }
+     }
+    },
+    {
+     "prom": "data/metrics/remediation.prom",
+     "has": [
+      {
+       "name": "security_remediation_overdue",
+       "labels": {
+        "severity": "critical"
+       },
+       "value": 1
+      },
+      {
+       "name": "security_remediation_open",
+       "labels": {
+        "severity": "high"
+       },
+       "value": 1
+      },
+      {
+       "name": "security_remediation_slo_seconds",
+       "labels": {
+        "severity": "critical"
+       },
+       "value": 604800
+      },
+      {
+       "name": "security_remediation_unassigned",
+       "value": 0
+      }
+     ],
+     "families": [
+      "security_remediation_last_update_timestamp_seconds"
+     ]
+    }
+   ]
+  }
+ ]
+}

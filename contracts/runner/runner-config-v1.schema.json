@@ -1,0 +1,137 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "security-platform/runner-config/v1",
+ "title": "The `runner:` block of the instance config (the part the runner owns)",
+ "type": "object",
+ "properties": {
+  "runner": {
+   "type": "object",
+   "properties": {
+    "site": {
+     "type": "string",
+     "default": "hub"
+    },
+    "role": {
+     "enum": [
+      "hub",
+      "site"
+     ],
+     "default": "hub"
+    },
+    "outbox": {},
+    "state_outbox": {},
+    "forward": {
+     "type": "array"
+    },
+    "sinks": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "required": [
+       "type"
+      ]
+     }
+    },
+    "retention": {
+     "$ref": "#/$defs/duration"
+    },
+    "tick_stale_after": {
+     "$ref": "#/$defs/duration"
+    },
+    "jobs": {
+     "type": "object",
+     "additionalProperties": {
+      "$ref": "#/$defs/job"
+     }
+    }
+   }
+  },
+  "name": {
+   "type": "string"
+  },
+  "scorecard": {
+   "type": "object",
+   "properties": {
+    "enabled": {
+     "type": "boolean"
+    }
+   }
+  }
+ },
+ "$defs": {
+  "job": {
+   "type": "object",
+   "required": [
+    "schedule"
+   ],
+   "properties": {
+    "type": {
+     "enum": [
+      "collector",
+      "command",
+      "ingest",
+      "digest",
+      "remediation",
+      "export",
+      "snapshot",
+      "push",
+      "pull-snapshot",
+      "events",
+      "notify"
+     ],
+     "default": "collector"
+    },
+    "collector": {
+     "type": "string"
+    },
+    "as": {
+     "type": "string",
+     "pattern": "^[a-z0-9-]+$"
+    },
+    "argv": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "schedule": {
+     "type": "string",
+     "description": "5-field cron, local time of the runner (TZ)"
+    },
+    "jitter": {
+     "$ref": "#/$defs/duration"
+    },
+    "timeout": {
+     "$ref": "#/$defs/duration"
+    },
+    "retries": {
+     "type": "integer",
+     "minimum": 0
+    },
+    "retry_delay": {
+     "$ref": "#/$defs/duration"
+    },
+    "max_delay": {
+     "$ref": "#/$defs/duration"
+    },
+    "env": {
+     "type": "object",
+     "additionalProperties": {
+      "type": [
+       "string",
+       "number",
+       "boolean"
+      ]
+     }
+    }
+   }
+  },
+  "duration": {
+   "type": [
+    "string",
+    "integer"
+   ],
+   "pattern": "^\\d+(\\.\\d+)?[smhdw]?$"
+  }
+ }
+}

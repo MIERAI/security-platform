@@ -1,0 +1,19 @@
+# One catalog file = one dimension and its controls (contracts/scorecard/SPEC.md "Catalog").
+schema: security-platform/scorecard-catalog/v1
+dimension: {id: example, order: 1, title: Example dimension, pillars: [network, people]}
+controls:
+  - id: example.no-critical-network
+    title: No open critical network finding
+    csf: PR.IR
+    pillars: [network]
+    check: automated
+    weight: 2
+    source: {type: findings, layer_in: [network], severity_in: [critical], require_collector: exposure, max_age: 3d}
+  - id: example.offboarding-reviewed
+    title: Leavers' access was removed within a day
+    csf: PR.AA
+    pillars: [people]
+    check: attested
+    weight: 1
+    validity: 90d
+    question: "Was every leaver's access removed within one day this quarter?"

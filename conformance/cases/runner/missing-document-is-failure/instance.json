@@ -1,0 +1,26 @@
+{
+ "name": "conformance",
+ "runner": {
+  "jobs": {
+   "empty": {
+    "argv": [
+     "/bin/sh",
+     "{case}/emit.sh"
+    ],
+    "collector": "host",
+    "env": {
+     "EMIT_DOC": "/nonexistent/doc.json",
+     "EMIT_MARK": "{sandbox}/runs.log"
+    },
+    "schedule": "0 * * * *",
+    "type": "command"
+   }
+  },
+  "outbox": {
+   "dir": "{sandbox}/outbox",
+   "type": "local"
+  },
+  "role": "site",
+  "site": "s1"
+ }
+}

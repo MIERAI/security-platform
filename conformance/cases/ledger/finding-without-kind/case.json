@@ -1,0 +1,39 @@
+{
+ "component": "ledger",
+ "title": "TARGET: `kind` is optional in findings/1.x; a valid document without it is merged as kind=compliance",
+ "contract": "ledger/1.0",
+ "deviation": "LEDGER-D1",
+ "origin": "found while writing the contracts: core/ledger.py reads f['kind'] and exits 1 (KeyError)",
+ "steps": [
+  {
+   "name": "merge run1",
+   "files": {
+    "run1/host.findings.json": "run1.json"
+   },
+   "exec": {
+    "impl": "ledger",
+    "args": [
+     "--run",
+     "{sandbox}/run1",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/ledger.json",
+     "subset": {
+      "entries": {
+       "4a8faf0efd8f": {
+        "status": "open",
+        "kind": "compliance"
+       }
+      }
+     },
+     "schema": "ledger"
+    }
+   ]
+  }
+ ]
+}

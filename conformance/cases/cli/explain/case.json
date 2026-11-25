@@ -1,0 +1,63 @@
+{
+ "component": "cli",
+ "title": "`sp explain ID` (or a unique prefix) explains one finding and prints the exception snippet; an unknown id exits 2",
+ "contract": "cli/1.0",
+ "origin": "tests/test_cli.py::test_explain_plain_language_and_exception_snippet",
+ "files": {
+  "data/ledger.json": "ledger.json",
+  "data/tracker/items.json": "items.json",
+  "data/instance.json": "instance.json"
+ },
+ "steps": [
+  {
+   "name": "sp explain 7eafa1 --data {sandbox}/data",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "explain",
+     "7eafa1",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "regex": [
+       "id 7eafa19e3d35",
+       "How to fix",
+       "How to verify",
+       "exceptions:",
+       "7eafa19e3d35:",
+       "approved_by:",
+       "expires:"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "sp explain ffffffffffff --data {sandbox}/data",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "explain",
+     "ffffffffffff",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 2,
+   "expect": [
+    {
+     "stderr": {
+      "regex": [
+       "^sp: no finding ffffffffffff"
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}

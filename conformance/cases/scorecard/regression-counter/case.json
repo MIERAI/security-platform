@@ -1,0 +1,116 @@
+{
+ "component": "scorecard",
+ "title": "A dimension that drops below its threshold counts one regression (first sight = baseline); a standing low score does not count again",
+ "contract": "scorecard/1.0",
+ "origin": "tests/test_scorecard.py::test_regression_counter_and_metrics_contract",
+ "files": {
+  "catalog/01-alpha.yaml": "catalog/01-alpha.yaml",
+  "catalog/02-beta.yaml": "catalog/02-beta.yaml",
+  "catalog/03-gamma.yaml": "catalog/03-gamma.yaml",
+  "instance.json": "instance.json",
+  "data/attestations.yaml": "good.yaml",
+  "data/ledger.json": "ledger.json"
+ },
+ "steps": [
+  {
+   "name": "compute at 2030-01-10T00:00:00Z",
+   "exec": {
+    "impl": "scorecard",
+    "args": [
+     "compute",
+     "--data",
+     "{sandbox}/data",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--now",
+     "1894233600"
+    ]
+   },
+   "expect": [
+    {
+     "json": "data/reports/scorecard.json",
+     "schema": "scorecard",
+     "subset": {
+      "status": "PASS",
+      "overall": 100.0,
+      "regressions_total": {
+       "alpha": 0,
+       "beta": 0
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "attestations expire",
+   "exec": {
+    "impl": "scorecard",
+    "args": [
+     "compute",
+     "--data",
+     "{sandbox}/data",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--now",
+     "1894233600"
+    ]
+   },
+   "expect": [
+    {
+     "json": "data/reports/scorecard.json",
+     "schema": "scorecard",
+     "subset": {
+      "status": "FAIL",
+      "regressions_total": {
+       "beta": 1
+      }
+     }
+    },
+    {
+     "prom": "data/metrics/scorecard.prom",
+     "has": [
+      {
+       "name": "security_score_regressions_total",
+       "labels": {
+        "dimension": "beta"
+       },
+       "value": 1
+      }
+     ],
+     "types": {
+      "security_score_regressions_total": "counter"
+     }
+    }
+   ],
+   "files": {
+    "data/attestations.yaml": "attestations.yaml"
+   }
+  },
+  {
+   "name": "still failing: no new regression",
+   "exec": {
+    "impl": "scorecard",
+    "args": [
+     "compute",
+     "--data",
+     "{sandbox}/data",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--now",
+     "1894233600"
+    ]
+   },
+   "expect": [
+    {
+     "json": "data/reports/scorecard.json",
+     "schema": "scorecard",
+     "subset": {
+      "regressions_total": {
+       "beta": 1
+      }
+     }
+    }
+   ]
+  }
+ ]
+}

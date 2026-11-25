@@ -1,0 +1,13 @@
+{
+ "name": "conformance",
+ "scorecard": {
+  "catalog_dirs": [
+   "{sandbox}/catalog"
+  ],
+  "not_applicable": {
+   "beta.*": ""
+  },
+  "replace_catalog": true,
+  "threshold": 50
+ }
+}

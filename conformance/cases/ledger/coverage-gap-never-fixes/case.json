@@ -1,0 +1,85 @@
+{
+ "component": "ledger",
+ "title": "A run that could not cover the asset (gap) never fixes its findings: unknown keeps state",
+ "contract": "ledger/1.0",
+ "origin": "incident: an offline host's findings must not disappear; tests/test_ledger.py::test_lifecycle",
+ "steps": [
+  {
+   "name": "merge run1",
+   "files": {
+    "run1/host.findings.json": "run1.json"
+   },
+   "exec": {
+    "impl": "ledger",
+    "args": [
+     "--run",
+     "{sandbox}/run1",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": []
+  },
+  {
+   "name": "merge run2",
+   "files": {
+    "run2/host.findings.json": "run2.json"
+   },
+   "exec": {
+    "impl": "ledger",
+    "args": [
+     "--run",
+     "{sandbox}/run2",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/ledger.json",
+     "subset": {
+      "entries": {
+       "4a8faf0efd8f": {
+        "status": "open",
+        "fixed_at": null
+       }
+      }
+     },
+     "schema": "ledger"
+    }
+   ]
+  },
+  {
+   "name": "run3: asset not mentioned at all",
+   "files": {
+    "run3/host.findings.json": "run3.json"
+   },
+   "exec": {
+    "impl": "ledger",
+    "args": [
+     "--run",
+     "{sandbox}/run3",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/ledger.json",
+     "subset": {
+      "entries": {
+       "4a8faf0efd8f": {
+        "status": "open",
+        "fixed_at": null
+       }
+      }
+     },
+     "schema": "ledger"
+    }
+   ]
+  }
+ ]
+}

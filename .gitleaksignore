@@ -1,0 +1,5 @@
+# gitleaks fingerprints of committed TEST data only (never real credentials). Format: <commit>:<file>:<rule>:<line>.
+# An unsigned fake identity token (claims sub=scanner, aud=conformance) was committed once in a conformance fixture;
+# the fixture now builds it at run time ({fake_jwt}, conformance/run.py).
+dd27a89886920faa93c1c7c11b600faf21500604:conformance/cases/collector-cloud/gcp-conditional-grant/case.json:jwt:9
+dd27a89886920faa93c1c7c11b600faf21500604:conformance/cases/collector-cloud/gcp-conditional-grant/case.json:jwt:57

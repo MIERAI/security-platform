@@ -1,0 +1,2 @@
+exceptions:
+  6bad575931fc: {approved_by: alice, reason: lab, expires: '2000-01-01'}

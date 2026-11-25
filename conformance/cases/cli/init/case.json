@@ -1,0 +1,56 @@
+{
+ "component": "cli",
+ "title": "`sp init DIR` creates a private (0700) data directory with instance.yaml (0600) and exceptions.yaml; it never overwrites an existing instance.yaml without --force",
+ "contract": "cli/1.0",
+ "origin": "tests/test_cli.py::test_init_and_doctor",
+ "steps": [
+  {
+   "name": "sp init {sandbox}/d --name lab",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "init",
+     "{sandbox}/d",
+     "--name",
+     "lab"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "exists": "d/instance.yaml"
+    },
+    {
+     "exists": "d/exceptions.yaml"
+    },
+    {
+     "stdout": {
+      "regex": [
+       "wrote .*instance.yaml"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "sp init {sandbox}/d",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "init",
+     "{sandbox}/d"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "regex": [
+       "exists: left as it is"
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}

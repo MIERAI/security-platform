@@ -1,0 +1,115 @@
+{
+ "component": "runner",
+ "title": "After downtime the newest missed slot runs exactly once (not once per missed slot); the same slot never runs twice; the trigger's exit code is 0",
+ "contract": "runner/1.0",
+ "origin": "tests/test_runner.py::test_catch_up_jitter_retry_max_delay; docs/runner.md",
+ "files": {
+  "instance.json": "instance.json"
+ },
+ "steps": [
+  {
+   "name": "tick at 2030-01-07T12:30:00Z",
+   "exec": {
+    "impl": "runner",
+    "args": [
+     "tick",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1894019400"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/state/runner/hourly.json",
+     "schema": "runner-state",
+     "subset": {
+      "runs_total": 1,
+      "done_slot": 1894017600,
+      "last_rc": 0,
+      "failures_total": 0
+     }
+    }
+   ]
+  },
+  {
+   "name": "same slot: nothing to do",
+   "exec": {
+    "impl": "runner",
+    "args": [
+     "tick",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1894020300"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/state/runner/hourly.json",
+     "schema": "runner-state",
+     "subset": {
+      "runs_total": 1
+     }
+    }
+   ]
+  },
+  {
+   "name": "after 4h off: one catch-up run for the newest slot",
+   "exec": {
+    "impl": "runner",
+    "args": [
+     "tick",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1894036200"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/state/runner/hourly.json",
+     "schema": "runner-state",
+     "subset": {
+      "runs_total": 2,
+      "done_slot": 1894035600
+     }
+    }
+   ]
+  },
+  {
+   "name": "tick at 2030-01-07T17:20:00Z",
+   "exec": {
+    "impl": "runner",
+    "args": [
+     "tick",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1894036800"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/state/runner/hourly.json",
+     "schema": "runner-state",
+     "subset": {
+      "runs_total": 2
+     }
+    }
+   ]
+  }
+ ]
+}

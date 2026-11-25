@@ -1,0 +1,7 @@
+schema: security-platform/attestations/v1
+attestations:
+  alpha.reviewed: {attested_by: alice, at: '2030-01-01', expires: '2030-03-01'}
+  beta.trained: {attested_by: bob, at: '2030-01-01', expires: '2031-01-01', value: true}
+  beta.expired: {attested_by: bob, at: '2030-01-01', expires: '2031-01-01'}
+  beta.waived: {attested_by: carol, at: '2030-01-01', expires: '2031-01-01', not_applicable: not used here}
+  beta.missing: {attested_by: bob, at: '2030-01-01', expires: '2031-01-01'}

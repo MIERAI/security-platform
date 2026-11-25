@@ -1,0 +1,5 @@
+#!/bin/sh
+# Reference implementation of the `scorecard` component for the conformance suite: the Python program scorecard/scorecard.py, unchanged.
+# Interpreter: $SP_PYTHON (default python3). Arguments are passed through.
+ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
+exec "${SP_PYTHON:-python3}" "$ROOT/scorecard/scorecard.py" "$@"

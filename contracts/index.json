@@ -1,0 +1,98 @@
+{
+ "schema": "security-platform/contracts-index/v1",
+ "contracts": {
+  "findings": {
+   "version": "1.2",
+   "spec": "findings/SPEC.md",
+   "schemas": [
+    "findings/findings-v1.schema.json"
+   ],
+   "conformance": [
+    "ledger",
+    "collector-*"
+   ]
+  },
+  "collector-protocol": {
+   "version": "1.0",
+   "spec": "collector-protocol/SPEC.md",
+   "schemas": [],
+   "conformance": [
+    "collector-*",
+    "runner"
+   ]
+  },
+  "ledger": {
+   "version": "1.0",
+   "spec": "ledger/SPEC.md",
+   "schemas": [
+    "ledger/ledger-v1.schema.json",
+    "ledger/tracker-v1.schema.json",
+    "ledger/exceptions-v1.schema.json"
+   ],
+   "conformance": [
+    "ledger",
+    "remediation"
+   ]
+  },
+  "scorecard": {
+   "version": "1.0",
+   "spec": "scorecard/SPEC.md",
+   "schemas": [
+    "scorecard/scorecard-v1.schema.json",
+    "scorecard/catalog-v1.schema.json",
+    "scorecard/attestations-v1.schema.json"
+   ],
+   "conformance": [
+    "scorecard"
+   ]
+  },
+  "runner": {
+   "version": "1.0",
+   "spec": "runner/SPEC.md",
+   "schemas": [
+    "runner/runner-config-v1.schema.json",
+    "runner/runner-state-v1.schema.json",
+    "runner/runner-status-v1.schema.json"
+   ],
+   "conformance": [
+    "runner"
+   ]
+  },
+  "metrics": {
+   "version": "1.0",
+   "spec": "metrics/SPEC.md",
+   "schemas": [
+    "metrics/registry.schema.json"
+   ],
+   "conformance": [
+    "ledger",
+    "remediation",
+    "scorecard",
+    "runner"
+   ]
+  },
+  "cli": {
+   "version": "1.0",
+   "spec": "cli/SPEC.md",
+   "schemas": [
+    "cli/findings-json-v1.schema.json"
+   ],
+   "conformance": [
+    "cli"
+   ]
+  }
+ },
+ "known_deviations": {
+  "LEDGER-D1": "ledger/finding-without-kind",
+  "LEDGER-D2": "ledger/due-date-on-first-record",
+  "LEDGER-D3": "ledger/gap-matches-asset-not-substring",
+  "LEDGER-D4": "ledger/time-arithmetic-is-utc",
+  "LEDGER-D5": "ledger/removed-exception-reopens",
+  "RUNNER-D1": "runner/retry-waits-for-retry-delay",
+  "RUNNER-D2": "runner/missed-slot-is-visible",
+  "RUNNER-D3": null,
+  "CLI-D1": "cli/status-shows-missed-slot",
+  "COLLECTOR-D1": null,
+  "METRICS-D1": null
+ }
+}

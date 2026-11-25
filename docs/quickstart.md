@@ -89,12 +89,17 @@ I=~/.local/opt/security-platform
 $I/current/deploy/render.py env --install $I           # pinned environment, built now; ticks never download
 $I/current/deploy/render.py wrapper --install $I --instance $SP_DATA/instance.yaml --data $SP_DATA > $I/tick.sh
 sh $I/tick.sh && tail -3 $SP_DATA/state/runner/tick.log # one tick by hand: runs whatever is due
-( crontab -l 2>/dev/null; $I/current/deploy/render.py cron --install $I --instance $SP_DATA/instance.yaml --data $SP_DATA ) | crontab -
+{ crontab -l 2>/dev/null | grep -v 'security-platform runner tick' || true   # keep your other lines (none yet: ok)
+  $I/current/deploy/render.py cron --install $I --instance $SP_DATA/instance.yaml --data $SP_DATA; } | crontab -
+crontab -l | grep 'security-platform runner tick'      # check: exactly one tick line is installed
 #   macOS: render.py launchd ... > ~/Library/LaunchAgents/<label>.plist; Linux: systemd; Android: termux-job
 ```
 
 The runner runs each job on its own schedule (`runner.jobs`), retries failures, never overlaps a job with itself, and
-catches up once after the machine slept. Errors go to `$SP_DATA/state/runner/tick.log`. Details: [runner.md](runner.md).
+catches up once after the machine slept. The crontab line is written so that it also works under `set -e` when you
+have no crontab yet (`crontab -l` then exits 1; a plain `( crontab -l; ... ) | crontab -` would install an EMPTY
+crontab without a word) and so that running it twice does not add a second tick line.
+Errors go to `$SP_DATA/state/runner/tick.log`. Details: [runner.md](runner.md).
 
 ## 6. See it every day
 

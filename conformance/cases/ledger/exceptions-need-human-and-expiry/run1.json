@@ -1,0 +1,88 @@
+{
+ "collector": {
+  "name": "host",
+  "version": "1.0.0"
+ },
+ "coverage": [
+  {
+   "asset": "host:h1",
+   "status": "ok"
+  },
+  {
+   "asset": "host:h2",
+   "status": "ok"
+  },
+  {
+   "asset": "host:h3",
+   "status": "ok"
+  },
+  {
+   "asset": "host:h4",
+   "status": "ok"
+  }
+ ],
+ "findings": [
+  {
+   "asset": "host:h1",
+   "check": "host.firewall_off",
+   "evidence": "raw/x/host.firewall_off.json",
+   "id": "6bad575931fc",
+   "kind": "compliance",
+   "layer": "host",
+   "needs_human": false,
+   "observed_at": "2026-11-01T08:00:00Z",
+   "owner": "platform",
+   "remediation": "fix host.firewall_off",
+   "severity": "medium",
+   "title": "host.firewall_off on host:h1"
+  },
+  {
+   "asset": "host:h2",
+   "check": "host.firewall_off",
+   "evidence": "raw/x/host.firewall_off.json",
+   "id": "3cf9971fb136",
+   "kind": "compliance",
+   "layer": "host",
+   "needs_human": false,
+   "observed_at": "2026-11-01T08:00:00Z",
+   "owner": "platform",
+   "remediation": "fix host.firewall_off",
+   "severity": "medium",
+   "title": "host.firewall_off on host:h2"
+  },
+  {
+   "asset": "host:h3",
+   "check": "host.firewall_off",
+   "evidence": "raw/x/host.firewall_off.json",
+   "id": "2c0da62c41fb",
+   "kind": "compliance",
+   "layer": "host",
+   "needs_human": false,
+   "observed_at": "2026-11-01T08:00:00Z",
+   "owner": "platform",
+   "remediation": "fix host.firewall_off",
+   "severity": "medium",
+   "title": "host.firewall_off on host:h3"
+  },
+  {
+   "asset": "host:h4",
+   "check": "host.firewall_off",
+   "evidence": "raw/x/host.firewall_off.json",
+   "id": "023e87e149c8",
+   "kind": "compliance",
+   "layer": "host",
+   "needs_human": false,
+   "observed_at": "2026-11-01T08:00:00Z",
+   "owner": "platform",
+   "remediation": "fix host.firewall_off",
+   "severity": "medium",
+   "title": "host.firewall_off on host:h4"
+  }
+ ],
+ "run": {
+  "finished_at": "2026-11-01T09:00:00Z",
+  "instance": "conformance",
+  "started_at": "2026-11-01T09:00:00Z"
+ },
+ "schema_version": "1.2"
+}

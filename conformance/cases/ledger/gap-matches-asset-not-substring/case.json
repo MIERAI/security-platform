@@ -1,0 +1,55 @@
+{
+ "component": "ledger",
+ "title": "TARGET: a gap protects the assets it covers (same matching rules as ok entries), not every asset whose name contains the gap's name",
+ "contract": "ledger/1.0",
+ "deviation": "LEDGER-D3",
+ "origin": "found while writing the contracts: a gap `host:web` keeps `image:registry.example/web:1` from being fixed",
+ "steps": [
+  {
+   "name": "merge run1",
+   "files": {
+    "run1/vuln-intel.findings.json": "run1.json"
+   },
+   "exec": {
+    "impl": "ledger",
+    "args": [
+     "--run",
+     "{sandbox}/run1",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": []
+  },
+  {
+   "name": "merge run2",
+   "files": {
+    "run2/vuln-intel.findings.json": "run2.json"
+   },
+   "exec": {
+    "impl": "ledger",
+    "args": [
+     "--run",
+     "{sandbox}/run2",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/ledger.json",
+     "subset": {
+      "entries": {
+       "ee3293d8dc0d": {
+        "status": "fixed"
+       }
+      }
+     },
+     "schema": "ledger"
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,64 @@
+{
+ "component": "ledger",
+ "title": "Only an exception with approved_by AND expires accepts a finding; YAML flow and block style",
+ "contract": "ledger/1.0",
+ "origin": "tests/test_ledger.py::test_exceptions_need_human_and_expiry",
+ "files": {
+  "data/exceptions.yaml": "exceptions.yaml"
+ },
+ "steps": [
+  {
+   "name": "merge run1",
+   "files": {
+    "run1/host.findings.json": "run1.json"
+   },
+   "exec": {
+    "impl": "ledger",
+    "args": [
+     "--run",
+     "{sandbox}/run1",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/ledger.json",
+     "subset": {
+      "entries": {
+       "6bad575931fc": {
+        "status": "accepted",
+        "exception": {
+         "approved_by": "alice",
+         "expires": {
+          "$regex": "^2099-01-01"
+         }
+        }
+       },
+       "3cf9971fb136": {
+        "status": "open"
+       },
+       "2c0da62c41fb": {
+        "status": "open"
+       },
+       "023e87e149c8": {
+        "status": "accepted"
+       }
+      }
+     },
+     "schema": "ledger"
+    },
+    {
+     "prom": "data/metrics/ledger.prom",
+     "has": [
+      {
+       "name": "security_exceptions_active",
+       "value": 2
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

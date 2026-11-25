@@ -1,0 +1,5 @@
+#!/bin/sh
+# Reference implementation of the `runner` component for the conformance suite: the Python program runner/runner.py, unchanged.
+# Interpreter: $SP_PYTHON (default python3). Arguments are passed through.
+ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
+exec "${SP_PYTHON:-python3}" "$ROOT/runner/runner.py" "$@"

@@ -1,0 +1,1 @@
+{"schema": "security-platform/runner-state/v1", "job": "remediation", "runs_total": 5, "failures_total": 0, "last_rc": 0, "last_success": {epoch:-2820}, "last_attempt": {epoch:-2820}, "done_slot": {epoch:-2880}}

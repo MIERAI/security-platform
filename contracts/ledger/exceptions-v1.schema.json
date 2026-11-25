@@ -1,0 +1,46 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "security-platform/exceptions/v1",
+ "title": "exceptions.yaml: human-approved risk acceptances (YAML 1.2; JSON is valid YAML)",
+ "description": "An entry without approved_by AND expires is ignored. Dates: YYYY-MM-DD (UTC midnight) or RFC 3339.",
+ "type": "object",
+ "properties": {
+  "exceptions": {
+   "type": [
+    "object",
+    "null"
+   ],
+   "description": "finding id -> exception",
+   "additionalProperties": {
+    "$ref": "#/$defs/exc"
+   }
+  },
+  "coverage_exceptions": {
+   "type": [
+    "object",
+    "null"
+   ],
+   "description": "coverage asset, or \"<collector>|<asset>\" -> exception: the gap is not counted while valid",
+   "additionalProperties": {
+    "$ref": "#/$defs/exc"
+   }
+  }
+ },
+ "$defs": {
+  "exc": {
+   "type": "object",
+   "properties": {
+    "approved_by": {
+     "type": "string",
+     "minLength": 1
+    },
+    "expires": {
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    }
+   }
+  }
+ }
+}

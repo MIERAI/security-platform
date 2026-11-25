@@ -1,0 +1,13 @@
+{
+ "name": "conformance",
+ "runner": {
+  "jobs": {
+   "remediation": {
+    "schedule": "*/10 * * * *",
+    "type": "remediation"
+   }
+  },
+  "role": "hub",
+  "site": "hub"
+ }
+}

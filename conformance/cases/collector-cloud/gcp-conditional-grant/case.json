@@ -1,0 +1,92 @@
+{
+ "component": "collector-cloud",
+ "title": "A time-bound (conditional) read-only GCP grant is judged by its real role: no over-privilege finding; a conditional write role still is one. Credentials never reach the output",
+ "contract": "collector-protocol/1.0 / findings/1.2",
+ "origin": "incident: a conditional Security Reviewer grant was refused as over-privileged; tests/test_cloud.py::test_gcp_flow",
+ "files": {
+  "instance.json": "instance.json",
+  "token.jwt": {
+   "text": "{fake_jwt}"
+  },
+  "data/.keep": {
+   "text": ""
+  }
+ },
+ "services": [
+  {
+   "name": "gcp",
+   "argv": [
+    "{python}",
+    "{case}/mock_gcp.py"
+   ]
+  }
+ ],
+ "steps": [
+  {
+   "name": "collect",
+   "exec": {
+    "impl": "collector-cloud",
+    "env": {
+     "SP_RUN_DIR": "{sandbox}/run",
+     "SP_INSTANCE": "{sandbox}/instance.json",
+     "SP_DATA": "{sandbox}/data",
+     "SP_INPUT_DIR": "{sandbox}/data/latest",
+     "SP_INSTANCE_NAME": "conformance"
+    },
+    "writes_only_under": [
+     "run",
+     "data/cache"
+    ]
+   },
+   "expect": [
+    {
+     "json": "run/cloud.findings.json",
+     "schema": "findings",
+     "findings_ids": true,
+     "subset": {
+      "collector": {
+       "name": "cloud"
+      }
+     }
+    },
+    {
+     "writes_only_under": true
+    },
+    {
+     "no_secret": [
+      "{fake_jwt}",
+      "ya29.conformance-access-token"
+     ],
+     "in": "run"
+    },
+    {
+     "json": "run/cloud.findings.json",
+     "subset": {
+      "findings": [
+       {
+        "check": "cloud.platform_credential_over_privileged",
+        "asset": "cloud:gcp/cond-over",
+        "title": {
+         "$regex": "roles/editor"
+        },
+        "severity": "high",
+        "layer": "identity"
+       }
+      ],
+      "coverage": {
+       "$contains": [
+        {
+         "asset": "cloud:gcp/cond-over",
+         "status": "gap",
+         "reason": {
+          "$regex": "over-privileged"
+         }
+        }
+       ]
+      }
+     }
+    }
+   ]
+  }
+ ]
+}

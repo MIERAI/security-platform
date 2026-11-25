@@ -1,0 +1,34 @@
+{
+ "collector": {
+  "name": "k8s",
+  "version": "1.0.0"
+ },
+ "coverage": [
+  {
+   "asset": "k8s-cluster:c",
+   "status": "ok"
+  }
+ ],
+ "findings": [
+  {
+   "asset": "k8s-cluster:c",
+   "check": "k8s.x",
+   "evidence": "raw/x/k8s.x.json",
+   "id": "da6133b5e7ae",
+   "kind": "compliance",
+   "layer": "workload",
+   "needs_human": false,
+   "observed_at": "2026-11-01T08:00:00Z",
+   "owner": "platform",
+   "remediation": "fix k8s.x",
+   "severity": "urgent",
+   "title": "k8s.x on k8s-cluster:c"
+  }
+ ],
+ "run": {
+  "finished_at": "2026-11-01T09:00:00Z",
+  "instance": "conformance",
+  "started_at": "2026-11-01T09:00:00Z"
+ },
+ "schema_version": "1.2"
+}

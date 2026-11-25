@@ -1,0 +1,1293 @@
+{
+ "schema": "security-platform/metrics-registry/v1",
+ "contract": "metrics/1.0",
+ "description": "The Prometheus metric names, types and labels that dashboards, alerts, SLOs and scorecard controls depend on. Names are part of the contract: renames follow the two-step rule (docs/upgrade.md).",
+ "metrics": [
+  {
+   "name": "security_collector_findings",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "layer",
+    "severity"
+   ],
+   "producer": "sdk to_prom (runner promote)",
+   "stability": "stable",
+   "meaning": "Findings reported by the latest run of a collector",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_collector_gaps",
+   "type": "gauge",
+   "labels": [
+    "collector"
+   ],
+   "producer": "sdk to_prom (runner promote)",
+   "stability": "stable",
+   "meaning": "Assets the collector could not cover in its latest run",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_collector_assets",
+   "type": "gauge",
+   "labels": [
+    "collector"
+   ],
+   "producer": "sdk to_prom (runner promote)",
+   "stability": "stable",
+   "meaning": "Coverage entries (ok + gap) of the latest run",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_collector_last_run_timestamp_seconds",
+   "type": "gauge",
+   "labels": [
+    "collector"
+   ],
+   "producer": "sdk to_prom (runner promote)",
+   "stability": "stable",
+   "meaning": "finished_at of the latest document (heartbeat; no findings != secure)",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_collector_last_good_run_timestamp_seconds",
+   "type": "gauge",
+   "labels": [
+    "collector"
+   ],
+   "producer": "ledger",
+   "stability": "stable",
+   "meaning": "Last run that covered at least one asset (a blind run does not count)",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_collector_expected_interval_seconds",
+   "type": "gauge",
+   "labels": [
+    "collector"
+   ],
+   "producer": "runner",
+   "stability": "stable",
+   "meaning": "Seconds between scheduled runs of the collector (staleness thresholds derive from it)",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_sli",
+   "type": "gauge",
+   "labels": [
+    "sli"
+   ],
+   "producer": "ledger",
+   "stability": "stable",
+   "meaning": "Security SLI current value (generators/sli-catalog.yaml)",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_sli_objective",
+   "type": "gauge",
+   "labels": [
+    "sli"
+   ],
+   "producer": "ledger",
+   "stability": "stable",
+   "meaning": "Objective: the SLI must stay <= this",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_sli_ok",
+   "type": "gauge",
+   "labels": [
+    "sli"
+   ],
+   "producer": "ledger",
+   "stability": "stable",
+   "meaning": "1 while the SLI meets its objective",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_sli_new_total",
+   "type": "counter",
+   "labels": [
+    "sli"
+   ],
+   "producer": "ledger",
+   "stability": "stable",
+   "meaning": "Findings that entered the SLI's set (new or reopened); first sight = baseline",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_findings",
+   "type": "gauge",
+   "labels": [
+    "layer",
+    "severity",
+    "status"
+   ],
+   "producer": "ledger",
+   "stability": "stable",
+   "meaning": "Ledger entries by layer, severity and status (open|fixed|accepted)",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_findings_reopened_total",
+   "type": "counter",
+   "labels": [],
+   "producer": "ledger",
+   "stability": "stable",
+   "meaning": "Regressions: fixed findings that came back",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_exceptions_active",
+   "type": "gauge",
+   "labels": [],
+   "producer": "ledger",
+   "stability": "stable",
+   "meaning": "Entries accepted under a valid human exception",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_exceptions_expired",
+   "type": "gauge",
+   "labels": [],
+   "producer": "ledger",
+   "stability": "stable",
+   "meaning": "Exceptions past expiry (finding reopened / gap counted again)",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_coverage_gaps_excepted",
+   "type": "gauge",
+   "labels": [],
+   "producer": "ledger",
+   "stability": "stable",
+   "meaning": "Coverage gaps under a human-approved, unexpired exception",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_coverage_gaps_open",
+   "type": "gauge",
+   "labels": [
+    "collector"
+   ],
+   "producer": "ledger",
+   "stability": "stable",
+   "meaning": "Coverage gaps not under an exception, per collector (newest documents)",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_time_to_fix_days",
+   "type": "gauge",
+   "labels": [
+    "quantile"
+   ],
+   "producer": "ledger",
+   "stability": "stable",
+   "meaning": "Time to fix (quantile 0.5 and 1) over fixed entries",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_time_to_know_hours",
+   "type": "gauge",
+   "labels": [
+    "asset_class",
+    "priority",
+    "quantile"
+   ],
+   "producer": "ledger",
+   "stability": "stable",
+   "meaning": "Advisory publication -> first detection on an already-covered asset (30 days)",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_time_to_know_detections",
+   "type": "gauge",
+   "labels": [
+    "asset_class",
+    "priority"
+   ],
+   "producer": "ledger",
+   "stability": "stable",
+   "meaning": "Detections counted for time-to-know (30 days)",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_contract_invalid_documents",
+   "type": "gauge",
+   "labels": [],
+   "producer": "ledger",
+   "stability": "stable",
+   "meaning": "Findings documents rejected by schema validation in the last merge",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_ledger_last_update_timestamp_seconds",
+   "type": "gauge",
+   "labels": [],
+   "producer": "ledger",
+   "stability": "stable",
+   "meaning": "Ledger heartbeat",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_remediation_open",
+   "type": "gauge",
+   "labels": [
+    "severity"
+   ],
+   "producer": "remediation",
+   "stability": "stable",
+   "meaning": "Open findings being remediated",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_remediation_overdue",
+   "type": "gauge",
+   "labels": [
+    "severity"
+   ],
+   "producer": "remediation",
+   "stability": "stable",
+   "meaning": "Open findings past their remediation SLO",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_time_to_remediate_days",
+   "type": "gauge",
+   "labels": [
+    "severity",
+    "quantile"
+   ],
+   "producer": "remediation",
+   "stability": "stable",
+   "meaning": "Opened (or reopened) -> fixed, closed items",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_remediation_slo_seconds",
+   "type": "gauge",
+   "labels": [
+    "severity"
+   ],
+   "producer": "remediation",
+   "stability": "stable",
+   "meaning": "Remediation SLO per class (label severity carries the class, incl. kev_exposed)",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_remediation_unassigned",
+   "type": "gauge",
+   "labels": [],
+   "producer": "remediation",
+   "stability": "stable",
+   "meaning": "Open items without an owner",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_remediation_last_update_timestamp_seconds",
+   "type": "gauge",
+   "labels": [],
+   "producer": "remediation",
+   "stability": "stable",
+   "meaning": "Remediation tracker heartbeat",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_export_last_success_timestamp_seconds",
+   "type": "gauge",
+   "labels": [
+    "sink"
+   ],
+   "producer": "export",
+   "stability": "stable",
+   "meaning": "When the export sink last completed",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_export_failures_total",
+   "type": "counter",
+   "labels": [
+    "sink"
+   ],
+   "producer": "export",
+   "stability": "stable",
+   "meaning": "Failed export runs",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_export_consecutive_failures",
+   "type": "gauge",
+   "labels": [
+    "sink"
+   ],
+   "producer": "export",
+   "stability": "stable",
+   "meaning": "Export runs failed in a row (0 = the last one worked)",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_export_items",
+   "type": "gauge",
+   "labels": [
+    "sink",
+    "result"
+   ],
+   "producer": "export",
+   "stability": "stable",
+   "meaning": "Last export run: tickets or events by result",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_score",
+   "type": "gauge",
+   "labels": [
+    "dimension|pillar|function|dimension+pillar"
+   ],
+   "producer": "scorecard",
+   "stability": "stable",
+   "meaning": "Score 0-100 (one label set per series: dimension, pillar, function, or dimension+pillar)",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_score_overall",
+   "type": "gauge",
+   "labels": [],
+   "producer": "scorecard",
+   "stability": "stable",
+   "meaning": "Overall = the weakest dimension's score",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_score_threshold",
+   "type": "gauge",
+   "labels": [],
+   "producer": "scorecard",
+   "stability": "stable",
+   "meaning": "A dimension below this fails the scorecard",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_score_pass",
+   "type": "gauge",
+   "labels": [],
+   "producer": "scorecard",
+   "stability": "stable",
+   "meaning": "1 while every dimension meets its threshold",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_score_controls",
+   "type": "gauge",
+   "labels": [
+    "dimension",
+    "status"
+   ],
+   "producer": "scorecard",
+   "stability": "stable",
+   "meaning": "Controls per dimension and result (pass|fail|na)",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_score_regressions_total",
+   "type": "counter",
+   "labels": [
+    "dimension"
+   ],
+   "producer": "scorecard",
+   "stability": "stable",
+   "meaning": "Times the dimension dropped below its threshold",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_attestations",
+   "type": "gauge",
+   "labels": [
+    "state"
+   ],
+   "producer": "scorecard",
+   "stability": "stable",
+   "meaning": "Attested controls by state (valid|expiring|expired|missing)",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_scorecard_last_compute_timestamp_seconds",
+   "type": "gauge",
+   "labels": [],
+   "producer": "scorecard",
+   "stability": "stable",
+   "meaning": "When the scorecard was last computed",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_runner_tick_timestamp_seconds",
+   "type": "gauge",
+   "labels": [
+    "site"
+   ],
+   "producer": "runner",
+   "stability": "stable",
+   "meaning": "Heartbeat of the trigger: when the runner last ticked",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_runner_tick_max_gap_seconds",
+   "type": "gauge",
+   "labels": [
+    "site"
+   ],
+   "producer": "runner",
+   "stability": "stable",
+   "meaning": "The tick heartbeat is overdue after this (runner.tick_stale_after, default 1h)",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_runner_sink_last_success_timestamp_seconds",
+   "type": "gauge",
+   "labels": [
+    "site",
+    "sink"
+   ],
+   "producer": "runner",
+   "stability": "stable",
+   "meaning": "When the sink last accepted the metrics (sink = <index>-<type>)",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_runner_sink_failures_total",
+   "type": "counter",
+   "labels": [
+    "site",
+    "sink"
+   ],
+   "producer": "runner",
+   "stability": "stable",
+   "meaning": "Failed deliveries",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_runner_sink_consecutive_failures",
+   "type": "gauge",
+   "labels": [
+    "site",
+    "sink"
+   ],
+   "producer": "runner",
+   "stability": "stable",
+   "meaning": "Deliveries failed in a row (0 = the last one worked)",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_runner_job_last_success_timestamp_seconds",
+   "type": "gauge",
+   "labels": [
+    "site",
+    "job"
+   ],
+   "producer": "runner",
+   "stability": "stable",
+   "meaning": "When the job last succeeded",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_runner_job_last_attempt_timestamp_seconds",
+   "type": "gauge",
+   "labels": [
+    "site",
+    "job"
+   ],
+   "producer": "runner",
+   "stability": "stable",
+   "meaning": "When the job last started",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_runner_job_duration_seconds",
+   "type": "gauge",
+   "labels": [
+    "site",
+    "job"
+   ],
+   "producer": "runner",
+   "stability": "stable",
+   "meaning": "Duration of the last run",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_runner_job_last_exit_code",
+   "type": "gauge",
+   "labels": [
+    "site",
+    "job"
+   ],
+   "producer": "runner",
+   "stability": "stable",
+   "meaning": "Exit code of the last run (0 = ok)",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_runner_job_runs_total",
+   "type": "counter",
+   "labels": [
+    "site",
+    "job"
+   ],
+   "producer": "runner",
+   "stability": "stable",
+   "meaning": "Runs",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_runner_job_failures_total",
+   "type": "counter",
+   "labels": [
+    "site",
+    "job"
+   ],
+   "producer": "runner",
+   "stability": "stable",
+   "meaning": "Failed runs",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_runner_job_expected_interval_seconds",
+   "type": "gauge",
+   "labels": [
+    "site",
+    "job"
+   ],
+   "producer": "runner",
+   "stability": "stable",
+   "meaning": "Seconds between scheduled runs (local jobs only)",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_runner_info",
+   "type": "gauge",
+   "labels": [
+    "site",
+    "version",
+    "release"
+   ],
+   "producer": "runner",
+   "stability": "stable",
+   "meaning": "Runner version and the product release it was installed as (value 1)",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_metrics_published_timestamp_seconds",
+   "type": "gauge",
+   "labels": [
+    "site"
+   ],
+   "producer": "runner",
+   "stability": "stable",
+   "meaning": "When the hub last published these metrics",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_exporter_files",
+   "type": "gauge",
+   "labels": [],
+   "producer": "runner serve-metrics",
+   "stability": "stable",
+   "meaning": "Number of .prom files the exporter serves",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_runner_job_missed_slots_total",
+   "type": "counter",
+   "labels": [
+    "site",
+    "job"
+   ],
+   "producer": "runner",
+   "stability": "target",
+   "meaning": "TARGET (RUNNER-D2): slots that will never run: skipped by max_delay or given up after retries",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_runner_job_pending_slot_timestamp_seconds",
+   "type": "gauge",
+   "labels": [
+    "site",
+    "job"
+   ],
+   "producer": "runner",
+   "stability": "target",
+   "meaning": "TARGET (CLI-D1/RUNNER-D2): the scheduled slot that is due and not done yet (absent when none); lateness = now - value",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_agent_memory_files",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector agent-claude-code",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_agent_transcripts",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector agent-claude-code",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_cis_results",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector k8s",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_cloud_accounts",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector cloud",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_cloud_engine_runs",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector cloud",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_cloud_findings",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector cloud",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_detection_alert_minutes_24h",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector detection",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_detection_backstop_rules",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector detection",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_detection_clusters_covered",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector detection",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_detection_clusters_known",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector detection",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_detection_drill_last_timestamp_seconds",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector detection",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_detection_drill_pass",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector detection",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_detection_drill_ttd_seconds",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector detection",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_detection_false_positive_ratio",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector detection",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_detection_page_route",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector detection",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_detection_rules_loaded",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector detection",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_detection_rules_total",
+   "type": "counter",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector detection",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector. NOTE (METRICS-D1): a count that can go down, exposed as TYPE counter because of its _total suffix.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_detection_rules_unhealthy",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector detection",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_detection_ruleset_age_days",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector detection",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_detection_ruleset_info",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector detection",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_detection_sensor_ready_ratio",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector detection",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_detection_sources_expected",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector detection",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_detection_sources_live",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector detection",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_detection_verdicts",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector detection",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_exposure_open_ports",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector exposure",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_exposure_unauth_services",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector exposure",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_host_kernel_cves_fixable",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector vuln-intel",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_host_wildcard_listeners",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector host",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_identity_accounts",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector identity",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_identity_credentials",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector identity",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_identity_grants",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector identity",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_identity_mfa_unknown",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector identity",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_intel_feed_age_seconds",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector vuln-intel",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_intel_firmware_vendors_without_source",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector vuln-intel",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_intel_source_unreadable",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector vuln-intel",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_inventory_images",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector k8s",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_k8s_pods_root_capable_containers",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector k8s",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_k8s_pods_without_netpol",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector k8s",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_k8s_policy_engine_present",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector k8s",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_k8s_policyreport_results",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector k8s",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_k8s_wide_rbac_subjects",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector k8s",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_repos_public_without_protection",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector codehost-gitea, codehost-github",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_repos_total",
+   "type": "counter",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector codehost-gitea, codehost-github",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector. NOTE (METRICS-D1): a count that can go down, exposed as TYPE counter because of its _total suffix.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_sbom_host_packages",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector host-sbom",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_sbom_hosts",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector host-sbom",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_sbom_images",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector vuln-intel",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_sbom_repos",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector vuln-intel",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_sbom_repos_in_scope",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector vuln-intel",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_sbom_unmatched_packages",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector vuln-intel",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_secrets_older_than_90d",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector k8s, secrets-files",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": true
+  },
+  {
+   "name": "security_secrets_total",
+   "type": "counter",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector k8s, secrets-files",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector. NOTE (METRICS-D1): a count that can go down, exposed as TYPE counter because of its _total suffix.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_vuln_alertable_matches",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector vuln-intel",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_vuln_kev_matches",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector vuln-intel",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_vuln_matches",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector vuln-intel",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_vuln_oldest_fixable_critical_days",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector vuln-intel",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": false
+  },
+  {
+   "name": "security_vuln_osv_matches",
+   "type": "gauge",
+   "labels": [
+    "collector",
+    "(collector-defined)"
+   ],
+   "producer": "collector vuln-intel",
+   "stability": "collector",
+   "meaning": "Reported by the collector in its findings document `metrics` (see the collector's source); the runner adds label collector.",
+   "used_by_generated": false
+  }
+ ]
+}

@@ -1,0 +1,23 @@
+{
+ "collector": {
+  "name": "vuln-intel",
+  "version": "1.0.0"
+ },
+ "coverage": [
+  {
+   "asset": "image:registry.example/app:1.1",
+   "status": "ok"
+  },
+  {
+   "asset": "inventory:container-image",
+   "status": "ok"
+  }
+ ],
+ "findings": [],
+ "run": {
+  "finished_at": "2026-11-25T09:00:00Z",
+  "instance": "conformance",
+  "started_at": "2026-11-25T09:00:00Z"
+ },
+ "schema_version": "1.2"
+}

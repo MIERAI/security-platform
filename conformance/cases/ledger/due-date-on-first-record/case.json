@@ -1,0 +1,39 @@
+{
+ "component": "ledger",
+ "title": "TARGET: a finding has its remediation due date as soon as the ledger first records it (entry due_at = first_seen + SLO of its class; default SLO critical 7d)",
+ "contract": "ledger/1.0",
+ "deviation": "LEDGER-D2",
+ "origin": "continuity test: a new finding showed DUE '-' for up to an hour, until the remediation job ran",
+ "steps": [
+  {
+   "name": "merge run1",
+   "files": {
+    "run1/host.findings.json": "run1.json"
+   },
+   "exec": {
+    "impl": "ledger",
+    "args": [
+     "--run",
+     "{sandbox}/run1",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/ledger.json",
+     "subset": {
+      "entries": {
+       "c7b307ff3734": {
+        "status": "open",
+        "due_at": "2026-11-08T08:00:00Z"
+       }
+      }
+     },
+     "schema": "ledger"
+    }
+   ]
+  }
+ ]
+}

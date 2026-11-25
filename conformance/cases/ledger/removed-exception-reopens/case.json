@@ -1,0 +1,71 @@
+{
+ "component": "ledger",
+ "title": "TARGET: when a human removes an exception from exceptions.yaml, the accepted finding is open again (acceptance exists only while a valid exception says so)",
+ "contract": "ledger/1.0",
+ "deviation": "LEDGER-D5",
+ "origin": "found while writing the contracts: only entries listed in exceptions.yaml are re-evaluated",
+ "files": {
+  "data/exceptions.yaml": "valid.yaml"
+ },
+ "steps": [
+  {
+   "name": "merge run1",
+   "files": {
+    "run1/host.findings.json": "run1.json"
+   },
+   "exec": {
+    "impl": "ledger",
+    "args": [
+     "--run",
+     "{sandbox}/run1",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/ledger.json",
+     "subset": {
+      "entries": {
+       "6bad575931fc": {
+        "status": "accepted"
+       }
+      }
+     },
+     "schema": "ledger"
+    }
+   ]
+  },
+  {
+   "name": "exception removed",
+   "files": {
+    "run2/host.findings.json": "run1.json",
+    "data/exceptions.yaml": "empty.yaml"
+   },
+   "exec": {
+    "impl": "ledger",
+    "args": [
+     "--run",
+     "{sandbox}/run2",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/ledger.json",
+     "subset": {
+      "entries": {
+       "6bad575931fc": {
+        "status": "open"
+       }
+      }
+     },
+     "schema": "ledger"
+    }
+   ]
+  }
+ ]
+}

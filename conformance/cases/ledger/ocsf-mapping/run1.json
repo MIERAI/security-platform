@@ -1,0 +1,78 @@
+{
+ "collector": {
+  "name": "x",
+  "version": "1.0.0"
+ },
+ "coverage": [
+  {
+   "asset": "image:a",
+   "status": "ok"
+  },
+  {
+   "asset": "host:h1",
+   "status": "ok"
+  }
+ ],
+ "findings": [
+  {
+   "asset": "image:a",
+   "attributes": {
+    "cve": "CVE-2099-1111",
+    "cvss": 9.8,
+    "epss": 0.5,
+    "fixed": "1.1",
+    "installed": "1.0",
+    "kev": true,
+    "package": "libx"
+   },
+   "check": "vuln.cve-2099-1111",
+   "evidence": "raw/x/vuln.cve-2099-1111.json",
+   "id": "5019cea0153d",
+   "kind": "vulnerability",
+   "layer": "supply-chain",
+   "needs_human": false,
+   "observed_at": "2026-11-01T08:00:00Z",
+   "owner": "platform",
+   "remediation": "fix vuln.cve-2099-1111",
+   "severity": "critical",
+   "title": "vuln.cve-2099-1111 on image:a"
+  },
+  {
+   "asset": "host:h1",
+   "check": "detection.ssh_burst",
+   "evidence": "raw/x/detection.ssh_burst.json",
+   "id": "62877bd47fa8",
+   "kind": "detection",
+   "layer": "detection",
+   "needs_human": false,
+   "observed_at": "2026-11-01T08:00:00Z",
+   "owner": "platform",
+   "remediation": "fix detection.ssh_burst",
+   "severity": "low",
+   "title": "detection.ssh_burst on host:h1"
+  },
+  {
+   "asset": "host:h1",
+   "check": "host.ssh_root_login",
+   "evidence": "raw/x/host.ssh_root_login.json",
+   "id": "42eb82d129d4",
+   "kind": "compliance",
+   "layer": "host",
+   "needs_human": false,
+   "observed_at": "2026-11-01T08:00:00Z",
+   "owner": "platform",
+   "refs": [
+    "cis:5.2.10"
+   ],
+   "remediation": "fix host.ssh_root_login",
+   "severity": "medium",
+   "title": "host.ssh_root_login on host:h1"
+  }
+ ],
+ "run": {
+  "finished_at": "2026-11-01T09:00:00Z",
+  "instance": "conformance",
+  "started_at": "2026-11-01T09:00:00Z"
+ },
+ "schema_version": "1.2"
+}

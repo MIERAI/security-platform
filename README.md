@@ -24,6 +24,7 @@ dist/        generated rules / dashboard / SLO values (generic; instances regene
 scorecard/   control catalog (one file per dimension) -> score per dimension / pillar / NIST CSF function
 cli/         `sp`: init, doctor, run, status, findings, explain, digest, notify; plain-language check texts
 notifier/    daily summary adapters (telegram, webhook, exec, file)   e2e/   kind (second environment), cloud-localstack
+contracts/   language-neutral contracts of every component  conformance/ black-box suite any implementation must pass
 ```
 
 **Scorecard** (docs/scorecard.md): every dimension of the programme (design, coverage, intel, operation, alerting,
@@ -51,6 +52,7 @@ sp findings --open --severity high && sp explain <id>         # what, why, how t
 | [integrations.md](docs/integrations.md) | a team: tickets in your issue tracker, OCSF events to your SIEM; who owns what |
 | [adapters.md](docs/adapters.md) | supporting something new: discovery, exec, sink, notifier, collector |
 | [upgrade.md](docs/upgrade.md) | versions, upgrade and rollback, two-step breaking changes |
+| [contracts.md](docs/contracts.md) | the language-neutral contracts (`contracts/`), the black-box conformance suite (`conformance/`), replacing a component in another language |
 | [faq.md](docs/faq.md) | common questions and problems |
 | [runner.md](docs/runner.md) | operations: schedules, multi-host topologies, in-cluster hub, metrics delivery |
 | [scorecard.md](docs/scorecard.md) | the programme scorecard: dimensions, pillars, controls, attestations |
@@ -79,6 +81,7 @@ deploy/render.py launchd|cron|systemd|termux-job --install DIR --instance F --da
 python3 generators/gen.py --instance F --out <gitops dir>     # rules, dashboards, SLOs for your instance
 python3 scorecard/scorecard.py compute --data D               # (the runner does this too)
 python3 -m unittest discover -s tests                         # tests
+conformance/impl/python/run.sh                                # black-box conformance suite (contracts/, docs/contracts.md)
 ```
 
 Requirements: python3 ≥ 3.10 (PyYAML for YAML configs; JSON configs need nothing else), and per collector: `nmap` on

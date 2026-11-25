@@ -1,0 +1,242 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "security-platform/findings/v1",
+ "title": "security-platform findings document v1 (one collector run)",
+ "type": "object",
+ "required": [
+  "schema_version",
+  "collector",
+  "run",
+  "coverage",
+  "findings"
+ ],
+ "properties": {
+  "schema_version": {
+   "type": "string",
+   "pattern": "^1\\.[0-9]+$",
+   "description": "\"1.<minor>\" of the contract the producer wrote (1.0 base, 1.1 complete_scope, 1.2 gap checks). Consumers accept any 1.x and reject other majors."
+  },
+  "collector": {
+   "type": "object",
+   "required": [
+    "name",
+    "version"
+   ],
+   "properties": {
+    "name": {
+     "type": "string",
+     "pattern": "^[a-z0-9-]+$",
+     "description": "Collector name; the ledger resolves (fixes) only findings of this name. Equals SP_COLLECTOR_NAME when set."
+    },
+    "version": {
+     "type": "string",
+     "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+     "description": "The collector's own semantic version."
+    },
+    "tools": {
+     "type": "object",
+     "additionalProperties": {
+      "type": "string"
+     },
+     "description": "Third-party tools used and their versions (e.g. {\"trivy\": \"0.58.0\"})."
+    }
+   },
+   "description": "Who produced the document."
+  },
+  "run": {
+   "type": "object",
+   "required": [
+    "started_at",
+    "finished_at"
+   ],
+   "properties": {
+    "started_at": {
+     "type": "string",
+     "format": "date-time"
+    },
+    "finished_at": {
+     "type": "string",
+     "format": "date-time"
+    },
+    "instance": {
+     "type": "string"
+    }
+   },
+   "description": "When the run happened. finished_at is the instant fixes and heartbeats are dated with."
+  },
+  "coverage": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "asset",
+     "status"
+    ],
+    "properties": {
+     "asset": {
+      "type": "string",
+      "description": "An asset id (<type>:<rest>) or a part of one (<asset>/<part>, narrow gaps)."
+     },
+     "status": {
+      "enum": [
+       "ok",
+       "gap"
+      ],
+      "description": "ok | gap."
+     },
+     "reason": {
+      "type": "string",
+      "description": "Why a gap (one line, no secret)."
+     },
+     "complete_scope": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+:",
+      "description": "(1.1) On an ok entry: an asset prefix this run inventoried COMPLETELY and authoritatively. Findings of this collector under the prefix on assets the run did not list are closed as asset_retired."
+     },
+     "checks": {
+      "type": "array",
+      "items": {
+       "type": "string",
+       "pattern": "^[a-z0-9_.*-]+$"
+      },
+      "description": "(1.2) On a gap entry <asset>/<part>: fnmatch patterns of the only checks that could not be evaluated on <asset>; their findings keep state, the asset's other findings are judged normally."
+     }
+    }
+   },
+   "description": "What the run looked at. ok = the asset was evaluated (absent findings on it may be fixed); gap = it could not be (its findings keep their state). No entry = out of this run's scope (unknown)."
+  },
+  "findings": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "id",
+     "check",
+     "layer",
+     "asset",
+     "title",
+     "severity",
+     "evidence",
+     "remediation",
+     "needs_human",
+     "owner",
+     "observed_at"
+    ],
+    "properties": {
+     "id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{12}$",
+      "description": "sha1(\"<layer>|<asset>|<check>\") hex, first 12 characters: stable across runs and implementations."
+     },
+     "check": {
+      "type": "string",
+      "pattern": "^[a-z0-9_.-]+$",
+      "description": "Stable check name; never reused for another meaning."
+     },
+     "layer": {
+      "enum": [
+       "identity",
+       "network",
+       "host",
+       "workload",
+       "supply-chain",
+       "data-secrets",
+       "ai-agents",
+       "detection"
+      ]
+     },
+     "asset": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+:.+$",
+      "description": "<type>:<rest>; types in use: host, image, repo, net-endpoint, secret-file, k8s-cluster, k8s-workload, k8s-namespace, k8s-identity, cis, cloud, agent-guard, identity, ..."
+     },
+     "title": {
+      "type": "string",
+      "maxLength": 300,
+      "description": "One line, no secret value."
+     },
+     "severity": {
+      "enum": [
+       "critical",
+       "high",
+       "medium",
+       "low",
+       "info"
+      ]
+     },
+     "evidence": {
+      "type": "string",
+      "description": "Pointer into the run directory (raw/<collector>/<file>[#key]); never a secret value."
+     },
+     "remediation": {
+      "type": "string"
+     },
+     "needs_human": {
+      "type": "boolean",
+      "description": "true when no automation can fix it (a password, a physical step)."
+     },
+     "owner": {
+      "type": "string",
+      "description": "A team name, or the role hints platform / human."
+     },
+     "observed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this run saw it; first_seen/last_seen in the ledger come from it."
+     },
+     "kind": {
+      "enum": [
+       "detection",
+       "vulnerability",
+       "compliance"
+      ],
+      "description": "OCSF class: detection 2004, vulnerability 2002, compliance 2003. Optional; producers SHOULD set it (see LEDGER-D1)."
+     },
+     "refs": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "References, e.g. CVE ids, cis:<section> (OCSF compliance.standards)."
+     },
+     "attributes": {
+      "type": "object",
+      "description": "Free-form; known keys: cve, cvss, epss, kev, exposed, published_at, kev_added, package, installed, fixed, base_severity, pillar."
+     }
+    }
+   },
+   "description": "One entry per (layer, asset, check); duplicates in one document are not allowed."
+  },
+  "metrics": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "name",
+     "value"
+    ],
+    "properties": {
+     "name": {
+      "type": "string",
+      "pattern": "^security_[a-z0-9_]+$"
+     },
+     "value": {
+      "type": "number"
+     },
+     "labels": {
+      "type": "object",
+      "additionalProperties": {
+       "type": "string"
+      }
+     },
+     "help": {
+      "type": "string"
+     }
+    }
+   },
+   "description": "Collector-reported gauges; re-exported with label collector=<name>. Names security_*; never asset details in labels."
+  }
+ },
+ "description": "One findings document = the output of ONE collector run. Contract findings/1.x (contracts/findings/SPEC.md). Unknown fields are ignored by consumers, never fatal.",
+ "$comment": "Constraints MUST stay identical to schema/findings-v1.schema.json (the copy the core loads); tests/test_contracts.py checks it."
+}

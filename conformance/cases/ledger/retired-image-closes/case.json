@@ -1,0 +1,89 @@
+{
+ "component": "ledger",
+ "title": "A complete inventory (complete_scope) that no longer lists an asset closes its findings: asset_retired; reappearance reopens",
+ "contract": "ledger/1.0",
+ "origin": "incident: retired container image kept critical findings open; tests/test_retired.py",
+ "steps": [
+  {
+   "name": "merge run1",
+   "files": {
+    "run1/vuln-intel.findings.json": "run1.json"
+   },
+   "exec": {
+    "impl": "ledger",
+    "args": [
+     "--run",
+     "{sandbox}/run1",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": []
+  },
+  {
+   "name": "merge run2",
+   "files": {
+    "run2/vuln-intel.findings.json": "run2.json"
+   },
+   "exec": {
+    "impl": "ledger",
+    "args": [
+     "--run",
+     "{sandbox}/run2",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/ledger.json",
+     "subset": {
+      "entries": {
+       "d610b9b1761d": {
+        "status": "fixed",
+        "fixed_reason": "asset_retired",
+        "fixed_at": "2026-11-25T09:00:00Z"
+       },
+       "94a40afc65ef": {
+        "status": "open"
+       }
+      }
+     },
+     "schema": "ledger"
+    }
+   ]
+  },
+  {
+   "name": "rollback: the old image is back",
+   "files": {
+    "run3/vuln-intel.findings.json": "run3.json"
+   },
+   "exec": {
+    "impl": "ledger",
+    "args": [
+     "--run",
+     "{sandbox}/run3",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/ledger.json",
+     "subset": {
+      "entries": {
+       "d610b9b1761d": {
+        "status": "open",
+        "reopened_count": 1
+       }
+      }
+     },
+     "schema": "ledger"
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,88 @@
+{
+ "component": "ledger",
+ "title": "A narrow gap (<asset>/<part> with checks) keeps only those checks' findings unknown; the asset's other findings are judged normally",
+ "contract": "ledger/1.0",
+ "origin": "incident: a slow OS-update probe timed out and its findings were marked fixed; CHANGELOG findings 1.2",
+ "steps": [
+  {
+   "name": "merge run1",
+   "files": {
+    "run1/host.findings.json": "run1.json"
+   },
+   "exec": {
+    "impl": "ledger",
+    "args": [
+     "--run",
+     "{sandbox}/run1",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": []
+  },
+  {
+   "name": "merge run2",
+   "files": {
+    "run2/host.findings.json": "run2.json"
+   },
+   "exec": {
+    "impl": "ledger",
+    "args": [
+     "--run",
+     "{sandbox}/run2",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/ledger.json",
+     "subset": {
+      "entries": {
+       "dd248e1cc165": {
+        "status": "open",
+        "fixed_at": null
+       },
+       "42d0f4800992": {
+        "status": "fixed",
+        "fixed_reason": "not_observed"
+       }
+      }
+     },
+     "schema": "ledger"
+    }
+   ]
+  },
+  {
+   "name": "the probe works again and the update is installed",
+   "files": {
+    "run3/host.findings.json": "run3.json"
+   },
+   "exec": {
+    "impl": "ledger",
+    "args": [
+     "--run",
+     "{sandbox}/run3",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "json": "data/ledger.json",
+     "subset": {
+      "entries": {
+       "dd248e1cc165": {
+        "status": "fixed"
+       }
+      }
+     },
+     "schema": "ledger"
+    }
+   ]
+  }
+ ]
+}

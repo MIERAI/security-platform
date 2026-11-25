@@ -1,0 +1,74 @@
+{
+ "component": "runner",
+ "title": "A tick while another tick (or the same job) is still running does not start the job again and exits 0",
+ "contract": "runner/1.0",
+ "origin": "tests/test_runner.py::test_lock_prevents_overlap; docs/runner.md locking",
+ "files": {
+  "instance.json": "instance.json"
+ },
+ "steps": [
+  {
+   "name": "long tick",
+   "exec": {
+    "impl": "runner",
+    "args": [
+     "tick",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1894019400"
+    ],
+    "background": true
+   }
+  },
+  {
+   "name": "let it start",
+   "sleep": 1.5
+  },
+  {
+   "name": "overlapping tick",
+   "exec": {
+    "impl": "runner",
+    "args": [
+     "tick",
+     "--instance",
+     "{sandbox}/instance.json",
+     "--data",
+     "{sandbox}/data",
+     "--now",
+     "1894019400"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "duration_max": 2.5
+    }
+   ]
+  },
+  {
+   "name": "wait for the long tick",
+   "wait": "long tick",
+   "exit": 0
+  },
+  {
+   "name": "one run only",
+   "expect": [
+    {
+     "json": "data/state/runner/slow.json",
+     "schema": "runner-state",
+     "subset": {
+      "runs_total": 1,
+      "last_rc": 0
+     }
+    },
+    {
+     "file": "runs.log",
+     "lines": 1
+    }
+   ]
+  }
+ ]
+}

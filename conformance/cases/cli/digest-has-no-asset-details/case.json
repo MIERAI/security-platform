@@ -1,0 +1,42 @@
+{
+ "component": "cli",
+ "title": "`sp digest` (what notifiers send) carries aggregates only: never an asset name",
+ "contract": "cli/1.0",
+ "origin": "tests/test_cli.py::test_digest_has_no_asset_details",
+ "files": {
+  "data/ledger.json": "ledger.json",
+  "data/tracker/items.json": "items.json",
+  "data/instance.json": "instance.json"
+ },
+ "steps": [
+  {
+   "name": "sp digest --days 30 --data {sandbox}/data",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "digest",
+     "--days",
+     "30",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "regex": [
+       "^Security ",
+       "^Open: "
+      ],
+      "not_contains": [
+       "web-1",
+       "web-2",
+       "registry.example"
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}
