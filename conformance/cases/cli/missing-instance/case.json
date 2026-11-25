@@ -1,0 +1,101 @@
+{
+ "component": "cli",
+ "title": "A data directory without an instance config: commands that need it exit 2 with `sp: no instance config at <path>`; findings and explain need only the ledger",
+ "contract": "cli/1.1",
+ "origin": "cli/sp.py Ctx.inst",
+ "files": {
+  "data/ledger.json": {
+   "json": {
+    "schema": "security-platform/ledger/v1",
+    "entries": {}
+   }
+  }
+ },
+ "steps": [
+  {
+   "name": "sp status --data {sandbox}/data",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "status",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 2,
+   "expect": [
+    {
+     "stderr": {
+      "regex": [
+       "^sp: no instance config at \\S*/data/instance\\.yaml"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "sp doctor --data {sandbox}/data",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "doctor",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 2,
+   "expect": [
+    {
+     "stderr": {
+      "regex": [
+       "^sp: no instance config at "
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "sp digest --data {sandbox}/data --instance {sandbox}/nope.yaml",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "digest",
+     "--data",
+     "{sandbox}/data",
+     "--instance",
+     "{sandbox}/nope.yaml"
+    ]
+   },
+   "exit": 2,
+   "expect": [
+    {
+     "stderr": {
+      "regex": [
+       "^sp: no instance config at \\S*/nope\\.yaml"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "sp findings --ids --data {sandbox}/data",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "findings",
+     "--ids",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "lines": []
+     }
+    }
+   ]
+  }
+ ]
+}

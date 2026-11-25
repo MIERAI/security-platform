@@ -1,0 +1,7 @@
+{
+ "schema": "security-platform/runner-state/v1",
+ "job": "broken",
+ "runs_total": 2,
+ "last_rc": 1,
+ "last_success": null
+}

@@ -73,7 +73,7 @@ func run(t *testing.T, vars map[string]string, stdin string, args ...string) res
 func TestDelegatesArgvVerbatim(t *testing.T) {
 	t.Parallel()
 	tree := fakeTree(t, "")
-	vars := map[string]string{"SP_PY_HOME": tree}
+	vars := map[string]string{"SP_PY_HOME": tree, EnvCLI: "python"}
 	script := filepath.Join(tree, "cli", "sp.py")
 	for _, args := range [][]string{
 		{"argv"},
@@ -97,7 +97,7 @@ func TestDelegatesArgvVerbatim(t *testing.T) {
 
 func TestExitCodeAndStreamsPassthrough(t *testing.T) {
 	t.Parallel()
-	vars := map[string]string{"SP_PY_HOME": fakeTree(t, "")}
+	vars := map[string]string{"SP_PY_HOME": fakeTree(t, ""), EnvCLI: "python"}
 	for _, code := range []int{0, 1, 2, 3, 127, 255} {
 		t.Run(strconv.Itoa(code), func(t *testing.T) {
 			t.Parallel()
@@ -122,11 +122,11 @@ func TestDelegationFailures(t *testing.T) {
 		wantCode int
 		wantErr  string
 	}{
-		{"no python tree", map[string]string{"HOME": t.TempDir()}, nil, ExitNotFound, "SP_PY_HOME"},
-		{"wrong SP_PY_HOME", map[string]string{"SP_PY_HOME": t.TempDir()}, nil, ExitNotFound, "cli/sp.py"},
-		{"no interpreter", map[string]string{"SP_PY_HOME": tree, delegate.EnvPython: "no-such-python-xyz"}, nil,
+		{"no python tree", map[string]string{"HOME": t.TempDir(), EnvCLI: "python"}, nil, ExitNotFound, "SP_PY_HOME"},
+		{"wrong SP_PY_HOME", map[string]string{"SP_PY_HOME": t.TempDir(), EnvCLI: "python"}, nil, ExitNotFound, "cli/sp.py"},
+		{"no interpreter", map[string]string{"SP_PY_HOME": tree, delegate.EnvPython: "no-such-python-xyz", EnvCLI: "python"}, nil,
 			ExitNotFound, "SP_PYTHON"},
-		{"exec fails", map[string]string{"SP_PY_HOME": tree}, func(context.Context, delegate.Spec) (int, error) {
+		{"exec fails", map[string]string{"SP_PY_HOME": tree, EnvCLI: "python"}, func(context.Context, delegate.Spec) (int, error) {
 			return 0, errors.New("exec format error")
 		}, ExitCannotRun, "exec format error"},
 	}
@@ -152,7 +152,7 @@ func TestVersionText(t *testing.T) {
 	}{
 		{"--version, installed tree", "version=v0.4.0\ncommit=abc\n", []string{"--version"},
 			[]string{"sp 0.3.0 (security-platform v0.4.0)", "binary: v0.4.0, go1.27.4, linux/amd64",
-				"go subcommands: " + strings.Join(GoSubcommands(), " "), "go components: (none)", "python components: cli collectors/host core"}},
+				"go subcommands: " + strings.Join(GoSubcommands(), " "), "go components: cli", "python components: collectors/host core"}},
 		{"version subcommand", "version=v0.4.0\n", []string{"version"}, []string{"sp 0.3.0 (security-platform v0.4.0)"}},
 		{"mismatch is flagged", "version=v0.3.0\n", []string{"--version"},
 			[]string{"warning: the sp binary is v0.4.0 but the Python tree is v0.3.0"}},
@@ -185,7 +185,8 @@ func TestVersionJSON(t *testing.T) {
 	py := rep.Python
 	if rep.Schema != VersionSchema || rep.Release != "v0.4.0" || rep.ReleaseMismatch || py == nil ||
 		py.CLIVersion != "0.3.0" || py.Source != "env" || len(rep.Components) != 3 ||
-		rep.Components[0].Implementation != "python" || !slices.Contains(rep.GoSubcommands, "version") {
+		rep.Components[0].Implementation != "go" || !slices.Contains(rep.GoSubcommands, "version") ||
+		!slices.Contains(rep.GoSubcommands, "findings") {
 		t.Fatalf("unexpected report %+v", rep)
 	}
 }
@@ -221,5 +222,34 @@ func TestVersionUsage(t *testing.T) {
 		if r := run(t, vars, "", tc.args...); r.code != tc.want {
 			t.Errorf("%v: code %d, want %d (stderr %q)", tc.args, r.code, tc.want, r.stderr)
 		}
+	}
+}
+
+// TestCLICommandsRunInGo: without SP_CLI=python the day-to-day commands, the top-level help and unknown commands
+// never reach the Python implementation (the fake interpreter would print its argument vector).
+func TestCLICommandsRunInGo(t *testing.T) {
+	t.Parallel()
+	vars := map[string]string{"SP_PY_HOME": fakeTree(t, ""), "HOME": t.TempDir()}
+	tests := []struct {
+		args       []string
+		wantCode   int
+		wantStdout string
+		wantStderr string
+	}{
+		{[]string{"status"}, 2, "", "sp: where is your data directory?"},
+		{[]string{"findings", "--data", filepath.Join(t.TempDir(), "nope")}, 2, "", "does not exist"},
+		{[]string{"no-such-command"}, 2, "", "argument cmd: invalid choice: 'no-such-command'"},
+		{[]string{}, 2, "", "the following arguments are required: cmd"},
+		{[]string{"--help"}, 0, "security-platform command line", ""},
+		{[]string{"explain", "-h"}, 0, "usage: sp explain", ""},
+	}
+	for _, tc := range tests {
+		t.Run(strings.Join(tc.args, " "), func(t *testing.T) {
+			t.Parallel()
+			r := run(t, vars, "", tc.args...)
+			if r.code != tc.wantCode || !strings.Contains(r.stdout, tc.wantStdout) || !strings.Contains(r.stderr, tc.wantStderr) {
+				t.Fatalf("got %+v; want code %d, stdout ~%q, stderr ~%q", r, tc.wantCode, tc.wantStdout, tc.wantStderr)
+			}
+		})
 	}
 }

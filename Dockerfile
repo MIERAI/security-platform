@@ -71,6 +71,8 @@ COPY adapters adapters
 COPY collectors collectors
 COPY events events
 COPY cli cli
+# the plain-language texts of sp explain/status/digest: one data file read by cli/explanations.py and embedded in sp
+COPY internal/cli/explain/explanations.json internal/cli/explain/explanations.json
 COPY notifier notifier
 COPY generators generators
 COPY scorecard scorecard

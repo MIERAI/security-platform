@@ -1534,17 +1534,19 @@ def runner_cases():
 
 
 # ==================================================================================================================
-# cli (contract cli/1.0): sp <command> --data D [--instance F]
+# cli (contract cli/1.1): sp <command> --data D [--instance F]
 # ==================================================================================================================
-def sp(args, expect, exit_=0, name=None, env=None):
+def sp(args, expect, exit_=0, name=None, env=None, files=None):
     st = {"name": name or "sp " + " ".join(args), "exec": {"impl": "cli", "args": args}, "exit": exit_, "expect": expect}
     if env:
         st["exec"]["env"] = env
+    if files:
+        st["files"] = files
     return st
 
 
 def cli_cases():
-    C = "cli/1.0"
+    C = "cli/1.1"
     cr = finding("host:web-1", "host.ssh_password_auth", severity="critical", observed="2026-11-01T08:00:00Z")
     hi = finding("image:registry.example/app:1.0", "vuln.cve-2099-0001", layer="supply-chain", severity="high", kind="vulnerability")
     lo = finding("host:web-1", "host.motd_missing", severity="low")
@@ -1642,6 +1644,479 @@ def cli_cases():
         dict(files, **{"instance-every-10m.json": dict(inst, runner=dict(inst["runner"], jobs={
             "remediation": {"type": "remediation", "schedule": "*/10 * * * *"}})),
             "state.json": json.dumps(st_late).replace('"{epoch:-2820}"', "{epoch:-2820}").replace('"{epoch:-2880}"', "{epoch:-2880}")}))
+    cli_quickstart_case()
+    cli_doctor_cases()
+    cli_input_cases()
+    cli_findings_cases(cr, hi, lo, fx)
+    cli_status_cases()
+    cli_digest_notify_cases()
+    cli_run_cases()
+    cli_init_cases()
+
+
+EMIT_SH = """#!/bin/sh
+# a fake collector: copies a fixture findings document into the run directory (collector-protocol output)
+set -e
+[ -n "$EMIT_FAIL" ] && { echo "emit: failing on purpose" >&2; exit "$EMIT_FAIL"; }
+cp "$EMIT_DOC" "$SP_RUN_DIR/${SP_COLLECTOR_NAME:-host}.findings.json"
+"""
+
+
+def raw_json(obj, *templates):
+    """JSON text in which each "{epoch:..}" string template becomes a bare number once rendered."""
+    t = json.dumps(obj, indent=1)
+    for x in templates:
+        t = t.replace(f'"{x}"', x)
+    return t
+
+
+def cli_quickstart_case():
+    C = "cli/1.1"
+    crit = finding("host:lab-1", "host.ssh_password_auth", severity="critical", observed="2026-11-01T08:00:00Z")
+    low = finding("host:lab-1", "host.motd_missing", severity="low", observed="2026-11-01T08:00:00Z")
+    hdoc = doc("emit", [crit, low], [ok("host:lab-1"), gap("host:lab-2", "ssh: connection refused")])
+    job = {"type": "command", "collector": "host", "as": "emit", "argv": ["/bin/sh", "{case}/emit.sh"],
+           "schedule": "15 2 * * *", "env": {"EMIT_DOC": "{case}/emit.findings.json"}}
+    qinst = {"name": "quick", "scorecard": {"enabled": False}, "runner": {"site": "hub", "role": "hub", "jobs": {
+        "emit": job, "remediation": {"type": "remediation", "schedule": "50 * * * *"},
+        "digest": {"type": "digest", "schedule": "0 9 * * 1"}}}}
+    D = ["--data", "{sandbox}/data"]
+    write_case("cli", "quickstart", {
+        "title": "The documented first steps (docs/quickstart.md): init -> doctor -> run -> status -> findings -> explain, "
+                 "each with the output a new user is told to look for",
+        "contract": C, "origin": "docs/quickstart.md; tests/test_cli.py::test_init_and_doctor",
+        "steps": [
+            sp(["init", "{sandbox}/data", "--name", "quick"], [
+                {"stdout": {"regex": [r"^wrote \S*/data/instance\.yaml$", r"sp doctor --data \S*data",
+                                      r"sp run --data \S*data"]}},
+                {"mode": "data", "is": "0700"}, {"mode": "data/instance.yaml", "is": "0600"},
+                {"file": "data/instance.yaml", "regex": [r"^name: quick$", r"exec: \{type: local\}, profile: (linux|macos|windows|termux)\}"]},
+                {"file": "data/exceptions.yaml", "regex": [r"^exceptions: \{\}$"]}]),
+            sp(["doctor"] + D, [{"stdout": {"regex": [r"^config \S*/data/instance\.yaml$", r"^  ok    loads \(\d+ sections, name=quick\)$",
+                                                      r"^  ok    data directory is private \(0700\)$", r"^ready: sp run$"],
+                                            "not_regex": ["FIX"]}}], name="doctor on the starter config"),
+            dict(sp(["run"] + D, [{"stdout": {"regex": [r"^running 2 job\(s\): emit, remediation  \(each job's log: \S*/data/runs/<date>/\)$",
+                                                        r"^  ok  emit\s+\d+s", r"^  ok  remediation\s+\d+s",
+                                                        r"^next: sp status"]}},
+                                  {"json": "data/ledger.json", "schema": "ledger", "subset": {"entries": {"$len": 2}}}]),
+                 files={"data/instance.yaml": "instance.json"}),
+            sp(["status"] + D, [{"stdout": {"regex": [r"^security-platform status - quick$", r"^Open findings: critical 1, low 1$",
+                                                      r"^  ok  emit\s+last good run (just now|\dm ago)$",
+                                                      r"^Could not check 1 thing\(s\) \(no finding there does NOT mean safe\):$",
+                                                      r"^  emit: ssh: connection refused$",
+                                                      rf"^  {crit['id']}  critical ", r"^Top risks \(sp explain <id>\):$"]}}]),
+            sp(["findings", "--open", "--ids"] + D, [{"stdout": {"lines": [crit["id"], low["id"]]}}]),
+            sp(["findings", "--json"] + D, [{"stdout": {"schema": "cli-findings", "json": [
+                {"id": crit["id"], "status": "open", "asset": "host:lab-1"}, {"id": low["id"]}]}}]),
+            sp(["explain", crit["id"][:5]] + D, [{"stdout": {"regex": [rf"^id {crit['id']}   check host.ssh_password_auth   critical",
+                                                                     r"^How to fix$", r"^How to verify$",
+                                                                     rf"^    {crit['id']}:$"]}}])]},
+        {"emit.sh": EMIT_SH, "emit.findings.json": hdoc, "instance.json": raw_json(qinst)})
+
+
+def cli_doctor_cases():
+    C = "cli/1.1"
+    canary = "conformance-secret-canary-7f3a9c"
+    inst = {"name": "doc", "hosts": [{"name": "h1", "exec": {"type": "ssh", "host": "h1"}}],
+            "codehost": [{"type": "gitea", "url": "https://git.example.com", "token_file": "{sandbox}/secrets/gitea.token"}],
+            "notify": [{"type": "telegram", "token_file": "{sandbox}/secrets/missing.token", "chat_id_file": "{sandbox}/secrets/chat"}],
+            "runner": {"site": "hub", "role": "hub", "sinks": [
+                {"type": "remote_write", "url": "https://metrics.example.com", "password_file": "{sandbox}/secrets/sink.pass",
+                 "ca_file": "{sandbox}/secrets/no-such-ca.pem"}],
+                "jobs": {"vi": {"collector": "vuln-intel"}, "nope": {"collector": "no-such-collector"},
+                         "cmd": {"type": "command", "argv": ["true"]}}}}
+    write_case("cli", "doctor-reports-problems", {
+        "title": "`sp doctor` prints one line per check (`ok` / `FIX` with the fix), exits 1 when something must be fixed, "
+                 "and never prints a secret: open data directory, missing tool, unknown collector, ssh without a client, "
+                 "secret files missing or readable by others (ca_file is not a secret)",
+        "contract": C, "origin": "cli/sp.py cmd_doctor",
+        "files": {"data": {"dir": True, "mode": "0755"}, "data/instance.json": {"json": inst, "mode": "0600"},
+                  "emptybin": {"dir": True},
+                  "secrets/gitea.token": {"text": canary + "\n", "mode": "0644"},
+                  "secrets/chat": {"text": "12345\n", "mode": "0600"},
+                  "secrets/sink.pass": {"text": canary + "-sink\n", "mode": "0600"}},
+        "steps": [sp(["doctor", "--data", "{sandbox}/data"], [
+            {"stdout": {"regex": [r"^  FIX   data directory is readable by others \(mode 0o755\)$", r"^        -> chmod 700 \S*/data$",
+                                  r"^  FIX   job vi: needs `trivy` - not found$", r"^        -> install trivy \(see docs/quickstart\.md\)$",
+                                  r"^  FIX   job nope: unknown collector no-such-collector$",
+                                  r"^        -> one of: agent-claude-code, cloud, codehost-gitea, codehost-github, exposure, host, "
+                                  r"host-sbom, identity, k8s, secrets-files, vuln-intel$",
+                                  r"^  FIX   hosts use ssh but `ssh` is not installed$",
+                                  r"^  FIX   codehost: token_file \S*/secrets/gitea\.token is readable by others$",
+                                  r"^        -> chmod 600 \S*/secrets/gitea\.token$",
+                                  r"^  FIX   notify: token_file \S*/secrets/missing\.token does not exist$",
+                                  r"^  ok    notify: chat_id_file is private$", r"^  ok    sink: password_file is private$",
+                                  r"^6 thing\(s\) to fix$"],
+                        "not_regex": ["ca_file", r"job cmd", "ready: sp run"]}},
+            {"no_secret": [canary], "in": "data"}], exit_=1, env={"PATH": "{sandbox}/emptybin"})]})
+
+
+def cli_input_cases():
+    C = "cli/1.1"
+    D = ["--data", "{sandbox}/data"]
+    write_case("cli", "missing-instance", {
+        "title": "A data directory without an instance config: commands that need it exit 2 with `sp: no instance config "
+                 "at <path>`; findings and explain need only the ledger",
+        "contract": C, "origin": "cli/sp.py Ctx.inst",
+        "files": {"data/ledger.json": {"json": {"schema": "security-platform/ledger/v1", "entries": {}}}},
+        "steps": [sp(["status"] + D, [{"stderr": {"regex": [r"^sp: no instance config at \S*/data/instance\.yaml"]}}], exit_=2),
+                  sp(["doctor"] + D, [{"stderr": {"regex": [r"^sp: no instance config at "]}}], exit_=2),
+                  sp(["digest"] + D + ["--instance", "{sandbox}/nope.yaml"],
+                     [{"stderr": {"regex": [r"^sp: no instance config at \S*/nope\.yaml"]}}], exit_=2),
+                  sp(["findings", "--ids"] + D, [{"stdout": {"lines": []}}])]})
+
+    write_case("cli", "bad-input-is-one-line", {
+        "title": "Unreadable input (a config that is not YAML, a config that is not a mapping, a corrupt ledger or tracker, "
+                 "`sp init` onto a file) is reported as one line `sp: <path>: <why>` with exit 2, never a stack trace",
+        "contract": C, "deviation": "CLI-D2", "origin": "cli/sp.py: exceptions escape as Python tracebacks (exit 1)",
+        "files": {"yaml/instance.yaml": {"text": "name: [unclosed\nrunner: {\n"},
+                  "list/instance.json": {"text": "[1, 2]\n"},
+                  "ledger/instance.json": {"text": "{\"name\": \"x\"}\n"}, "ledger/ledger.json": {"text": "{\"entries\": "},
+                  "items/instance.json": {"text": "{\"name\": \"x\"}\n"},
+                  "items/ledger.json": {"text": "{\"entries\": {}}\n"}, "items/tracker/items.json": {"text": "not json"},
+                  "afile": {"text": "x\n"}},
+        "steps": [sp(["doctor", "--data", "{sandbox}/yaml"], [{"stderr": {"regex": [r"^sp: \S*/yaml/instance\.yaml: "],
+                                                                           "not_regex": ["Traceback"]}}], exit_=2),
+                  sp(["status", "--data", "{sandbox}/list"], [{"stderr": {"regex": [r"^sp: \S*/list/instance\.json: "],
+                                                                           "not_regex": ["Traceback"]}}], exit_=2),
+                  sp(["status", "--data", "{sandbox}/ledger"], [{"stderr": {"regex": [r"^sp: \S*/ledger/ledger\.json: "],
+                                                                             "not_regex": ["Traceback"]}}], exit_=2),
+                  sp(["findings", "--data", "{sandbox}/items"], [{"stderr": {"regex": [r"^sp: \S*/items/tracker/items\.json: "],
+                                                                              "not_regex": ["Traceback"]}}], exit_=2),
+                  sp(["init", "{sandbox}/afile"], [{"stderr": {"regex": [r"^sp: \S*/afile: "], "not_regex": ["Traceback"]}}],
+                     exit_=2)]})
+
+    write_case("cli", "locating-data", {
+        "title": "Where the data and the instance config are: --data, else $SP_DATA (~ expanded); --instance, else "
+                 "$SP_INSTANCE, else DATA/instance.yaml, instance.yml, instance.json (first that exists)",
+        "contract": C, "origin": "contract cli §1; cli/sp.py Ctx",
+        "files": {"a/instance.json": {"json": {"name": "from-a-json"}},
+                  "b/instance.yml": {"text": "name: from-b-yml\n"}, "b/instance.json": {"json": {"name": "from-b-json"}},
+                  "c/instance.yaml": {"text": "name: from-c-yaml\n"}, "c/instance.yml": {"text": "name: from-c-yml\n"},
+                  "other.json": {"json": {"name": "from-sp-instance"}}, "flag.json": {"json": {"name": "from-flag"}},
+                  "home/d/instance.json": {"json": {"name": "from-home"}}},
+        "steps": [sp(["status"], [{"stdout": {"regex": [r"^security-platform status - from-a-json$"]}}], env={"SP_DATA": "{sandbox}/a"},
+                     name="SP_DATA"),
+                  sp(["status", "--data", "{sandbox}/b"], [{"stdout": {"regex": [r"^security-platform status - from-b-yml$"]}}],
+                     env={"SP_DATA": "{sandbox}/a"}, name="--data wins over SP_DATA; instance.yml before instance.json"),
+                  sp(["status", "--data", "{sandbox}/c"], [{"stdout": {"regex": [r"status - from-c-yaml$"]}}],
+                     name="instance.yaml first"),
+                  sp(["status", "--data", "{sandbox}/c"], [{"stdout": {"regex": [r"status - from-sp-instance$"]}}],
+                     env={"SP_INSTANCE": "{sandbox}/other.json"}, name="SP_INSTANCE"),
+                  sp(["status", "--data", "{sandbox}/c", "--instance", "{sandbox}/flag.json"],
+                     [{"stdout": {"regex": [r"status - from-flag$"]}}], env={"SP_INSTANCE": "{sandbox}/other.json"},
+                     name="--instance wins over SP_INSTANCE"),
+                  sp(["status", "--data", "~/d"], [{"stdout": {"regex": [r"status - from-home$"]}}], name="~ is the home directory")]})
+
+    write_case("cli", "argument-errors", {
+        "title": "Command-line mistakes exit 2 with a message on stderr and nothing on stdout; -h/--help print usage and "
+                 "exit 0; long options may be abbreviated and written --opt=value",
+        "contract": C, "origin": "cli/sp.py main (argparse)",
+        "files": {"data/instance.json": {"json": {"name": "x"}}, "data/ledger.json": {"json": {"entries": {}}}},
+        "steps": [sp([], [{"stderr": {"regex": ["."]}}, {"stdout": {"not_regex": ["."]}}], exit_=2, name="no command"),
+                  sp(["frobnicate"], [{"stderr": {"regex": ["frobnicate"]}}, {"stdout": {"not_regex": ["."]}}], exit_=2),
+                  sp(["findings", "--severity", "bogus", "--data", "{sandbox}/data"],
+                     [{"stderr": {"regex": ["bogus"]}}, {"stdout": {"not_regex": ["."]}}], exit_=2),
+                  sp(["findings", "--no-such-option", "--data", "{sandbox}/data"], [{"stderr": {"regex": ["--no-such-option"]}}],
+                     exit_=2),
+                  sp(["explain", "--data", "{sandbox}/data"], [{"stderr": {"regex": ["."]}}], exit_=2, name="explain without an id"),
+                  sp(["digest", "--days", "x", "--data", "{sandbox}/data"], [{"stderr": {"regex": ["."]}}], exit_=2),
+                  sp(["init"], [{"stderr": {"regex": ["."]}}], exit_=2, name="init without a directory"),
+                  sp(["--help"], [{"stdout": {"regex": ["init", "doctor", "findings", "explain", "digest", "notify"]}}]),
+                  sp(["findings", "-h"], [{"stdout": {"regex": ["--severity", "--overdue", "--ids"]}}]),
+                  sp(["findings", "--sev=critical", "--data={sandbox}/data", "--js"], [{"stdout": {"json": []}}],
+                     name="abbreviated --opt=value")]})
+
+
+def cli_findings_cases(cr, hi, lo, fx):
+    C = "cli/1.1"
+    long_asset = "host:" + "\u00e4" * 50
+    lng = finding(long_asset, "host.title_" + "x" * 90, severity="medium", observed="2026-11-01T08:00:00Z")
+    inf = finding("host:web-3", "host.banner", severity="info")
+    led = ledger_doc(entry(cr), entry(hi), entry(lo), entry(fx, status="fixed", fixed_at="2026-11-02T09:00:00Z",
+                                                             fixed_reason="not_observed"), entry(lng), entry(inf))
+    items = {"schema": "security-platform/tracker/v1", "items": {
+        cr["id"]: {"id": cr["id"], "status": "open", "due_at": "2026-11-08T08:00:00Z", "overdue": True, "owner": "ops"},
+        hi["id"]: {"id": hi["id"], "status": "open", "due_at": "2099-12-01T08:00:00Z", "overdue": False, "owner": "ops"},
+        lng["id"]: {"id": lng["id"], "status": "open", "due_at": "2030-01-31T23:30:00Z", "overdue": False, "owner": "ops"}}}
+    SEVS = ["critical", "high", "medium", "low", "info"]
+    ents = sorted(led["entries"].values(), key=lambda e: (SEVS.index(e["severity"]), e["layer"], e["asset"]))
+    dues = {cr["id"]: "OVERDUE", hi["id"]: "2099-12-01", lng["id"]: "2030-01-31"}
+    shown = [e for e in ents if e["severity"] != "info"]
+    head = f"{'ID':<13}{'SEVERITY':<10}{'STATUS':<9}{'DUE':<12}{'LAYER':<13}{'ASSET':<38}WHAT"
+    table = "\n".join([head] + [f"{e['id']:<13}{e['severity']:<10}{e['status']:<9}{dues.get(e['id'], '-'):<12}{e['layer']:<13}"
+                                 f"{e['asset'][:37]:<38}{e['title'][:70]}" for e in shown]) + \
+        f"\n\n{len(shown)} finding(s). Details and how to fix: sp explain <ID>\n"
+    ids = lambda pred: [e["id"] for e in ents if pred(e)]  # noqa: E731
+    D = ["--data", "{sandbox}/data"]
+    write_case("cli", "findings-table-layout", {
+        "title": "The `sp findings` table has fixed column widths (ID 13, SEVERITY 10, STATUS 9, DUE 12, LAYER 13, ASSET 38 "
+                 "= the first 37 characters, WHAT = the first 70), DUE in local time, then a count line; `--severity S` "
+                 "means S or worse, so `low` leaves out info",
+        "contract": C, "origin": "cli/sp.py cmd_findings",
+        "files": {"data/ledger.json": "ledger.json", "data/tracker/items.json": "items.json"},
+        "steps": [sp(["findings", "--severity", "low"] + D, [{"stdout": {"text": table}}]),
+                  sp(["findings", "--severity", "medium", "--ids"] + D,
+                     [{"stdout": {"lines": ids(lambda e: e["severity"] in ("critical", "high", "medium"))}}]),
+                  sp(["findings", "--ids"] + D, [{"stdout": {"lines": ids(lambda e: True)}}]),
+                  sp(["findings", "--json", "--check", "host.title_"] + D,
+                     [{"stdout": {"schema": "cli-findings", "json": [dict(entry(lng))]}}], name="--json is the whole entry"),
+                  sp(["findings", "--json", "--data", "{sandbox}/empty"], [{"stdout": {"json": []}}],
+                     files={"empty/.keep": {"text": ""}}, name="no ledger yet: an empty array"),
+                  sp(["findings", "--data", "{sandbox}/empty"], [{"stdout": {"text": "no matching findings\n"}}])]},
+        {"ledger.json": led, "items.json": items})
+
+    due = finding("host:web-9", "host.dst_due", severity="high")
+    write_case("cli", "due-date-in-local-time", {
+        "title": "A due date is a UTC instant shown as the local date: 2030-07-01T22:30:00Z is 2030-07-02 in Europe/Berlin "
+                 "(summer time)",
+        "contract": C, "deviation": "CLI-D3",
+        "origin": "cli/sp.py ts(): time.mktime(...) - time.timezone is an hour off under daylight saving time",
+        "files": {"data/ledger.json": "ledger.json", "data/tracker/items.json": "items.json"},
+        "steps": [sp(["findings"] + D, [{"stdout": {"regex": [rf"^{due['id']}\s+high\s+open\s+2030-07-02 "]}}],
+                     env={"TZ": "Europe/Berlin"})]},
+        {"ledger.json": ledger_doc(entry(due)), "items.json": {"items": {due["id"]: {
+            "id": due["id"], "status": "open", "due_at": "2030-07-01T22:30:00Z", "overdue": False}}}})
+
+    a = finding("host:web-1", "conformance.alpha", severity="high", needs_human=True, remediation="turn it off")
+    e_a = entry(a, reopened_count=2, evidence="raw/host/web-1.json#k")
+    others = [finding(f"host:n{i}", "conformance.beta", severity="low") for i in range(40)]
+    clash = next(o for o in others if o["id"][0] == a["id"][0])
+    write_case("cli", "explain-details", {
+        "title": "`sp explain` shows owner, due date and OVERDUE from the tracker, regressions, the collector's own note, "
+                 "whether a person is needed, the private evidence path and an exception snippet expiring in 90 days",
+        "contract": C, "origin": "cli/sp.py cmd_explain",
+        "files": {"data/ledger.json": "ledger.json", "data/tracker/items.json": "items.json"},
+        "steps": [sp(["explain", a["id"]] + D, [{"stdout": {"regex": [
+            r"^conformance\.alpha on host:web-1$",
+            rf"^id {a['id']}   check conformance\.alpha   high \(fix this week\)$",
+            r"^where: host:web-1   area: host - the machine itself \(updates, firewall, disk\)$",
+            r"^status: open   first seen 2026-11-01   last seen 2026-11-01   came back 2x$",
+            r"^owner: ops   fix by: 2026-11-08   OVERDUE$",
+            r"^How to fix$", r"^  \(collector's note: turn it off\)$", r"^How to verify$",
+            r"^  This one needs a person ",
+            r"^If you decide to accept the risk instead \(a human decision with an end date\), add to \S*/data/exceptions\.yaml:$",
+            rf"^  exceptions:\n    {a['id']}:\n      approved_by: <your name>\n      reason: <why this is acceptable for now>\n"
+            r"      expires: '({date:+7776000}|{date:+7779600})'$",
+            r"^evidence \(private\): \S*/data/runs/\.\.\./raw/host/web-1\.json$"],
+            "not_regex": ["What it means"]}}])]},
+        {"ledger.json": ledger_doc(e_a, *[entry(o) for o in others]),
+         "items.json": {"items": {a["id"]: {"id": a["id"], "status": "open", "due_at": "2026-11-08T08:00:00Z", "overdue": True,
+                                             "owner": "ops"}}}})
+    _ = clash
+
+    write_case("cli", "explain-ambiguous-prefix", {
+        "title": "`sp explain PREFIX` needs a unique prefix: one that matches several findings exits 2 and names them, "
+                 "instead of explaining whichever comes first",
+        "contract": C, "deviation": "CLI-D4", "origin": "cli/sp.py cmd_explain: next() over the ledger's order",
+        "files": {"data/ledger.json": "ledger.json"},
+        "steps": [sp(["explain", a["id"][0]] + D, [{"stderr": {"regex": [rf"^sp: .*{a['id'][0]}.*", a["id"], clash["id"]]}},
+                                                   {"stdout": {"not_regex": ["."]}}], exit_=2),
+                  sp(["explain", a["id"][:12]] + D, [{"stdout": {"regex": [rf"^id {a['id']} "]}}], name="the whole id")]},
+        {"ledger.json": ledger_doc(e_a, *[entry(o) for o in others])})
+
+
+def cli_status_cases():
+    C = "cli/1.1"
+    ents = [entry(finding(f"host:s{i}", f"conformance.check_{i}", severity=sev, observed=obs))
+            for i, (sev, obs) in enumerate([("critical", "2026-11-03T00:00:00Z"), ("high", "2026-11-01T00:00:00Z"),
+                                            ("critical", "2026-11-02T00:00:00Z"), ("medium", "2026-11-01T00:00:00Z"),
+                                            ("low", "2026-11-01T00:00:00Z"), ("high", "2026-10-01T00:00:00Z")])]
+    ents[1]["reopened_count"] = 1
+    f7 = entry(finding("host:s9", "conformance.fixed_recently", severity="high"), status="fixed", fixed_at="{utc:-3600}")
+    f30 = entry(finding("host:s8", "conformance.fixed_long_ago", severity="high"), status="fixed", fixed_at="2026-01-01T00:00:00Z")
+    led = dict(ledger_doc(*ents, f7, f30), sli={"patch_latency": {"ok": True, "value": 2}, "mfa_coverage": {"ok": False, "value": 0.5}})
+    items = {"items": {ents[0]["id"]: {"id": ents[0]["id"], "status": "open", "overdue": True, "owner": "ops"},
+                       ents[1]["id"]: {"id": ents[1]["id"], "status": "open", "overdue": False, "owner": "unassigned"}}}
+    sc = {"overall": 62.5, "status": "FAIL", "threshold": 75,
+          "dimensions": {"network": {"score": 90}, "people": {"score": 62.5}, "devices": {"score": None}},
+          "pillars": {"network": {"score": 80}, "people": 40}}
+    jobs = {"host": {"schedule": "15 2 * * *"}, "flaky": {"schedule": "15 3 * * *"},
+            "late": {"type": "remediation", "schedule": "*/10 * * * *"}, "fresh": {"schedule": "0 4 * * *"}}
+    states = {
+        "host": {"runs_total": 3, "failures_total": 0, "last_rc": 0, "last_success": "{epoch:-7300}", "done_slot": "{epoch:-7400}"},
+        "flaky": {"runs_total": 4, "failures_total": 2, "last_rc": 3, "last_success": "{epoch:-90000}",
+                  "last_note": "collector exited rc=3, document=no " + "z" * 100},
+        "late": {"runs_total": 5, "failures_total": 0, "last_rc": 0, "last_success": "{epoch:-2820}", "done_slot": "{epoch:-2880}"}}
+    reasons = ["r" * 130] + ["unreachable"] * 9
+    gdoc = doc("host", [], [gap(f"host:g{i}", reasons[i]) for i in range(10)] + [ok("host:s0")])
+    files = {"data/ledger.json": "ledger.json", "data/tracker/items.json": "items.json", "data/instance.json": "instance.json",
+             "data/scorecard/latest.json": "scorecard.json", "data/latest/host.findings.json": "host.findings.json"}
+    for n in states:
+        files[f"data/state/runner/{n}.json"] = f"state-{n}.json"
+    fx = {"ledger.json": raw_json(led), "items.json": items, "instance.json": raw_json({"name": "conf", "runner": {"jobs": jobs}}),
+          "scorecard.json": sc, "host.findings.json": gdoc}
+    for n, s_ in states.items():
+        fx[f"state-{n}.json"] = raw_json(dict({"schema": "security-platform/runner-state/v1", "job": n}, **s_),
+                                         "{epoch:-7300}", "{epoch:-7400}", "{epoch:-90000}", "{epoch:-2820}", "{epoch:-2880}")
+    top = sorted(range(6), key=lambda i: (["critical", "high", "medium", "low"].index(ents[i]["severity"]), ents[i]["first_seen"]))[:5]
+    write_case("cli", "status-overview", {
+        "title": "`sp status`: open findings by severity, overdue and unowned fixes, fixed in 7 days and regressions, the "
+                 "scorecard (weakest dimensions, pillars), SLIs off target, every job (ok / FAILING / LATE / never), what "
+                 "could not be checked (at most 8 lines, reasons cut at 100 characters) and the five worst findings",
+        "contract": C, "origin": "cli/sp.py cmd_status; tests/test_cli.py::test_status",
+        "files": files,
+        "steps": [sp(["status", "--data", "{sandbox}/data"], [{"stdout": {"regex": [
+            r"^security-platform status - conf$",
+            r"^Open findings: critical 2, high 2, medium 1, low 1$",
+            r"^Overdue fixes: 1 \(past their remediation SLO; `sp findings --overdue`\)$",
+            r"^Without an owner: 1 \(set remediation\.default_owner\)$",
+            r"^Fixed in the last 7 days: 1   Came back \(regressions\): 1$",
+            r"^Scorecard: 62\.5/100   weakest: people 62\.5, network 90, devices None  \(FAIL, threshold 75\)$",
+            r"^  pillars: network 80, people 40$",
+            r"^Security SLIs: 1/2 on target: off target mfa_coverage=0\.5$",
+            r"^Jobs:$",
+            r"^  ok  host                 last good run 2h ago$",
+            r"^  FAILING  flaky                last good run 1d ago  \(collector exited rc=3, document=no z{45}\)$",
+            r"^  LATE    late                 slot \d{4}-\d\d-\d\d \d\d:\d\d not run yet \(\d+m late\); last good run 4\dm ago$",
+            r"^  never   fresh$",
+            r"^Could not check 10 thing\(s\) \(no finding there does NOT mean safe\):$",
+            r"^  host: r{100}$",
+            r"^Top risks \(sp explain <id>\):$"] + [rf"^  {ents[i]['id']}  {ents[i]['severity']:<8} " for i in top]
+            + ["".join(rf"^  {ents[i]['id']}  .*\n" for i in top)],
+            "not_regex": [r"^  host: r{101}", ents[[i for i in range(6) if i not in top][0]]["id"]]}},
+            {"stdout": {"regex": [r"(?:^  host: \S+\n){8}\nTop risks"]}}])]}, fx)
+
+
+def cli_digest_notify_cases():
+    C = "cli/1.1"
+    new_c = [finding(f"host:secret-{i}", "conformance.same_check", severity="critical", observed="{utc:-600}") for i in range(2)]
+    new_h = finding("host:secret-9", "conformance.other_check", severity="high", observed="{utc:-1200}")
+    old = finding("host:secret-8", "conformance.old_check", severity="low", observed="2026-01-01T00:00:00Z")
+    back = finding("host:secret-7", "conformance.back_check", severity="low", observed="2026-01-01T00:00:00Z")
+    fixed = finding("host:secret-6", "conformance.fixed_check", severity="high", observed="2026-01-01T00:00:00Z")
+    led = ledger_doc(*[entry(f) for f in new_c], entry(new_h), entry(old), entry(back, reopened_count=1, last_seen="{utc:-60}"),
+                     entry(fixed, status="fixed", fixed_at="{utc:-300}"))
+    items = {"items": {old["id"]: {"id": old["id"], "status": "open", "overdue": True}}}
+    inst = {"name": "conf", "runner": {"jobs": {"broken": {"schedule": "0 1 * * *"}}}}
+    state = {"schema": "security-platform/runner-state/v1", "job": "broken", "runs_total": 2, "last_rc": 1, "last_success": None}
+    files = {"data/ledger.json": "ledger.json", "data/tracker/items.json": "items.json", "data/instance.json": "instance.json",
+             "data/state/runner/broken.json": "state.json",
+             "data/scorecard.json": {"json": {"overall": 70, "dimensions": [{"id": "people", "score": 70}]}}}
+    text = ("Security {date:+0} (conf)\nOpen: 2 critical, 1 high, 2 low\ntoday: 3 new, 1 fixed, 1 came back\n"
+            "Overdue fixes: 1\nScorecard: 70/100   weakest: people 70\nJobs failing: 1 (sp status)\nNew and serious:\n"
+            f"- critical: conformance.same_check (x2)  [sp explain {new_c[0]['id']}]\n"
+            f"- high: conformance.other_check  [sp explain {new_h['id']}]\n")
+    write_case("cli", "digest-content", {
+        "title": "`sp digest`: the date and instance name, open counts above info, new / fixed / came back in the period, "
+                 "overdue fixes, the scorecard, failing jobs, then the serious new findings once per check family with a "
+                 "count and an id for `sp explain`; `All clear.` when there is nothing; never an asset",
+        "contract": C, "origin": "cli/sp.py digest; tests/test_cli.py::test_digest_has_no_asset_details",
+        "files": files,
+        "steps": [sp(["digest", "--daily", "--data", "{sandbox}/data"], [{"stdout": {"text": text, "not_contains": ["secret-"]}}]),
+                  sp(["digest", "--days", "400", "--data", "{sandbox}/data"],
+                     [{"stdout": {"regex": [r"^last 400 days: 5 new, 1 fixed, 1 came back$"]}}]),
+                  sp(["digest", "--data", "{sandbox}/clear"], [{"stdout": {"text": "Security {date:+0} (calm)\nOpen: nothing above info\n"
+                                                                                     "today: 0 new, 0 fixed\nAll clear.\n"}}],
+                     files={"clear/instance.json": {"json": {"name": "calm"}}}, name="nothing to report")]},
+        {"ledger.json": raw_json(led), "items.json": items, "instance.json": inst, "state.json": raw_json(state)})
+
+    canary = "conformance-bot-token-5d1e"
+    notify = [{"type": "file", "path": "{sandbox}/out/latest.txt"},
+              {"type": "webhook", "url_file": "{sandbox}/secrets/hook.url"},
+              {"type": "webhook", "url_file": "{sandbox}/secrets/hook.url", "format": "json"},
+              {"type": "webhook", "url_file": "{sandbox}/secrets/hook.url", "format": "text"},
+              {"type": "telegram", "token_file": "{sandbox}/secrets/bot.token", "chat_id": 42, "api": "{svc_hook}"},
+              {"type": "exec", "argv": ["/bin/sh", "-c", "cat > \"$0\"", "{sandbox}/out/exec.txt"]},
+              {"type": "webhook", "url_file": "{sandbox}/secrets/fail.url"},
+              {"type": "telegram", "token_file": "{sandbox}/secrets/open.token", "chat_id": 42, "api": "{svc_hook}"},
+              {"type": "exec", "argv": ["/bin/sh", "-c", "echo boom >&2; exit 3"]}]
+    nfiles = dict(files, **{"data/instance.json": {"json": {"name": "conf", "notify": notify}},
+                            "secrets/hook.url": {"text": "{svc_hook}/hook\n", "mode": "0600"},
+                            "secrets/fail.url": {"text": "{svc_hook}/fail\n", "mode": "0600"},
+                            "secrets/bot.token": {"text": canary + "\n", "mode": "0600"},
+                            "secrets/open.token": {"text": canary + "-open\n", "mode": "0644"}})
+    write_case("cli", "notify-adapters", {
+        "title": "`sp notify` sends the digest through every configured notifier (file, webhook slack/json/text, telegram, "
+                 "exec); one failing does not stop the others and makes the exit 1; `--dry-run` sends nothing; secrets "
+                 "(bot token, webhook URL) never reach the output; no notifier configured exits 1",
+        "contract": C, "origin": "cli/sp.py cmd_notify; notifier/notifiers.py; tests/test_notifier.py",
+        "services": [{"name": "hook", "argv": ["{python}", "{case}/mock_webhook.py", "--record", "{sandbox}/hook.jsonl"]}],
+        "files": nfiles,
+        "steps": [sp(["notify", "--dry-run", "--data", "{sandbox}/data"],
+                     [{"stdout": {"regex": [r"^Security {date:+0} \(conf\)$", r"^\(dry run: 9 notifier\(s\) not called\)$"]}},
+                      {"absent": "hook.jsonl"}, {"absent": "out/latest.txt"}]),
+                  sp(["notify", "--data", "{sandbox}/data"], [
+                      {"stdout": {"regex": [r"^sent via 0-file$", r"^sent via 1-webhook$", r"^sent via 2-webhook$",
+                                            r"^sent via 3-webhook$", r"^sent via 4-telegram$", r"^sent via 5-exec$"],
+                                  "not_regex": ["6-webhook", "7-telegram", "8-exec"]}},
+                      {"stderr": {"regex": [r"^notifier 6-webhook failed: .*HTTP 500", r"^notifier 7-telegram failed: .*0600",
+                                            r"^notifier 8-exec failed: .*rc=3: boom"], "not_regex": ["/fail", "/hook", "127\\.0\\.0\\.1"]}},
+                      {"file": "out/latest.txt", "regex": [r"^Security {date:+0} \(conf\)$", r"^Open: 2 critical, 1 high, 2 low$"]},
+                      {"file": "out/exec.txt", "regex": [r"^Security {date:+0} \(conf\)$"]},
+                      {"jsonl": "hook.jsonl", "subset": [
+                          {"path": "/hook", "content_type": "application/json", "user_agent": "security-platform",
+                           "body": {"$regex": "^\\{\"text\": *\"Security "}},
+                          {"path": "/hook", "content_type": "application/json", "body": {"$regex": "\"title\": *\"Security "}},
+                          {"path": "/hook", "content_type": {"$regex": "^text/plain"}, "body": {"$regex": "^Security "}},
+                          {"path": {"$regex": "^/bot.+/sendMessage$"}, "content_type": "application/x-www-form-urlencoded",
+                           "body": {"$regex": "^chat_id=42&text=Security\\+.*&disable_web_page_preview=true$"}},
+                          {"path": "/fail"}]},
+                      {"no_secret": [canary], "in": "data"}], exit_=1),
+                  sp(["notify", "--data", "{sandbox}/quiet"], [{"stderr": {"regex": [r"^sp: no notifiers configured"]}}], exit_=1,
+                     files={"quiet/instance.json": {"json": {"name": "q"}}}, name="none configured")]},
+        {"ledger.json": raw_json(led), "items.json": items, "state.json": raw_json(state),
+         "mock_webhook.py": open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "mock_webhook.py")).read()})
+
+
+def cli_run_cases():
+    C = "cli/1.1"
+    f = finding("host:r1", "conformance.run_check", severity="medium")
+
+    def cmd(**env):
+        return {"type": "command", "collector": "host", "argv": ["/bin/sh", "{case}/emit.sh"], "schedule": "0 1 * * *",
+                "env": dict({"EMIT_DOC": "{case}/emit.findings.json"}, **env)}
+    inst = {"name": "runs", "scorecard": {"enabled": False}, "runner": {"site": "hub", "role": "hub", "jobs": {
+        "remediation": {"type": "remediation", "schedule": "50 * * * *"}, "good": dict(cmd(), **{"as": "good"}),
+        "bad": dict(cmd(EMIT_FAIL="3"), **{"as": "bad"}), "digest": {"type": "digest", "schedule": "0 9 * * 1"}}}}
+    D = ["--data", "{sandbox}/data"]
+    write_case("cli", "run-reports-each-job", {
+        "title": "`sp run` runs every job except digest/notify/snapshot/push/pull-snapshot (collectors first), prints one "
+                 "`ok` / `FAILED` line per job and exits with the runner's status; named jobs run as given; an unknown "
+                 "job exits 2 naming the configured ones",
+        "contract": C, "origin": "cli/sp.py cmd_run",
+        "files": {"data/instance.json": "instance.json"},
+        "steps": [sp(["run"] + D, [{"stdout": {"regex": [r"^running 3 job\(s\): good, bad, remediation  ",
+                                                         r"^  ok  good\s+\d+s\s*$", r"^  FAILED  bad\s+\d+s  \S",
+                                                         r"^  ok  remediation\s+\d+s\s*$", r"^next: sp status"]}},
+                                   {"json": "data/state/runner/bad.json", "subset": {"last_rc": {"$type": "integer"}}}],
+                     exit_={"not": 0}),
+                  sp(["run", "good", "digest"] + D, [{"stdout": {"regex": [r"^running 2 job\(s\): good, digest  ",
+                                                                           r"^  ok  good\s", r"^  ok  digest\s"]}}]),
+                  sp(["run", "nope", "good"] + D, [{"stderr": {"regex": [
+                      r"^sp: not in runner\.jobs: nope \(configured: remediation, good, bad, digest\)$"]}}], exit_=2)]},
+        {"instance.json": raw_json(inst), "emit.sh": EMIT_SH, "emit.findings.json": doc("good", [f], [ok("host:r1")])})
+
+
+def cli_init_cases():
+    C = "cli/1.1"
+    write_case("cli", "init-keeps-existing-files", {
+        "title": "`sp init` on an existing directory makes it private (0700), keeps instance.yaml unless --force and keeps "
+                 "exceptions.yaml and .gitignore always",
+        "contract": C, "origin": "cli/sp.py cmd_init",
+        "files": {"d": {"dir": True, "mode": "0755"}, "d/instance.yaml": {"text": "name: mine\n", "mode": "0600"},
+                  "d/exceptions.yaml": {"text": "exceptions: {abc: {}}\n"}, "d/.gitignore": {"text": "mine/\n"}},
+        "steps": [sp(["init", "{sandbox}/d"], [{"stdout": {"regex": [r"^\S*/d/instance\.yaml exists: left as it is \(--force overwrites\)$"],
+                                                           "not_regex": ["^wrote"]}},
+                                               {"mode": "d", "is": "0700"}, {"file": "d/instance.yaml", "text": "name: mine\n"}]),
+                  sp(["init", "{sandbox}/d", "--force", "--name", "fresh"],
+                     [{"stdout": {"regex": [r"^wrote \S*/d/instance\.yaml$"]}}, {"file": "d/instance.yaml", "regex": ["^name: fresh$"]},
+                      {"mode": "d/instance.yaml", "is": "0600"},
+                      {"file": "d/exceptions.yaml", "text": "exceptions: {abc: {}}\n"}, {"file": "d/.gitignore", "text": "mine/\n"}]),
+                  sp(["init", "{sandbox}/new/nested"], [{"stdout": {"regex": [r"^wrote \S*/new/nested/instance\.yaml$"]}},
+                                                         {"file": "new/nested/instance.yaml", "regex": [r"^name: nested$"]},
+                                                         {"file": "new/nested/.gitignore", "text": "state/locks/\ncache/\n"}],
+                     name="default name: the directory's")]})
+
+    st = sp(["init", "{sandbox}/d"], [{"mode": "d", "is": "0700"}, {"mode": "d/instance.yaml", "is": "0600"},
+                                      {"mode": "d/exceptions.yaml", "is": "0600"}, {"mode": "d/.gitignore", "is": "0600"}])
+    st["exec"]["umask"] = "022"
+    write_case("cli", "init-files-are-private", {
+        "title": "Every file `sp init` creates is private to the user (0600), whatever the umask: the data directory holds "
+                 "attacker-relevant information",
+        "contract": C, "deviation": "CLI-D5",
+        "origin": "cli/sp.py cmd_init: exceptions.yaml and .gitignore are created with the process umask (0644 under 022)",
+        "steps": [st]})
 
 
 # ==================================================================================================================

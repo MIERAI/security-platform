@@ -1,0 +1,47 @@
+{
+ "name": "runs",
+ "scorecard": {
+  "enabled": false
+ },
+ "runner": {
+  "site": "hub",
+  "role": "hub",
+  "jobs": {
+   "remediation": {
+    "type": "remediation",
+    "schedule": "50 * * * *"
+   },
+   "good": {
+    "type": "command",
+    "collector": "host",
+    "argv": [
+     "/bin/sh",
+     "{case}/emit.sh"
+    ],
+    "schedule": "0 1 * * *",
+    "env": {
+     "EMIT_DOC": "{case}/emit.findings.json"
+    },
+    "as": "good"
+   },
+   "bad": {
+    "type": "command",
+    "collector": "host",
+    "argv": [
+     "/bin/sh",
+     "{case}/emit.sh"
+    ],
+    "schedule": "0 1 * * *",
+    "env": {
+     "EMIT_DOC": "{case}/emit.findings.json",
+     "EMIT_FAIL": "3"
+    },
+    "as": "bad"
+   },
+   "digest": {
+    "type": "digest",
+    "schedule": "0 9 * * 1"
+   }
+  }
+ }
+}

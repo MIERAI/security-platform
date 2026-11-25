@@ -13,6 +13,10 @@ runner/dst-catch-up-across-spring-forward RUNNER-D6 day jump assumes 24-hour day
 runner/job-environment-allow-list        RUNNER-D7  jobs inherit the runner's whole environment
 ledger/removed-exception-reopens         LEDGER-D5  an exception deleted by a human leaves the finding accepted
 scorecard/attestation-expiry-is-utc       SCORECARD-D1  dates parsed as local time: an expiry is an hour early under DST
+cli/bad-input-is-one-line                CLI-D2  unreadable input escapes as a Python traceback, exit 1
+cli/due-date-in-local-time               CLI-D3  mktime - timezone: an hour off under daylight saving time
+cli/explain-ambiguous-prefix             CLI-D4  an ambiguous id prefix explains whichever finding comes first
+cli/init-files-are-private               CLI-D5  exceptions.yaml and .gitignore created with the umask
 
 # ---- collector k8s (contracts/collector-protocol/SPEC.md, "Collector k8s") ----
 collector-k8s/failing-part-is-a-gap-of-that-part       K8S-D1  one unreadable part gaps the whole cluster, skips the rest; Secrets: zero

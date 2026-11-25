@@ -1,0 +1,37 @@
+{
+ "component": "cli",
+ "title": "A due date is a UTC instant shown as the local date: 2030-07-01T22:30:00Z is 2030-07-02 in Europe/Berlin (summer time)",
+ "contract": "cli/1.1",
+ "deviation": "CLI-D3",
+ "origin": "cli/sp.py ts(): time.mktime(...) - time.timezone is an hour off under daylight saving time",
+ "files": {
+  "data/ledger.json": "ledger.json",
+  "data/tracker/items.json": "items.json"
+ },
+ "steps": [
+  {
+   "name": "sp findings --data {sandbox}/data",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "findings",
+     "--data",
+     "{sandbox}/data"
+    ],
+    "env": {
+     "TZ": "Europe/Berlin"
+    }
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "regex": [
+       "^dc55deef2f07\\s+high\\s+open\\s+2030-07-02 "
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}

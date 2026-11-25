@@ -1,7 +1,7 @@
 {
  "component": "cli",
  "title": "`sp status` marks a job whose newest scheduled slot has passed without a run (machine was off) as late/missed, not just `ok, last good run 47m ago`",
- "contract": "cli/1.0",
+ "contract": "cli/1.1",
  "origin": "continuity test: remediation due 07:50, machine off 07:46-08:06; status before the catch-up tick said ok (was CLI-D1, fixed in cli 0.3.1)",
  "files": {
   "data/ledger.json": "ledger.json",

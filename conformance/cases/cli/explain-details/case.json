@@ -1,0 +1,48 @@
+{
+ "component": "cli",
+ "title": "`sp explain` shows owner, due date and OVERDUE from the tracker, regressions, the collector's own note, whether a person is needed, the private evidence path and an exception snippet expiring in 90 days",
+ "contract": "cli/1.1",
+ "origin": "cli/sp.py cmd_explain",
+ "files": {
+  "data/ledger.json": "ledger.json",
+  "data/tracker/items.json": "items.json"
+ },
+ "steps": [
+  {
+   "name": "sp explain 3594b15d6a9f --data {sandbox}/data",
+   "exec": {
+    "impl": "cli",
+    "args": [
+     "explain",
+     "3594b15d6a9f",
+     "--data",
+     "{sandbox}/data"
+    ]
+   },
+   "exit": 0,
+   "expect": [
+    {
+     "stdout": {
+      "regex": [
+       "^conformance\\.alpha on host:web-1$",
+       "^id 3594b15d6a9f   check conformance\\.alpha   high \\(fix this week\\)$",
+       "^where: host:web-1   area: host - the machine itself \\(updates, firewall, disk\\)$",
+       "^status: open   first seen 2026-11-01   last seen 2026-11-01   came back 2x$",
+       "^owner: ops   fix by: 2026-11-08   OVERDUE$",
+       "^How to fix$",
+       "^  \\(collector's note: turn it off\\)$",
+       "^How to verify$",
+       "^  This one needs a person ",
+       "^If you decide to accept the risk instead \\(a human decision with an end date\\), add to \\S*/data/exceptions\\.yaml:$",
+       "^  exceptions:\\n    3594b15d6a9f:\\n      approved_by: <your name>\\n      reason: <why this is acceptable for now>\\n      expires: '({date:+7776000}|{date:+7779600})'$",
+       "^evidence \\(private\\): \\S*/data/runs/\\.\\.\\./raw/host/web-1\\.json$"
+      ],
+      "not_regex": [
+       "What it means"
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}

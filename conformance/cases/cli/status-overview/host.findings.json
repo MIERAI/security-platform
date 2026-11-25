@@ -1,0 +1,69 @@
+{
+ "collector": {
+  "name": "host",
+  "version": "1.0.0"
+ },
+ "coverage": [
+  {
+   "asset": "host:g0",
+   "reason": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr",
+   "status": "gap"
+  },
+  {
+   "asset": "host:g1",
+   "reason": "unreachable",
+   "status": "gap"
+  },
+  {
+   "asset": "host:g2",
+   "reason": "unreachable",
+   "status": "gap"
+  },
+  {
+   "asset": "host:g3",
+   "reason": "unreachable",
+   "status": "gap"
+  },
+  {
+   "asset": "host:g4",
+   "reason": "unreachable",
+   "status": "gap"
+  },
+  {
+   "asset": "host:g5",
+   "reason": "unreachable",
+   "status": "gap"
+  },
+  {
+   "asset": "host:g6",
+   "reason": "unreachable",
+   "status": "gap"
+  },
+  {
+   "asset": "host:g7",
+   "reason": "unreachable",
+   "status": "gap"
+  },
+  {
+   "asset": "host:g8",
+   "reason": "unreachable",
+   "status": "gap"
+  },
+  {
+   "asset": "host:g9",
+   "reason": "unreachable",
+   "status": "gap"
+  },
+  {
+   "asset": "host:s0",
+   "status": "ok"
+  }
+ ],
+ "findings": [],
+ "run": {
+  "finished_at": "2026-11-01T09:00:00Z",
+  "instance": "conformance",
+  "started_at": "2026-11-01T09:00:00Z"
+ },
+ "schema_version": "1.2"
+}

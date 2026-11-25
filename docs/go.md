@@ -8,8 +8,10 @@ an operator relies on changes in one step (docs/upgrade.md, two-step changes).
 - **One component at a time.** A Go implementation replaces its Python counterpart only after it passes the
   black-box conformance suite for that component (`contracts/`, `conformance/`): same inputs, same documents,
   same exit statuses, same metrics. Until then the Python implementation is what runs.
-- **One binary.** `sp` (`cmd/sp`) is the single user-facing program. A subcommand with a Go implementation runs
-  in Go; every other invocation is handed to the Python implementation (`cli/sp.py`) unchanged: the argument
+- **One binary.** `sp` (`cmd/sp`) is the single user-facing program, and every `sp` subcommand now runs in Go: the
+  day-to-day commands (`init doctor run status findings explain digest notify`, `internal/cli`, contract cli) and the
+  components (`ledger runner scorecard cloud version`). With `SP_CLI=python` (the way back; deprecated, kept through v0.4.x) the
+  day-to-day commands and unknown ones are handed to the Python implementation (`cli/sp.py`) unchanged: the argument
   vector, standard input/output/error, the environment and the exit status. On Unix the `sp` process is
   *replaced* by Python (execve), so signals, the process id and the terminal behave exactly as with `bin/sp`; on
   Windows `sp` waits for a child process and exits with its status.
@@ -39,6 +41,10 @@ internal/release/      product release names from product tags only (as cli/rele
 internal/components/   the product's components (<dir>/VERSION) and their implementation
 internal/buildinfo/    the binary's release (link time), commit and toolchain
 internal/textsafe/     printing text read from files without terminal control characters
+internal/cli/          `sp init|doctor|run|status|findings|explain|digest|notify` (contracts/cli); subpackages flags (the
+                       command lines argparse accepts, its usage/help layout) and explain (explanations.json, embedded and
+                       read by cli/explanations.py: the texts live in one file)
+internal/notifier/     `sp notify`'s adapters (stdout, file, webhook, telegram, exec), as notifier/notifiers.py
 internal/fakepython/   a stand-in interpreter for tests
 internal/scorecard/    the scorecard (`sp scorecard compute|lint|list|version`; `attest` stays in Python)
 internal/pyvalue/       documents as the reference reads them: YAML 1.1 typing, ordered JSON, number printing,
@@ -210,7 +216,7 @@ checking): the same script as the Python collector, with the benchmark name chec
 gofmt -l . && go vet ./... && go test -race -cover ./...
 golangci-lint run ./...                         # the version in .github/workflows/go.yml
 go test -run='^$' -fuzz='^FuzzParseFile$' -fuzztime=30s ./internal/release
-conformance/impl/go/run.sh                      # the conformance suite against `sp ledger` (no expected failures)
+conformance/impl/go/run.sh                      # the conformance suite against the Go ledger and cli (no expected failures)
 go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
 scripts/build-release.sh v0.0.0-local dist-go   # the release build, see docs/install.md
 ```

@@ -1,5 +1,6 @@
 #!/bin/sh
 # Reference implementation of the `cli` component for the conformance suite: the Python program cli/sp.py, unchanged.
-# Interpreter: $SP_PYTHON (default python3). Arguments are passed through.
-ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
-exec "${SP_PYTHON:-python3}" "$ROOT/cli/sp.py" "$@"
+# Interpreter: $SP_PYTHON (default python3). Arguments are passed through. No external command runs before the
+# interpreter (a case may run with an empty PATH): the tree is found by parameter expansion, not dirname.
+case $0 in */*) here=${0%/*} ;; *) here=. ;; esac
+exec "${SP_PYTHON:-python3}" "$here/../../../cli/sp.py" "$@"

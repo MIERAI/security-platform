@@ -1,0 +1,30 @@
+{
+ "entries": {
+  "dc55deef2f07": {
+   "asset": "host:web-9",
+   "attributes": {},
+   "check": "host.dst_due",
+   "collector": "host",
+   "collector_version": "1.0.0",
+   "evidence": "raw/x/host.dst_due.json",
+   "first_seen": "2026-11-01T08:00:00Z",
+   "fixed_at": null,
+   "id": "dc55deef2f07",
+   "kind": "compliance",
+   "last_seen": "2026-11-01T08:00:00Z",
+   "layer": "host",
+   "needs_human": false,
+   "owner": "platform",
+   "refs": [],
+   "remediation": "fix host.dst_due",
+   "reopened_count": 0,
+   "severity": "high",
+   "status": "open",
+   "title": "host.dst_due on host:web-9",
+   "ttk_counted": false
+  }
+ },
+ "runs": [],
+ "schema": "security-platform/ledger/v1",
+ "updated_at": "2026-11-01T09:00:00Z"
+}
