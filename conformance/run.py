@@ -257,8 +257,17 @@ class CaseError(Exception):
 
 
 PROTOCOL_ENV = {"SP_DATA", "SP_INSTANCE", "SP_RUN_DIR", "SP_INPUT_DIR", "SP_INSTANCE_NAME", "SP_COLLECTOR_NAME"}
-# {sandbox} {case} {python} {now_epoch} {svc_<name>} {epoch:+-N} {utc:+-N}; anything else in braces is left alone
-TEMPLATE = re.compile(r"\{(sandbox|case|python|now_epoch|svc_[a-z0-9_]+|epoch:[+-]?\d+|utc:[+-]?\d+)\}")
+# {sandbox} {case} {python} {now_epoch} {fake_jwt} {svc_<name>} {epoch:+-N} {utc:+-N}; anything else in braces is left alone
+TEMPLATE = re.compile(r"\{(sandbox|case|python|now_epoch|fake_jwt|svc_[a-z0-9_]+|epoch:[+-]?\d+|utc:[+-]?\d+)\}")
+
+
+def fake_jwt():
+    """An unsigned, syntactically valid JWT (sub scanner, aud conformance, exp 2100) for identity-token fixtures and
+    as a secret canary. Built here so that no token-shaped string is committed."""
+    import base64
+    enc = lambda d: base64.urlsafe_b64encode(json.dumps(d).encode()).rstrip(b"=").decode()  # noqa: E731
+    return f"{enc({'alg': 'RS256', 'kid': 'k'})}.{enc({'sub': 'scanner', 'aud': 'conformance', 'exp': 4102444800})}." + \
+        base64.urlsafe_b64encode(b"signature-canary").rstrip(b"=").decode()
 
 
 class Sandbox:
@@ -267,7 +276,7 @@ class Sandbox:
         self.root = tempfile.mkdtemp(prefix="spconf-")
         self.keep = keep
         self.vars = {"sandbox": self.root, "case": case_dir, "python": sys.executable,
-                     "now_epoch": str(int(time.time()))}
+                     "now_epoch": str(int(time.time())), "fake_jwt": fake_jwt()}
         self.services, self.background = [], {}
 
     def render(self, s):

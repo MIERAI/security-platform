@@ -6,7 +6,7 @@
  "files": {
   "instance.json": "instance.json",
   "token.jwt": {
-   "text": "eyJhbGciOiAiUlMyNTYiLCAia2lkIjogImsifQ.eyJzdWIiOiAic2Nhbm5lciIsICJhdWQiOiAiY29uZm9ybWFuY2UiLCAiZXhwIjogNDEwMjQ0NDgwMH0.c2lnbmF0dXJlLWNhbmFyeQ"
+   "text": "{fake_jwt}"
   },
   "data/.keep": {
    "text": ""
@@ -54,7 +54,7 @@
     },
     {
      "no_secret": [
-      "eyJhbGciOiAiUlMyNTYiLCAia2lkIjogImsifQ.eyJzdWIiOiAic2Nhbm5lciIsICJhdWQiOiAiY29uZm9ybWFuY2UiLCAiZXhwIjogNDEwMjQ0NDgwMH0.c2lnbmF0dXJlLWNhbmFyeQ",
+      "{fake_jwt}",
       "ya29.conformance-access-token"
      ],
      "in": "run"

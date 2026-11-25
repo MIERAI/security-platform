@@ -1020,9 +1020,7 @@ def protocol_checks(name, canaries=()):
 
 def collector_cases():
     C = "collector-protocol/1.0"
-    import base64
-    enc = lambda d: base64.urlsafe_b64encode(json.dumps(d).encode()).rstrip(b"=").decode()  # noqa: E731
-    tok = f"{enc({'alg': 'RS256', 'kid': 'k'})}.{enc({'sub': 'scanner', 'aud': 'conformance', 'exp': 4102444800})}.c2lnbmF0dXJlLWNhbmFyeQ"
+    tok = "{fake_jwt}"     # built by the harness at run time: no token-shaped string in the repository (secret scanners)
     acct = {"provider": "gcp", "workload_identity_provider": "projects/1/locations/global/workloadIdentityPools/p/providers/x",
             "service_account": "a@p.iam.gserviceaccount.com", "identity_token": {"type": "file", "path": "{sandbox}/token.jwt"},
             "sts_url": "{svc_gcp}/sts", "iamcredentials_url": "{svc_gcp}/iam", "resourcemanager_url": "{svc_gcp}/crm",
