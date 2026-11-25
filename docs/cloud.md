@@ -263,6 +263,55 @@ LocalStack community (pinned by digest) seeded with a public bucket, an unencryp
 (mock-oauth2-server, pinned); `cloudmock.py` for GCP/Azure. It scans with Prowler, Steampipe and ScoutSuite, imports a Security
 Hub export and the SCC / Defender fixtures, asserts findings, pillars, de-duplication, the failure modes and the
 scorecard, fixes three resources, scans again and asserts they are `fixed`. Result: `e2e/cloud-localstack/last-pass.json`.
+`SP_CLOUD_E2E_IMPL=go` runs the Go implementation ([below](#go-implementation-sp-cloud)) and compares it with the
+Python one after every scan.
+
+## Go implementation (`sp cloud`)
+
+The adapter (adapters/cloud.py), the collector (collectors/cloud) and `discovery: gcp` also exist in Go
+(`internal/cloud`, `internal/collectors/cloud`, [go.md](go.md)), on the providers' **official SDKs**: aws-sdk-go-v2
+(SigV4, STS web identity and `AssumeRole`, IAM paging, partitions and endpoints, SSO/shared-config profiles),
+golang.org/x/oauth2/google (Google's STS token exchange, external-account credentials, ADC refresh and service-account
+impersonation) and the Azure SDK for Go (MSAL federated client assertion, ARM paging). The rules of each provider's
+authentication are then the SDK's, not ours. Same configuration keys, same refusals, same coverage-gap reasons, same
+findings document: the Python and Go implementations produce byte-identical documents, evidence and metrics apart
+from times (shown on every e2e run and by the parity tests on the shared fixtures).
+
+```sh
+sp cloud collect                                  # the collector (collector protocol: SP_RUN_DIR, SP_INSTANCE, ...)
+sp cloud discover discovery-gcp.json              # discovery gcp: the VM instances as JSON on stdout
+sp cloud credential-process ACCOUNT.json          # called by engines (AWS credential_process), not by people
+sp cloud executable-token ACCOUNT.json            # called by engines (google-auth executable-sourced token)
+```
+
+It is not the default yet (the runner still runs collectors/cloud/collector.py). It is not selected with
+`runner.implementations` either: that switch is for core steps whose inputs are files in the data directory (`shadow`
+runs Go on a copy of them); a collector's input is the live cloud, and a shadow run would scan every account twice.
+To run it, a `command` job:
+
+```yaml
+runner:
+  jobs:
+    cloud: {type: command, argv: [~/.local/bin/sp, cloud, collect], schedule: "30 4 * * *", timeout: 4h}
+```
+
+Conformance: `SP_IMPL_COLLECTOR_CLOUD="sp cloud collect" python3 conformance/run.py --component collector-cloud`.
+End to end: `SP_CLOUD_E2E_IMPL=go e2e/cloud-localstack/run.sh` (also runs the Python implementation on the same state
+after every scan and failure scenario and compares the outputs, `compare_impls.py`).
+
+Differences an operator can notice:
+
+- **Azure authority**: the SDK accepts only `https` and only the root of a host (`https://login.microsoftonline.com`,
+  a sovereign cloud's authority, `https://<emulator>:<port>`); an emulator needs TLS and, with a private CA, `ca_file`.
+- **`ca_file`** (any provider, Go only): extra CA certificates trusted for the account's endpoints.
+- **GCP `source: adc`**: the impersonated service-account token lives Google's default hour (x/oauth2 takes no lifetime
+  for impersonated user credentials); `session_seconds` still applies to workload identity federation.
+- **AWS `mode: profile`**: the profile is resolved by the SDK's own shared-config rules (IAM Identity Center/SSO, role
+  chains, `credential_process`) instead of `aws configure export-credentials`, so the AWS CLI is not needed; a profile
+  that yields long-lived keys is still refused.
+- **Retries**: the SDKs retry throttling and server errors with backoff (Python: one attempt). Azure resource-provider
+  auto-registration (a write the ARM SDK would otherwise attempt on some errors) is disabled.
+- **Network failures** read `<step>: <host> unreachable (connection failed|timeout)`.
 
 ## Validating against a real account
 

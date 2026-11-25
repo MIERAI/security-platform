@@ -842,5 +842,16 @@ class Scorecard(unittest.TestCase):
         self.assertEqual(sc.lint(dims, ctrls), [])
 
 
+class GoImplementationParity(unittest.TestCase):
+    """The Go implementation (internal/collectors/cloud) is tested against this implementation's answers on the same
+    fixtures (internal/collectors/cloud/testdata/golden.json). Changing a parser, the merge or a control table here
+    without regenerating the reference (gen_golden.py) fails this test, so the two cannot drift apart unnoticed."""
+
+    def test_golden_reference_is_current(self):
+        gen = os.path.join(ROOT, "internal", "collectors", "cloud", "testdata", "gen_golden.py")
+        r = subprocess.run([sys.executable, "-I", gen, "--check"], capture_output=True, text=True, timeout=120)
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+
+
 if __name__ == "__main__":
     unittest.main()

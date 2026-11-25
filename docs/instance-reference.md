@@ -219,7 +219,10 @@ cloud:
       client_id: ...                  # app registration / user-assigned identity with a federated credential
       identity_token: {type: file, path: ...}
       subscription_ids: [...]         # optional
-      # authority_host, arm_url, scope: optional endpoint overrides (default: Microsoft Entra / ARM public cloud)
+      # authority_host, arm_url, scope: optional endpoint overrides (default: Microsoft Entra / ARM public cloud);
+      #   with the Go implementation the authority must be https and the root of a host (https://<host>[:port])
+      # ca_file: optional, every provider (Go implementation only): PEM CA certificates trusted in addition to the
+      #   system's for this account's endpoints (an emulator, a sovereign cloud, a TLS-inspecting proxy)
   engines:                            # external processes; install with `render.py tool-env --tool <name>`
     prowler:    {path: <install>/tools/prowler/current/bin/prowler, checks: [..], services: [..], excluded_checks: [..],
                  scan_unused_services: true, timeout: 3h, extra_args: []}

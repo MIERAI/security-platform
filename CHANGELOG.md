@@ -4,6 +4,25 @@ Components are versioned independently (docs/design.md §5). Entries name the co
 
 ## Unreleased
 
+- **collectors/cloud 0.3.0**: a Go implementation, `sp cloud collect` (internal/collectors/cloud), behind the collector
+  protocol: Prowler, Steampipe and ScoutSuite as external processes, Security Hub / SCC / Defender imports, the generic
+  controls and the merge into one finding with N sources. Its findings document, evidence and metrics are
+  byte-identical to the Python implementation's apart from times: the conformance case collector-cloud passes, the
+  cloud e2e passes with it (`SP_CLOUD_E2E_IMPL=go`, every scan and failure scenario compared with the Python run) and
+  parity tests pin the parsers, the merge and the control tables to the Python answers on the shared fixtures
+  (`internal/collectors/cloud/testdata/golden.json`, kept current by tests/test_cloud.py). The Python collector is
+  unchanged and stays the default; a `command` job selects the Go one (docs/cloud.md). The instance config is read
+  with the YAML 1.1 rules of the reference (internal/pyvalue, go.yaml.in/yaml/v3).
+- **adapters/cloud.py 0.3.0, adapters/discovery.py 0.6.0**: their Go implementation, internal/cloud, on the providers'
+  official SDKs instead of our own protocol code: aws-sdk-go-v2 (STS web identity + `AssumeRole` chain, IAM policy
+  inspection with paging, SSO/shared-config profiles without the AWS CLI), golang.org/x/oauth2/google (STS token
+  exchange, external-account config for engines, ADC refresh + impersonation; `getIamPolicy` at policy version 3) and
+  the Azure SDK for Go (federated client assertion, ARM role assignments, resource-provider auto-registration off).
+  Same keys, refusals and gap reasons; new optional `ca_file` per account (Go). `sp cloud discover` is `discovery: gcp`
+  in Go. Dependencies and why each is needed: docs/go.md (google.golang.org/api considered and not used).
+- **sp**: new Go subcommand `sp cloud` (collect, discover, and the engines' credential callbacks).
+- **e2e/cloud-localstack**: `SP_CLOUD_E2E_IMPL=go`; `compare_impls.py`; the mock also serves the Entra/ARM endpoints
+  over TLS (the Azure SDK for Go requires an https authority at the root of a host).
 - **scorecard 0.5.0 — Go implementation** (`sp scorecard compute|lint|list|version`, `internal/scorecard`): the
   first component with a Go implementation next to the Python one. It reads the same catalog, instance, ledger,
   metrics, job states and attestations and writes the same `scorecard.json`, `scorecard.md`, `scorecard.prom` and

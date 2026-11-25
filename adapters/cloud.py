@@ -41,7 +41,7 @@ import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 REFRESH_MARGIN = 300          # seconds before expiry at which cached credentials are renewed
 SESSION_SECONDS = 3600
 LONG_LIVED_KEYS = ("access_key_id", "secret_access_key", "aws_access_key_id", "aws_secret_access_key", "client_secret",
