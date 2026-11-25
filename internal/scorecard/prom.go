@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	pv "github.com/MIERAI/security-platform/internal/scorecard/pyvalue"
+	pv "github.com/MIERAI/security-platform/internal/pyvalue"
 )
 
 const (

@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	pv "github.com/MIERAI/security-platform/internal/scorecard/pyvalue"
+	pv "github.com/MIERAI/security-platform/internal/pyvalue"
 )
 
 // File modes. The report and the metrics are private (failing controls are attacker intelligence); the

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"strings"
 
-	pv "github.com/MIERAI/security-platform/internal/scorecard/pyvalue"
+	pv "github.com/MIERAI/security-platform/internal/pyvalue"
 )
 
 // maxDetail bounds the error text in an "evaluator error" detail (characters).

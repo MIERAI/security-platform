@@ -165,9 +165,8 @@ additions, all optional:
 - Inputs the reference cannot process are handled instead of stopping the merge: a document that is not JSON is
   recorded in `runs[-1].invalid` like any invalid document; `format: date-time` of the findings schema is checked
   (the reference skips it and fails later on an undatable timestamp); an exception whose `expires` is not a date is
-  ignored with a warning; mapping keys of `exceptions.yaml` are their text (an unquoted id made only of digits is
-  still that id); YAML is read as YAML 1.2 (`yes`/`no` and unquoted dates are strings: an exception's `expires` is
-  recorded as written).
+  ignored with a warning. YAML is typed as the reference's PyYAML does (YAML 1.1: `yes` is a boolean, an
+  unquoted date is a date recorded as its `str()`), through the shared `internal/pyvalue`.
 
 ## 9. Examples
 
