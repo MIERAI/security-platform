@@ -1934,7 +1934,9 @@ def cli_status_cases():
     jobs = {"host": {"schedule": "15 2 * * *"}, "flaky": {"schedule": "15 3 * * *"},
             "late": {"type": "remediation", "schedule": "*/10 * * * *"}, "fresh": {"schedule": "0 4 * * *"}}
     states = {
-        "host": {"runs_total": 3, "failures_total": 0, "last_rc": 0, "last_success": "{epoch:-7300}", "done_slot": "{epoch:-7400}"},
+        # done_slot = now: the next slot of host's daily schedule is always in the future, so the job is "ok" at
+        # any time of day (with done_slot 2h ago it was LATE whenever the run fell within 2h after 02:15 local)
+        "host": {"runs_total": 3, "failures_total": 0, "last_rc": 0, "last_success": "{epoch:-7300}", "done_slot": "{epoch:0}"},
         "flaky": {"runs_total": 4, "failures_total": 2, "last_rc": 3, "last_success": "{epoch:-90000}",
                   "last_note": "collector exited rc=3, document=no " + "z" * 100},
         "late": {"runs_total": 5, "failures_total": 0, "last_rc": 0, "last_success": "{epoch:-2820}", "done_slot": "{epoch:-2880}"}}
@@ -1948,7 +1950,7 @@ def cli_status_cases():
           "scorecard.json": sc, "host.findings.json": gdoc}
     for n, s_ in states.items():
         fx[f"state-{n}.json"] = raw_json(dict({"schema": "security-platform/runner-state/v1", "job": n}, **s_),
-                                         "{epoch:-7300}", "{epoch:-7400}", "{epoch:-90000}", "{epoch:-2820}", "{epoch:-2880}")
+                                         "{epoch:-7300}", "{epoch:0}", "{epoch:-90000}", "{epoch:-2820}", "{epoch:-2880}")
     top = sorted(range(6), key=lambda i: (["critical", "high", "medium", "low"].index(ents[i]["severity"]), ents[i]["first_seen"]))[:5]
     write_case("cli", "status-overview", {
         "title": "`sp status`: open findings by severity, overdue and unowned fixes, fixed in 7 days and regressions, the "
